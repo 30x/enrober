@@ -25,7 +25,7 @@ type DeploymentManager struct {
 //ImageDeployment is a collection of necesarry resources for Replication Controller Deployments
 //TODO: May have to add a secret name here?
 type ImageDeployment struct {
-	Repo            string
+	Namespace       string
 	Application     string
 	Revision        string
 	TrafficHosts    []string
@@ -76,7 +76,7 @@ func CreateDeploymentManager(config restclient.Config) (*DeploymentManager, erro
 func (deploymentManager *DeploymentManager) CreateNamespace(imageDeployment ImageDeployment) (api.Namespace, error) {
 	opt := &api.Namespace{
 		ObjectMeta: api.ObjectMeta{
-			Name: imageDeployment.Repo,
+			Name: imageDeployment.Namespace,
 		},
 	}
 	ns, err := deploymentManager.client.Namespaces().Create(opt)
@@ -86,10 +86,12 @@ func (deploymentManager *DeploymentManager) CreateNamespace(imageDeployment Imag
 	return *ns, nil
 }
 
+//TODO: Test if we can rename Namespaces
+
 //GetNamespace <description goes here>
 //Returns a Namespace and an error
 func (deploymentManager *DeploymentManager) GetNamespace(imageDeployment ImageDeployment) (api.Namespace, error) {
-	ns, err := deploymentManager.client.Namespaces().Get(imageDeployment.Repo)
+	ns, err := deploymentManager.client.Namespaces().Get(imageDeployment.Namespace)
 	if err != nil {
 		return *ns, err //TODO: Better error handling
 	}
@@ -99,7 +101,7 @@ func (deploymentManager *DeploymentManager) GetNamespace(imageDeployment ImageDe
 //DeleteNamespace <description goes here>
 //Returns an error
 func (deploymentManager *DeploymentManager) DeleteNamespace(imageDeployment ImageDeployment) error {
-	ns := imageDeployment.Repo
+	ns := imageDeployment.Namespace
 	err := deploymentManager.client.Namespaces().Delete(ns)
 	if err != nil {
 		return err //TODO: Better error handling
@@ -173,7 +175,7 @@ func constructDeployment(imageDeployment ImageDeployment) extensions.Deployment 
 	var imageTemp string
 	//If no Image is passed in then concatenate path
 	if imageDeployment.Image == "" {
-		imageTemp = regString + imageDeployment.Repo + "/" + imageDeployment.Application + ":" + imageDeployment.Revision
+		imageTemp = regString + imageDeployment.Namespace + "/" + imageDeployment.Application + ":" + imageDeployment.Revision
 	} else {
 		imageTemp = imageDeployment.Image
 	}
@@ -188,7 +190,7 @@ func constructDeployment(imageDeployment ImageDeployment) extensions.Deployment 
 			Replicas: imageDeployment.PodCount,
 			Selector: &unversioned.LabelSelector{ //Deployment Labels go here
 				MatchLabels: map[string]string{
-					"Repo":        imageDeployment.Repo,
+					"Namespace":   imageDeployment.Namespace,
 					"Application": imageDeployment.Application,
 					"Revision":    imageDeployment.Revision,
 				},
@@ -196,7 +198,7 @@ func constructDeployment(imageDeployment ImageDeployment) extensions.Deployment 
 			Template: api.PodTemplateSpec{
 				ObjectMeta: api.ObjectMeta{
 					Labels: map[string]string{
-						"Repo":         imageDeployment.Repo,
+						"Namespace":    imageDeployment.Namespace,
 						"Application":  imageDeployment.Application,
 						"Revision":     imageDeployment.Revision,
 						"microservice": "true",
@@ -253,7 +255,7 @@ func constructDeployment(imageDeployment ImageDeployment) extensions.Deployment 
 
 //GetDeployment <description goes here>
 func (deploymentManager *DeploymentManager) GetDeployment(imageDeployment ImageDeployment) (extensions.Deployment, error) {
-	dep, err := deploymentManager.client.Deployments(imageDeployment.Repo).Get(imageDeployment.Application + "-" + imageDeployment.Revision)
+	dep, err := deploymentManager.client.Deployments(imageDeployment.Namespace).Get(imageDeployment.Application + "-" + imageDeployment.Revision)
 	if err != nil {
 		return *dep, err //TODO: Better error handling
 	}
@@ -267,14 +269,14 @@ func (deploymentManager *DeploymentManager) GetDeploymentList(imageDeployment Im
 
 	//No application is passed
 	if imageDeployment.Application == "" {
-		depList, err = deploymentManager.client.Deployments(imageDeployment.Repo).List(api.ListOptions{
+		depList, err = deploymentManager.client.Deployments(imageDeployment.Namespace).List(api.ListOptions{
 			LabelSelector: labels.Everything(),
 		})
 		if err != nil {
 			return *depList, err //TODO: Better error handling
 		}
 	} else {
-		depList, err = deploymentManager.client.Deployments(imageDeployment.Repo).List(api.ListOptions{
+		depList, err = deploymentManager.client.Deployments(imageDeployment.Namespace).List(api.ListOptions{
 			LabelSelector: selector,
 		})
 		if err != nil {
@@ -288,7 +290,7 @@ func (deploymentManager *DeploymentManager) GetDeploymentList(imageDeployment Im
 //Returns a Deployment and an error
 func (deploymentManager *DeploymentManager) CreateDeployment(imageDeployment ImageDeployment) (extensions.Deployment, error) {
 	template := constructDeployment(imageDeployment)
-	dep, err := deploymentManager.client.Deployments(imageDeployment.Repo).Create(&template)
+	dep, err := deploymentManager.client.Deployments(imageDeployment.Namespace).Create(&template)
 	if err != nil {
 		return *dep, err //TODO: Better error handling
 	}
@@ -298,7 +300,7 @@ func (deploymentManager *DeploymentManager) CreateDeployment(imageDeployment Ima
 //UpdateDeployment <description goes here>
 func (deploymentManager *DeploymentManager) UpdateDeployment(imageDeployment ImageDeployment) (extensions.Deployment, error) {
 	template := constructDeployment(imageDeployment)
-	dep, err := deploymentManager.client.Deployments(imageDeployment.Repo).Update(&template)
+	dep, err := deploymentManager.client.Deployments(imageDeployment.Namespace).Update(&template)
 	if err != nil {
 		return *dep, err //TODO: Better error handling
 	}
@@ -320,7 +322,7 @@ func (deploymentManager *DeploymentManager) UpdateDeployment(imageDeployment Ima
 // //CreateSecret <description goes here>
 // func (deploymentManager *DeploymentManager) CreateSecret(imageDeployment ImageDeployment) (api.Secret, error) {
 // 	template := ConstructSecret() //TODO
-// 	secret, err := deploymentManager.client.Secrets(imageDeployment.Repo).Create(&template)
+// 	secret, err := deploymentManager.client.Secrets(imageDeployment.Namespace).Create(&template)
 // 	if err != nil {
 // 		return *dep, err //TODO: Better error handling
 // 	}

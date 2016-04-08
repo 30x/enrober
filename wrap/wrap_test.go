@@ -18,8 +18,8 @@ var config2 = restclient.Config{
 }
 
 var imageDeployment = ImageDeployment{
-	//repositoryURI: "testURI",
-	Repo:         "jbowen",
+	//NamespacesitoryURI: "testURI",
+	Namespace:    "jbowen",
 	Application:  "testapp",
 	Revision:     "v0",
 	TrafficHosts: []string{},
@@ -27,6 +27,8 @@ var imageDeployment = ImageDeployment{
 	PathPort:     "",
 	PodCount:     1,
 }
+
+//TODO: Maybe move to ginkgo
 
 func TestCreateDeploymentManager(t *testing.T) {
 	deploymentManager, err := CreateDeploymentManager(config)
@@ -52,7 +54,7 @@ func TestCreateNamespace(t *testing.T) {
 	ns, err := deploymentManager.CreateNamespace(imageDeployment)
 	assert.Nil(t, err)
 
-	gotNs, err := deploymentManager.client.Namespaces().Get(imageDeployment.Repo)
+	gotNs, err := deploymentManager.client.Namespaces().Get(imageDeployment.Namespace)
 	assert.Nil(t, err)
 
 	assert.Equal(t, ns, *gotNs)

@@ -1,4 +1,5 @@
 //TODO: Implement proper HTTP response codes
+//TODO: Remove fmt.Fprintf calls
 
 package main
 
@@ -35,26 +36,41 @@ func main() {
 		fmt.Printf("Defaulting to Local Dev Setup\n")
 	}
 
+	server := NewServer()
+	http.ListenAndServe(":9000", server.router)
+
+}
+
+//Server struct
+type Server struct {
+	router *mux.Router
+}
+
+//NewServer creates a new server
+func NewServer() (server *Server) {
 	router := mux.NewRouter()
 
 	sub := router.PathPrefix("/beeswax/deploy/api/v1").Subrouter()
 
-	sub.HandleFunc("/{repo}", RepoHandler).Methods("GET")
+	sub.HandleFunc("/{Namespace}", NamespaceHandler).Methods("GET") //TODO: Add support for POST
 
-	sub.HandleFunc("/{repo}/{application}", ApplicationHandler).Methods("GET")
+	sub.HandleFunc("/{Namespace}/{application}", ApplicationHandler).Methods("GET")
 
-	sub.HandleFunc("/{repo}/{application}/{revision}", RevisionHandler).Methods("GET", "PUT", "POST")
+	sub.HandleFunc("/{Namespace}/{application}/{revision}", RevisionHandler).Methods("GET", "PUT", "POST")
 
-	http.ListenAndServe(":9000", router)
+	server = &Server{
+		router: router,
+	}
 
+	return server
 }
 
-//RepoHandler does stuff
-func RepoHandler(w http.ResponseWriter, r *http.Request) {
+//NamespaceHandler does stuff
+func NamespaceHandler(w http.ResponseWriter, r *http.Request) {
 
 	//get the variable path
 	vars := mux.Vars(r)
-	fmt.Fprintf(w, "Path: /%s\n", vars["repo"])
+	fmt.Fprintf(w, "Path: /%s\n", vars["Namespace"])
 
 	//get the http verb
 	verb := r.Method
@@ -64,12 +80,12 @@ func RepoHandler(w http.ResponseWriter, r *http.Request) {
 	dm, err := wrap.CreateDeploymentManager(clientconfig)
 	if err != nil {
 		fmt.Fprintf(w, "Broke at manager: %v\n", err)
-		fmt.Fprintf(w, "In function RepoHandler\n")
+		fmt.Fprintf(w, "In function NamespaceHandler\n")
 		return
 	}
 
 	imagedeployment := wrap.ImageDeployment{
-		Repo:         vars["repo"],
+		Namespace:    vars["Namespace"],
 		Application:  "",
 		Revision:     "",
 		TrafficHosts: []string{},
@@ -86,7 +102,7 @@ func RepoHandler(w http.ResponseWriter, r *http.Request) {
 		ns, err := dm.GetNamespace(imagedeployment)
 		if err != nil {
 			fmt.Fprintf(w, "Broke at namespace: %v\n", err)
-			fmt.Fprintf(w, "In function RepoHandler\n")
+			fmt.Fprintf(w, "In function NamespaceHandler\n")
 			return
 		}
 		fmt.Fprintf(w, "Got Namespace %s\n", ns.GetName())
@@ -108,15 +124,15 @@ func ApplicationHandler(w http.ResponseWriter, r *http.Request) {
 
 	//get the variable path
 	vars := mux.Vars(r)
-	fmt.Fprintf(w, "Path: /%s\n", vars["repo"])
+	fmt.Fprintf(w, "Path: /%s\n", vars["Namespace"])
 
 	//get the http verb
 	verb := r.Method
 	fmt.Fprintf(w, "HTTP Verb: %s\n", verb)
 
-	//get namespace matching vars["repo"]
+	//get namespace matching vars["Namespace"]
 	imagedeployment := wrap.ImageDeployment{
-		Repo:         vars["repo"],
+		Namespace:    vars["Namespace"],
 		Application:  vars["application"],
 		Revision:     "",
 		TrafficHosts: []string{},
@@ -153,14 +169,14 @@ func ApplicationHandler(w http.ResponseWriter, r *http.Request) {
 func RevisionHandler(w http.ResponseWriter, r *http.Request) {
 	//get the variable path
 	vars := mux.Vars(r)
-	fmt.Fprintf(w, "Path: /%s\n", vars["repo"])
+	fmt.Fprintf(w, "Path: /%s\n", vars["Namespace"])
 
 	//get the http verb
 	verb := r.Method
 	fmt.Fprintf(w, "HTTP Verb: %s\n", verb)
 
 	imagedeployment := wrap.ImageDeployment{
-		Repo:         vars["repo"],
+		Namespace:    vars["Namespace"],
 		Application:  vars["application"],
 		Revision:     vars["revision"],
 		TrafficHosts: []string{},
@@ -168,7 +184,6 @@ func RevisionHandler(w http.ResponseWriter, r *http.Request) {
 		PathPort:     "",
 		PodCount:     1,
 		EnvVars:      map[string]string{},
-		// Database:     wrap.DBStruct{},
 	}
 
 	//manager
@@ -195,6 +210,7 @@ func RevisionHandler(w http.ResponseWriter, r *http.Request) {
 		//Check if namespace already exists
 		getNs, err := dm.GetNamespace(imagedeployment)
 
+		//TODO: No longer creating namespace here
 		//Namespace wasn't found so create it
 		if err != nil && getNs.GetName() == "" {
 			ns, err := dm.CreateNamespace(imagedeployment)
@@ -222,6 +238,9 @@ func RevisionHandler(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 		var t deploymentVariables
 		err = decoder.Decode(&t)
+		if err != nil {
+			fmt.Printf("Error decoding JSON")
+		}
 
 		//TrafficHosts can't be empty so fail if it is
 		//TODO: Should do this checking before we create the namespace
@@ -229,15 +248,15 @@ func RevisionHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "Traffic Hosts cannot be empty")
 			return
 		}
-		imagedeployment.TrafficHosts = t.TrafficHosts
 
+		//TODO: This feels repetitive
+		imagedeployment.PodCount = t.PodCount
+		imagedeployment.Image = t.Image
+		imagedeployment.ImagePullSecret = t.ImagePullSecret
+		imagedeployment.TrafficHosts = t.TrafficHosts
 		imagedeployment.PublicPaths = t.PublicPaths
 		imagedeployment.PathPort = strconv.Itoa(t.PathPort)
-
-		//Make sure this works
 		imagedeployment.EnvVars = t.EnvVars
-
-		imagedeployment.Image = t.Image
 
 		//Check if deployment already exists
 		getDep, err := dm.GetDeployment(imagedeployment)

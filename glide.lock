@@ -1,5 +1,5 @@
-hash: 066c5992281384a2f4804d53f5086ef94ea94fbe5f75df9ee9878865f25f9586
-updated: 2016-03-21T15:16:12.313139728-06:00
+hash: 9a4819d25c9cae79b1c94b23e3088b9485c2ad8fa7e59882b1c1c7560fcea83d
+updated: 2016-04-05T11:21:44.206811058-06:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c
@@ -10,7 +10,7 @@ imports:
 - name: github.com/blang/semver
   version: 31b736133b98f26d5e078ec9eb591666edfd091f
 - name: github.com/codegangsta/cli
-  version: c31a7975863e7810c92e2e288a9ab074f9a88f29
+  version: 942282e931e8286aa802a30b01fa7e16befb50f3
 - name: github.com/davecgh/go-spew
   version: 3e6e67c4dcea3ac2f25fd4731abc0e1deaf36216
   subpackages:
@@ -73,14 +73,43 @@ imports:
   version: fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a
   subpackages:
   - pbutil
+- name: github.com/onsi/ginkgo
+  version: 07d85e6b10c4289c7d612f9b13f45ba36f66d55b
+  subpackages:
+  - ginkgo
+  - config
+  - internal/codelocation
+  - internal/failer
+  - internal/remote
+  - internal/suite
+  - internal/testingtproxy
+  - internal/writer
+  - reporters
+  - reporters/stenographer
+  - types
+  - internal/containernode
+  - internal/leafnodes
+  - internal/spec
+  - internal/specrunner
+- name: github.com/onsi/gomega
+  version: 8adf9e1730c55cdc590de7d49766cb2acc88d8f2
+  subpackages:
+  - internal/assertion
+  - internal/asyncassertion
+  - internal/testingtsupport
+  - matchers
+  - types
+  - format
+  - matchers/support/goraph/bipartitegraph
+  - matchers/support/goraph/edge
+  - matchers/support/goraph/node
+  - matchers/support/goraph/util
 - name: github.com/opencontainers/runc
-  version: e32651842a04f1f6d174f6a2c16cbcb6ceba4924
+  version: 7ca2aa4873aea7cb4265b1726acb24b90d8726c6
   subpackages:
   - libcontainer
 - name: github.com/opencontainers/specs
-  version: 3ce138b1934bf227a418e241ead496c383eaba1c
-  subpackages:
-  - specs-go
+  version: a7b50925d8996923d99e1c50750131e20b743067
 - name: github.com/pborman/uuid
   version: ca53cad383cad2479bbba7f7a1a05797ec1386e4
 - name: github.com/pmezard/go-difflib

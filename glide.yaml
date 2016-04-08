@@ -11,3 +11,7 @@ import:
   subpackages:
   - libcontainer
 - package: github.com/docker/go-units
+- package: github.com/onsi/ginkgo
+  subpackages:
+  - ginkgo
+- package: github.com/onsi/gomega

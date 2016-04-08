@@ -1,168 +1,343 @@
----
-  swagger: "2.0"
-  info: 
-    version: "0.0.0"
-    title: "Additional APIs for building for and deploying to Kubernetes."
-  basePath: "/api/v1"
-  consumes: 
-    - "application/json"
-    - "multipart/form-data"
-  produces: 
-    - "application/json"
-  paths: 
-    /deployments/{repo}: 
-      get: 
-        description: "Get all deployments for this repository"
-        operationId: "getDeployemnts"
-        responses: 
-          200: 
-            description: "The request was for a repository and applications exist within that repository"
-            schema: 
-              type: "array"
-              items: 
-                $ref: "#/definitions/Deployment"
-          404: 
-            description: "The request was for a repository that does not exist"
-            schema: 
-              $ref: "#/definitions/Error"
-      parameters: 
-        - 
-          name: "repo"
-          in: "path"
-          description: "The repository id"
-          required: true
-          type: "string"
-    /deployments/{repo}/{application}: 
-      get: 
-        description: "Get all deployed revisions for the application in the repository"
-        operationId: "getDeployedRevisions"
-        responses: 
-          200: 
-            description: "The request was for a valid repository and application"
-            schema: 
-              type: "array"
-              items: 
-                $ref: "#/definitions/Deployment"
-          404: 
-            description: "The request was for a repository or application that does not exist"
-            schema: 
-              $ref: "#/definitions/Error"
-      parameters: 
-        - 
-          name: "repo"
-          in: "path"
-          description: "The repository id"
-          required: true
-          type: "string"
-        - 
-          name: "application"
-          in: "path"
-          description: "The Application"
-          required: true
-          type: "string"
-    /deployments/{repo}/{application}/{revision}: 
-      get: 
-        description: "Get all deployment for the specfied revision of the application within the repo"
-        operationId: "getImageDeployments"
-        responses: 
-          200: 
-            description: "The request was for a valid repository and application and revision"
-            schema: 
-              $ref: "#/definitions/Deployment"
-          404: 
-            description: "The request was for a repository or application that does not exist"
-            schema: 
-              $ref: "#/definitions/Error"
-      put: 
-        description: "Create or update a deploment of the specified revision"
-        operationId: "createOrUpdate deployment"
-        responses: 
-          200: 
-            description: "The request was for a valid repo, application, and image"
-            schema: 
-              $ref: "#/definitions/Deployment"
-          400: 
-            description: "Unable to deploy the application"
-            schema: 
-              $ref: "#/definitions/Error"
-          404: 
-            description: "The revision does not exist"
-            schema: 
-              $ref: "#/definitions/Error"
-      parameters: 
-        - 
-          name: "repo"
-          in: "path"
-          description: "The repository id"
-          required: true
-          type: "string"
-        - 
-          name: "application"
-          in: "path"
-          description: "The Application name"
-          required: true
-          type: "string"
-        - 
-          name: "revision"
-          in: "path"
-          description: "The Revision"
-          required: true
-          type: "string"
-  definitions: 
-    Deployment: 
-      description: "Object that describes a deployment."
-      allOf: 
-        - 
-          $ref: "#/definitions/Links"
-      type: "object"
-      properties: 
-        controller: 
-          description: "The deployed replication controller"
-          type: "string"
-        logs: 
-          description: "The log output from the deployment"
-          type: "array"
-          items: 
-            type: "string"
-      required: 
-        - "controller"
-        - "logs"
-        - "_links"
-    Error: 
-      description: "Object used for all API errors."
-      type: "object"
-      properties: 
-        message: 
-          type: "string"
-        logs: 
-          type: "array"
-          items: 
-            type: "string"
-      required: 
-        - "message"
-    Links: 
-      description: "Object used to wrap resource links."
-      type: "object"
-      properties: 
-        _links: 
-          description: "Container for any number of named resource links."
-          type: "object"
-          additionalProperties: 
-            description: "A resource link."
-            type: "object"
-            properties: 
-              href: 
-                description: "The link to the resource."
-                format: "uri"
-                type: "string"
-            required: 
-              - "href"
-      required: 
-        - "_links"
-  tags: 
-    - 
-      name: "build"
-      description: "Build operations"
-    - 
-      name: "deploy"
-      description: "Deploy operation"
+swagger: '2.0'
+
+info:
+  version: "0.0.0"
+  title: Enrober
+
+paths:
+  /owners:
+    get:
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+    
+    post:
+      parameters:
+      - name: owner
+        in: body
+        description: Owner of namespace
+        required: true
+        schema:
+          type: string
+          
+      responses:
+        201:
+          description: Created
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+    
+  /owners/{owner}:
+    get:
+      parameters:
+      - name: owner
+        in: path
+        description: Owner of namespace
+        required: true
+        type: string
+        
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+    
+    delete:
+      parameters:
+      - name: owner
+        in: path
+        description: Owner of namespace
+        required: true
+        type: string
+      
+      parameters:
+      - name: owner
+        in: path
+        description: Owner of namespace
+        required: true
+        type: string
+        
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+      
+  /owners/{owner}/namespaces:
+    get:
+      parameters:
+      - name: owner
+        in: path
+        description: Owner of namespace
+        required: true
+        type: string
+        
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+
+    post:
+      parameters:
+      - name: owner
+        in: path
+        description: Owner of namespace
+        required: true
+        type: string
+        
+      responses:
+        201:
+          description: Created
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+  
+
+  /owners/{owner}/namespaces/{namespace}:
+    get:
+      parameters:
+      - name: owner
+        in: path
+        description: Owner of namespace
+        required: true
+        type: string
+        
+      - name: namespace
+        in: path
+        description: Namespace to place deployment in
+        required: true
+        type: string
+        
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+    
+    patch:
+      parameters:
+      - name: owner
+        in: path
+        description: Owner of namespace
+        required: true
+        type: string
+        
+      - name: namespace
+        in: path
+        description: Namespace to place deployment in
+        required: true
+        type: string
+        
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+    
+    delete:
+      parameters:
+      - name: owner
+        in: path
+        description: Owner of namespace
+        required: true
+        type: string
+        
+      - name: namespace
+        in: path
+        description: Namespace to place deployment in
+        required: true
+        type: string
+        
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+      
+  /owners/{owner}/namespaces/{namespace}/deployments:
+    get:
+      parameters:
+      - name: owner
+        in: path
+        description: Owner of namespace
+        required: true
+        type: string
+        
+      - name: namespace
+        in: path
+        description: Namespace to place deployment in
+        required: true
+        type: string
+        
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+    
+    post:
+      parameters:
+      - name: owner
+        in: path
+        description: Owner of namespace
+        required: true
+        type: string
+        
+      - name: namespace
+        in: path
+        description: Namespace to place deployment in
+        required: true
+        type: string
+        
+      - name: deployment_body
+        in: body
+        description: JSON Body
+        required: true
+        schema:
+          $ref: '#/definitions/deployment_body'
+          
+      responses:
+        201:
+          description: Created
+        400:
+          description: Bad Request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+
+  /owners/{owner}/namespaces/{namespace}/deployments/{deployment}:
+    get:
+      parameters:
+      - name: owner
+        in: path
+        description: Owner of namespace
+        required: true
+        type: string
+        
+      - name: namespace
+        in: path
+        description: Namespace to place deployment in
+        required: true
+        type: string
+        
+      - name: deployment
+        in: path
+        description: Name of deployment
+        required: true
+        type: string
+        
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+    
+    patch:
+      parameters:
+      - name: owner
+        in: path
+        description: Owner of namespace
+        required: true
+        type: string
+        
+      - name: namespace
+        in: path
+        description: Namespace to place deployment in
+        required: true
+        type: string
+        
+      - name: deployment
+        in: path
+        description: Name of deployment
+        required: true
+        type: string
+        
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+    
+    delete:
+      parameters:
+      - name: owner
+        in: path
+        description: Owner of namespace
+        required: true
+        type: string
+        
+      - name: namespace
+        in: path
+        description: Namespace to place deployment in
+        required: true
+        type: string
+        
+      - name: deployment
+        in: path
+        description: Name of deployment
+        required: true
+        type: string
+        
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+          
+definitions:
+  deployment_body:
+    description: Deployment JSON body object
+    properties:
+      traffic_hosts: 
+        type: string
+        description: Where deployment object is routed
+      traffic_weights:
+        type: integer
+        description: How much traffic is sent to deployment object
+      replicas:
+        type: integer
+        description: How many replicas to be deployed
+      pts_url:
+        type: string
+        description: URL to pod template spec json
+          
