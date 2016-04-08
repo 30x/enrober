@@ -15,36 +15,31 @@ paths:
         default:
           description: 5xx Errors
     
-    post:
-      parameters:
-      - name: owner
-        in: body
-        description: Owner of namespace
-        required: true
-        schema:
-          type: string
-          
-      responses:
-        201:
-          description: Created
-        401:
-          description: Unauthorized
-        403:
-          description: Forbidden
-        404:
-          description: Not Found
-        default:
-          description: 5xx Errors
+    #No real owner object so can't post
+    # post:
+    #   parameters:
+    #   - name: owner
+    #     in: body
+    #     description: Owner of namespace
+    #     required: true
+    #     schema:
+    #       type: string
+    #   responses:
+    #     201:
+    #       description: Created
+    #     401:
+    #       description: Unauthorized
+    #     403:
+    #       description: Forbidden
+    #     404:
+    #       description: Not Found
+    #     default:
+    #       description: 5xx Errors
     
   /owners/{owner}:
     get:
       parameters:
-      - name: owner
-        in: path
-        description: Owner of namespace
-        required: true
-        type: string
-        
+      - $ref: "#/parameters/ownerParam"
       responses:
         200:
           description: Successful response
@@ -52,39 +47,23 @@ paths:
           description: Not Found
         default:
           description: 5xx Errors
-    
-    delete:
-      parameters:
-      - name: owner
-        in: path
-        description: Owner of namespace
-        required: true
-        type: string
-      
-      parameters:
-      - name: owner
-        in: path
-        description: Owner of namespace
-        required: true
-        type: string
-        
-      responses:
-        200:
-          description: Successful response
-        404:
-          description: Not Found
-        default:
-          description: 5xx Errors
+          
+    #Can't delete an object that doesn't really exist
+    # delete:
+    #   parameters:
+    #   - $ref: "#/parameters/ownerParam"
+    #   responses:
+    #     200:
+    #       description: Successful response
+    #     404:
+    #       description: Not Found
+    #     default:
+    #       description: 5xx Errors
       
   /owners/{owner}/namespaces:
     get:
       parameters:
-      - name: owner
-        in: path
-        description: Owner of namespace
-        required: true
-        type: string
-        
+      - $ref: "#/parameters/ownerParam"
       responses:
         200:
           description: Successful response
@@ -95,12 +74,7 @@ paths:
 
     post:
       parameters:
-      - name: owner
-        in: path
-        description: Owner of namespace
-        required: true
-        type: string
-        
+      - $ref: "#/parameters/ownerParam"
       responses:
         201:
           description: Created
@@ -117,18 +91,8 @@ paths:
   /owners/{owner}/namespaces/{namespace}:
     get:
       parameters:
-      - name: owner
-        in: path
-        description: Owner of namespace
-        required: true
-        type: string
-        
-      - name: namespace
-        in: path
-        description: Namespace to place deployment in
-        required: true
-        type: string
-        
+      - $ref: "#/parameters/ownerParam"
+      - $ref: "#/parameters/namespaceParam"
       responses:
         200:
           description: Successful response
@@ -139,18 +103,8 @@ paths:
     
     patch:
       parameters:
-      - name: owner
-        in: path
-        description: Owner of namespace
-        required: true
-        type: string
-        
-      - name: namespace
-        in: path
-        description: Namespace to place deployment in
-        required: true
-        type: string
-        
+      - $ref: "#/parameters/ownerParam"
+      - $ref: "#/parameters/namespaceParam"
       responses:
         200:
           description: Successful response
@@ -161,18 +115,8 @@ paths:
     
     delete:
       parameters:
-      - name: owner
-        in: path
-        description: Owner of namespace
-        required: true
-        type: string
-        
-      - name: namespace
-        in: path
-        description: Namespace to place deployment in
-        required: true
-        type: string
-        
+      - $ref: "#/parameters/ownerParam"
+      - $ref: "#/parameters/namespaceParam"
       responses:
         200:
           description: Successful response
@@ -184,18 +128,8 @@ paths:
   /owners/{owner}/namespaces/{namespace}/deployments:
     get:
       parameters:
-      - name: owner
-        in: path
-        description: Owner of namespace
-        required: true
-        type: string
-        
-      - name: namespace
-        in: path
-        description: Namespace to place deployment in
-        required: true
-        type: string
-        
+      - $ref: "#/parameters/ownerParam"
+      - $ref: "#/parameters/namespaceParam"
       responses:
         200:
           description: Successful response
@@ -206,17 +140,8 @@ paths:
     
     post:
       parameters:
-      - name: owner
-        in: path
-        description: Owner of namespace
-        required: true
-        type: string
-        
-      - name: namespace
-        in: path
-        description: Namespace to place deployment in
-        required: true
-        type: string
+      - $ref: "#/parameters/ownerParam"
+      - $ref: "#/parameters/namespaceParam"
         
       - name: deployment_body
         in: body
@@ -224,7 +149,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/deployment_body'
-          
       responses:
         201:
           description: Created
@@ -242,24 +166,9 @@ paths:
   /owners/{owner}/namespaces/{namespace}/deployments/{deployment}:
     get:
       parameters:
-      - name: owner
-        in: path
-        description: Owner of namespace
-        required: true
-        type: string
-        
-      - name: namespace
-        in: path
-        description: Namespace to place deployment in
-        required: true
-        type: string
-        
-      - name: deployment
-        in: path
-        description: Name of deployment
-        required: true
-        type: string
-        
+      - $ref: "#/parameters/ownerParam"
+      - $ref: "#/parameters/namespaceParam"
+      - $ref: "#/parameters/deploymentParam"
       responses:
         200:
           description: Successful response
@@ -270,24 +179,9 @@ paths:
     
     patch:
       parameters:
-      - name: owner
-        in: path
-        description: Owner of namespace
-        required: true
-        type: string
-        
-      - name: namespace
-        in: path
-        description: Namespace to place deployment in
-        required: true
-        type: string
-        
-      - name: deployment
-        in: path
-        description: Name of deployment
-        required: true
-        type: string
-        
+      - $ref: "#/parameters/ownerParam"
+      - $ref: "#/parameters/namespaceParam"
+      - $ref: "#/parameters/deploymentParam"
       responses:
         200:
           description: Successful response
@@ -298,24 +192,9 @@ paths:
     
     delete:
       parameters:
-      - name: owner
-        in: path
-        description: Owner of namespace
-        required: true
-        type: string
-        
-      - name: namespace
-        in: path
-        description: Namespace to place deployment in
-        required: true
-        type: string
-        
-      - name: deployment
-        in: path
-        description: Name of deployment
-        required: true
-        type: string
-        
+      - $ref: "#/parameters/ownerParam"
+      - $ref: "#/parameters/namespaceParam"
+      - $ref: "#/parameters/deploymentParam"
       responses:
         200:
           description: Successful response
@@ -323,7 +202,8 @@ paths:
           description: Not Found
         default:
           description: 5xx Errors
-          
+  
+#Top level definitions          
 definitions:
   deployment_body:
     description: Deployment JSON body object
@@ -340,4 +220,28 @@ definitions:
       pts_url:
         type: string
         description: URL to pod template spec json
-          
+
+#Top Level Path Parameters
+parameters:
+
+  ownerParam:
+    name: owner
+    in: path
+    description: Owner of namespace
+    required: true
+    type: string
+    
+  namespaceParam:
+    name: namespace
+    in: path
+    description: Namespace to place deployment in
+    required: true
+    type: string
+  
+  deploymentParam:
+    name: deployment
+    in: path
+    description: Name of deployment
+    required: true
+    type: string
+        
