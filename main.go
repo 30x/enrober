@@ -27,6 +27,7 @@ func main() {
 	err := server.Init(clientConfig)
 	if err != nil {
 		fmt.Printf("Unable to create Deployment Manager: %v\n", err)
+		return
 	}
 
 	server := server.NewServer()
