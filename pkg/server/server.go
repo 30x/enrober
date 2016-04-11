@@ -1,7 +1,7 @@
 //TODO: Implement proper HTTP response codes
 //TODO: Remove fmt.Fprintf calls
 
-package main
+package server
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/30x/enrober/wrap"
+	"github.com/30x/enrober/pkg/enrober"
 	"github.com/gorilla/mux"
 
 	"k8s.io/kubernetes/pkg/client/restclient"
@@ -36,8 +36,8 @@ func main() {
 		fmt.Printf("Defaulting to Local Dev Setup\n")
 	}
 
-	server := NewServer()
-	http.ListenAndServe(":9000", server.router)
+	// server := NewServer()
+	// http.ListenAndServe(":9000", server.router)
 
 }
 
@@ -77,14 +77,14 @@ func NamespaceHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "HTTP Verb: %s\n", verb)
 
 	//manager
-	dm, err := wrap.CreateDeploymentManager(clientconfig)
+	dm, err := enrober.CreateDeploymentManager(clientconfig)
 	if err != nil {
 		fmt.Fprintf(w, "Broke at manager: %v\n", err)
 		fmt.Fprintf(w, "In function NamespaceHandler\n")
 		return
 	}
 
-	imagedeployment := wrap.ImageDeployment{
+	imagedeployment := enrober.ImageDeployment{
 		Namespace:    vars["Namespace"],
 		Application:  "",
 		Revision:     "",
@@ -131,7 +131,7 @@ func ApplicationHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "HTTP Verb: %s\n", verb)
 
 	//get namespace matching vars["Namespace"]
-	imagedeployment := wrap.ImageDeployment{
+	imagedeployment := enrober.ImageDeployment{
 		Namespace:    vars["Namespace"],
 		Application:  vars["application"],
 		Revision:     "",
@@ -142,7 +142,7 @@ func ApplicationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//manager
-	dm, err := wrap.CreateDeploymentManager(clientconfig)
+	dm, err := enrober.CreateDeploymentManager(clientconfig)
 	if err != nil {
 		fmt.Fprintf(w, "Broke at manager: %v\n", err)
 		fmt.Fprintf(w, "In function ApplicationHandler\n")
@@ -175,7 +175,7 @@ func RevisionHandler(w http.ResponseWriter, r *http.Request) {
 	verb := r.Method
 	fmt.Fprintf(w, "HTTP Verb: %s\n", verb)
 
-	imagedeployment := wrap.ImageDeployment{
+	imagedeployment := enrober.ImageDeployment{
 		Namespace:    vars["Namespace"],
 		Application:  vars["application"],
 		Revision:     vars["revision"],
@@ -187,7 +187,7 @@ func RevisionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//manager
-	dm, err := wrap.CreateDeploymentManager(clientconfig)
+	dm, err := enrober.CreateDeploymentManager(clientconfig)
 	if err != nil {
 		fmt.Fprintf(w, "Broke at manager: %v\n", err)
 		fmt.Fprintf(w, "In function RevisionHandler\n")

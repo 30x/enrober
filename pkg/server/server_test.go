@@ -1,4 +1,4 @@
-package main_test
+package server_test
 
 import (
 	. "github.com/30x/enrober"
