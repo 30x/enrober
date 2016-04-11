@@ -35,6 +35,28 @@ func NewServer() (server *Server) {
 
 	sub := router.PathPrefix("/beeswax/deploy/api/v1").Subrouter()
 
+	//Refactor so that every combination gets it's own function
+
+	sub.Path("/environmentGroups").Methods("GET").HandlerFunc(getEnvironmentGroups)
+
+	sub.Path("/environmentGroups/{environmentGroupID}").Methods("GET").HandlerFunc(getEnvironmentGroup)
+
+	sub.Path("/environmentGroups/{environmentGroupID}/environments").Methods("GET").HandlerFunc(getEnvironments)
+
+	sub.Path("/environmentGroups/{environmentGroupID}/environments").Methods("POST").HandlerFunc(createEnvironment)
+
+	sub.Path("/environmentGroups/{environmentGroupID}/environments/{environment}").Methods("GET").HandlerFunc(getEnvironment)
+	sub.Path("/environmentGroups/{environmentGroupID}/environments/{environment}").Methods("DELETE").HandlerFunc(deleteEnvironment)
+
+	sub.Path("/environmentGroups/{environmentGroupID}/environments/{environment}/deployments").Methods("GET").HandlerFunc(getDeployments)
+
+	sub.Path("/environmentGroups/{environmentGroupID}/environments/{environment}/deployments").Methods("POST").HandlerFunc(createDeployment)
+
+	sub.Path("/environmentGroups/{environmentGroupID}/environments/{environment}/deployments/{deployment}").Methods("GET").HandlerFunc(getDeployment)
+	sub.Path("/environmentGroups/{environmentGroupID}/environments/{environment}/deployments/{deployment}").Methods("PATCH").HandlerFunc(updateDeployment)
+	sub.Path("/environmentGroups/{environmentGroupID}/environments/{environment}/deployments/{deployment}").Methods("DELETE").HandlerFunc(deleteDeployment)
+
+	//TODO: Remove when new route handlers work
 	sub.HandleFunc("/{Namespace}", NamespaceHandler).Methods("GET") //TODO: Add support for POST
 
 	sub.HandleFunc("/{Namespace}/{application}", ApplicationHandler).Methods("GET")
@@ -44,13 +66,87 @@ func NewServer() (server *Server) {
 	server = &Server{
 		router: router,
 	}
-
 	return server
 }
 
 //Start the server
 func (server *Server) Start() error {
 	return http.ListenAndServe(":9000", server.router)
+}
+
+//Route handlers
+func getEnvironmentGroups(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func getEnvironmentGroup(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
+
+}
+
+func getEnvironments(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
+
+}
+
+func createEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
+
+}
+
+func getEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
+	fmt.Printf("Got Environment: %v\n", vars["environment"])
+
+}
+
+func deleteEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
+	fmt.Printf("Got Environment: %v\n", vars["environment"])
+
+}
+
+func getDeployments(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
+	fmt.Printf("Got Environment: %v\n", vars["environment"])
+
+}
+
+func createDeployment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
+	fmt.Printf("Got Environment: %v\n", vars["environment"])
+
+}
+
+func getDeployment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
+	fmt.Printf("Got Environment: %v\n", vars["environment"])
+	fmt.Printf("Got Deployment: %v\n", vars["deployment"])
+
+}
+
+func updateDeployment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
+	fmt.Printf("Got Environment: %v\n", vars["environment"])
+	fmt.Printf("Got Deployment: %v\n", vars["deployment"])
+
+}
+
+func deleteDeployment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
+	fmt.Printf("Got Environment: %v\n", vars["environment"])
+	fmt.Printf("Got Deployment: %v\n", vars["deployment"])
+
 }
 
 //NamespaceHandler does stuff
