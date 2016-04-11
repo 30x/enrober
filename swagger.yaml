@@ -5,7 +5,7 @@ info:
   title: Enrober
 
 paths:
-  /owners:
+  /environmentGroups:
     get:
       responses:
         200:
@@ -14,32 +14,12 @@ paths:
           description: Not Found
         default:
           description: 5xx Errors
+
     
-    #No real owner object so can't post
-    # post:
-    #   parameters:
-    #   - name: owner
-    #     in: body
-    #     description: Owner of namespace
-    #     required: true
-    #     schema:
-    #       type: string
-    #   responses:
-    #     201:
-    #       description: Created
-    #     401:
-    #       description: Unauthorized
-    #     403:
-    #       description: Forbidden
-    #     404:
-    #       description: Not Found
-    #     default:
-    #       description: 5xx Errors
-    
-  /owners/{owner}:
+  /environmentGroups/{environmentGroupID}:
     get:
       parameters:
-      - $ref: "#/parameters/ownerParam"
+      - $ref: "#/parameters/environmentGroupIDParam"
       responses:
         200:
           description: Successful response
@@ -48,22 +28,12 @@ paths:
         default:
           description: 5xx Errors
           
-    #Can't delete an object that doesn't really exist
-    # delete:
-    #   parameters:
-    #   - $ref: "#/parameters/ownerParam"
-    #   responses:
-    #     200:
-    #       description: Successful response
-    #     404:
-    #       description: Not Found
-    #     default:
-    #       description: 5xx Errors
+
       
-  /owners/{owner}/namespaces:
+  /environmentGroups/{environmentGroupID}/environments:
     get:
       parameters:
-      - $ref: "#/parameters/ownerParam"
+      - $ref: "#/parameters/environmentGroupIDParam"
       responses:
         200:
           description: Successful response
@@ -74,7 +44,7 @@ paths:
 
     post:
       parameters:
-      - $ref: "#/parameters/ownerParam"
+      - $ref: "#/parameters/environmentGroupIDParam"
       responses:
         201:
           description: Created
@@ -88,23 +58,11 @@ paths:
           description: 5xx Errors
   
 
-  /owners/{owner}/namespaces/{namespace}:
+  /environmentGroups/{environmentGroupID}/environments/{environment}:
     get:
       parameters:
-      - $ref: "#/parameters/ownerParam"
-      - $ref: "#/parameters/namespaceParam"
-      responses:
-        200:
-          description: Successful response
-        404:
-          description: Not Found
-        default:
-          description: 5xx Errors
-    
-    patch:
-      parameters:
-      - $ref: "#/parameters/ownerParam"
-      - $ref: "#/parameters/namespaceParam"
+      - $ref: "#/parameters/environmentGroupIDParam"
+      - $ref: "#/parameters/environmentParam"
       responses:
         200:
           description: Successful response
@@ -115,8 +73,8 @@ paths:
     
     delete:
       parameters:
-      - $ref: "#/parameters/ownerParam"
-      - $ref: "#/parameters/namespaceParam"
+      - $ref: "#/parameters/environmentGroupIDParam"
+      - $ref: "#/parameters/environmentParam"
       responses:
         200:
           description: Successful response
@@ -125,11 +83,11 @@ paths:
         default:
           description: 5xx Errors
       
-  /owners/{owner}/namespaces/{namespace}/deployments:
+  /environmentGroups/{environmentGroupID}/environments/{environment}/deployments:
     get:
       parameters:
-      - $ref: "#/parameters/ownerParam"
-      - $ref: "#/parameters/namespaceParam"
+      - $ref: "#/parameters/environmentGroupIDParam"
+      - $ref: "#/parameters/environmentParam"
       responses:
         200:
           description: Successful response
@@ -140,8 +98,8 @@ paths:
     
     post:
       parameters:
-      - $ref: "#/parameters/ownerParam"
-      - $ref: "#/parameters/namespaceParam"
+      - $ref: "#/parameters/environmentGroupIDParam"
+      - $ref: "#/parameters/environmentParam"
         
       - name: deployment_body
         in: body
@@ -163,11 +121,11 @@ paths:
         default:
           description: 5xx Errors
 
-  /owners/{owner}/namespaces/{namespace}/deployments/{deployment}:
+  /environmentGroups/{environmentGroupID}/environments/{environment}/deployments/{deployment}:
     get:
       parameters:
-      - $ref: "#/parameters/ownerParam"
-      - $ref: "#/parameters/namespaceParam"
+      - $ref: "#/parameters/environmentGroupIDParam"
+      - $ref: "#/parameters/environmentParam"
       - $ref: "#/parameters/deploymentParam"
       responses:
         200:
@@ -179,8 +137,8 @@ paths:
     
     patch:
       parameters:
-      - $ref: "#/parameters/ownerParam"
-      - $ref: "#/parameters/namespaceParam"
+      - $ref: "#/parameters/environmentGroupIDParam"
+      - $ref: "#/parameters/environmentParam"
       - $ref: "#/parameters/deploymentParam"
       responses:
         200:
@@ -192,8 +150,8 @@ paths:
     
     delete:
       parameters:
-      - $ref: "#/parameters/ownerParam"
-      - $ref: "#/parameters/namespaceParam"
+      - $ref: "#/parameters/environmentGroupIDParam"
+      - $ref: "#/parameters/environmentParam"
       - $ref: "#/parameters/deploymentParam"
       responses:
         200:
@@ -224,17 +182,17 @@ definitions:
 #Top Level Path Parameters
 parameters:
 
-  ownerParam:
-    name: owner
+  environmentGroupIDParam:
+    name: environmentGroupID
     in: path
-    description: Owner of namespace
+    description: environmentGroupID of environment
     required: true
     type: string
     
-  namespaceParam:
-    name: namespace
+  environmentParam:
+    name: environment
     in: path
-    description: Namespace to place deployment in
+    description: environment to place deployment in
     required: true
     type: string
   

@@ -23,6 +23,7 @@ type DeploymentManager struct {
 
 //ImageDeployment is a collection of necesarry resources for Replication Controller Deployments
 //TODO: May have to add a secret name here?
+//TODO: This may go away
 type ImageDeployment struct {
 	Namespace       string
 	Application     string
@@ -37,7 +38,6 @@ type ImageDeployment struct {
 }
 
 //CreateDeploymentManager creates an instance of the DeploymentManager from the config passed in, and returns the instance
-//TODO: Refactor this so we don't have to  pass around a restclient.Config
 func CreateDeploymentManager(config restclient.Config) (*DeploymentManager, error) {
 	//Function scoping client
 	kubeclient := k8sClient.Client{}
@@ -77,6 +77,9 @@ func (deploymentManager *DeploymentManager) CreateNamespace(imageDeployment Imag
 	opt := &api.Namespace{
 		ObjectMeta: api.ObjectMeta{
 			Name: imageDeployment.Namespace,
+			Labels: map[string]string{
+				"Group": "test",
+			},
 		},
 	}
 	ns, err := deploymentManager.client.Namespaces().Create(opt)

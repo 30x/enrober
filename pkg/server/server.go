@@ -7,43 +7,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/30x/enrober/pkg/enrober"
 	"github.com/gorilla/mux"
-
 	"k8s.io/kubernetes/pkg/client/restclient"
 )
-
-//Global Variables
-var clientconfig = restclient.Config{
-	Host: "127.0.0.1:8080", //Default to Local Testing
-}
-
-func main() {
-
-	//Set Config
-	var state = os.Getenv("DEPLOY_STATE")
-	switch state {
-	case "PROD":
-		clientconfig.Host = ""
-	case "DEV":
-		clientconfig.Host = "127.0.0.1:8080"
-	case "E2E":
-		clientconfig.Host = ""
-	default:
-		fmt.Printf("Defaulting to Local Dev Setup\n")
-	}
-
-	// server := NewServer()
-	// http.ListenAndServe(":9000", server.router)
-
-}
 
 //Server struct
 type Server struct {
 	router *mux.Router
+}
+
+//Global Deployment Manager
+var dm *enrober.DeploymentManager
+
+//Init does stuff
+func Init(clientConfig restclient.Config) error {
+	var err error
+	dm, err = enrober.CreateDeploymentManager(clientConfig)
+	return err
 }
 
 //NewServer creates a new server
@@ -65,6 +48,11 @@ func NewServer() (server *Server) {
 	return server
 }
 
+//Start the server
+func (server *Server) Start() error {
+	return http.ListenAndServe(":9000", server.router)
+}
+
 //NamespaceHandler does stuff
 func NamespaceHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -75,14 +63,6 @@ func NamespaceHandler(w http.ResponseWriter, r *http.Request) {
 	//get the http verb
 	verb := r.Method
 	fmt.Fprintf(w, "HTTP Verb: %s\n", verb)
-
-	//manager
-	dm, err := enrober.CreateDeploymentManager(clientconfig)
-	if err != nil {
-		fmt.Fprintf(w, "Broke at manager: %v\n", err)
-		fmt.Fprintf(w, "In function NamespaceHandler\n")
-		return
-	}
 
 	imagedeployment := enrober.ImageDeployment{
 		Namespace:    vars["Namespace"],
@@ -141,14 +121,6 @@ func ApplicationHandler(w http.ResponseWriter, r *http.Request) {
 		PodCount:     0,
 	}
 
-	//manager
-	dm, err := enrober.CreateDeploymentManager(clientconfig)
-	if err != nil {
-		fmt.Fprintf(w, "Broke at manager: %v\n", err)
-		fmt.Fprintf(w, "In function ApplicationHandler\n")
-		return
-	}
-
 	//Case statement based on http verb
 	switch verb {
 
@@ -184,14 +156,6 @@ func RevisionHandler(w http.ResponseWriter, r *http.Request) {
 		PathPort:     "",
 		PodCount:     1,
 		EnvVars:      map[string]string{},
-	}
-
-	//manager
-	dm, err := enrober.CreateDeploymentManager(clientconfig)
-	if err != nil {
-		fmt.Fprintf(w, "Broke at manager: %v\n", err)
-		fmt.Fprintf(w, "In function RevisionHandler\n")
-		return
 	}
 
 	//Case statement based on http verb
