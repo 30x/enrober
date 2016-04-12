@@ -7,6 +7,9 @@ info:
 paths:
   /environmentGroups:
     get:
+      description: Returns a list of all Environment Groups
+      produces: 
+      - application/json
       responses:
         200:
           description: Successful response
@@ -18,6 +21,9 @@ paths:
     
   /environmentGroups/{environmentGroupID}:
     get:
+      description: Returns an Environment Group matching the given Environment Group ID
+      produces: 
+      - application/json
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       responses:
@@ -32,6 +38,9 @@ paths:
       
   /environmentGroups/{environmentGroupID}/environments:
     get:
+      description: Returns a list of all environments under a specific Environment Group ID 
+      produces: 
+      - application/json
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       responses:
@@ -43,8 +52,15 @@ paths:
           description: 5xx Errors
 
     post:
+      description: Creates an environment and its correpsonding kubernetes namespace matching the given Environment Group ID and Environment Name
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
+      - name: environmentName
+        in: body
+        description: Name of environment to be created
+        required: true
+        schema:
+          type: string
       responses:
         201:
           description: Created
@@ -57,9 +73,11 @@ paths:
         default:
           description: 5xx Errors
   
-
   /environmentGroups/{environmentGroupID}/environments/{environment}:
     get:
+      description: Returns an environment and its correpsonding kubernetes namespace matching the given Environment Group ID and Environment Name
+      produces: 
+      - application/json
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       - $ref: "#/parameters/environmentParam"
@@ -72,6 +90,7 @@ paths:
           description: 5xx Errors
     
     delete:
+      description: Deletes an environment and its correpsonding kubernetes namespace matching the given Environment Group ID and Environment Name
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       - $ref: "#/parameters/environmentParam"
@@ -85,6 +104,9 @@ paths:
       
   /environmentGroups/{environmentGroupID}/environments/{environment}/deployments:
     get:
+      description: Returns a list of all deployments in a given environment with the given environment group ID
+      produces: 
+      - application/json
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       - $ref: "#/parameters/environmentParam"
@@ -97,6 +119,7 @@ paths:
           description: 5xx Errors
     
     post:
+      description: Creates a deployment in the given environment with the given environment group ID based on the given deployment_body
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       - $ref: "#/parameters/environmentParam"
@@ -123,6 +146,9 @@ paths:
 
   /environmentGroups/{environmentGroupID}/environments/{environment}/deployments/{deployment}:
     get:
+      description: Returns a deployment matching the given Environment Group ID, Environment Name, and Deployment Name
+      produces: 
+      - application/json
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       - $ref: "#/parameters/environmentParam"
@@ -136,6 +162,7 @@ paths:
           description: 5xx Errors
     
     patch:
+      description: Updates a deployment matching the given Environment Group ID, Environment Name, and Deployment Name
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       - $ref: "#/parameters/environmentParam"
@@ -149,6 +176,7 @@ paths:
           description: 5xx Errors
     
     delete:
+      description: Deletes a deployment matching the given Environment Group ID, Environment Name, and Deployment Name
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       - $ref: "#/parameters/environmentParam"

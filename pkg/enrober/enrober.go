@@ -2,6 +2,8 @@
 //TODO: Make sure all functions have proper description
 //TODO: Make sure all functions have proper error handling
 
+//TODO: Is this even needed?
+
 package enrober
 
 import (
@@ -89,8 +91,6 @@ func (deploymentManager *DeploymentManager) CreateNamespace(imageDeployment Imag
 	return *ns, nil
 }
 
-//TODO: Test if we can rename Namespaces
-
 //GetNamespace <description goes here>
 //Returns a Namespace and an error
 func (deploymentManager *DeploymentManager) GetNamespace(imageDeployment ImageDeployment) (api.Namespace, error) {
@@ -99,6 +99,18 @@ func (deploymentManager *DeploymentManager) GetNamespace(imageDeployment ImageDe
 		return *ns, err //TODO: Better error handling
 	}
 	return *ns, nil
+}
+
+//GetNamespaceList <description goes here>
+func (deploymentManager *DeploymentManager) GetNamespaceList() (api.NamespaceList, error) {
+	selector, err := labels.Parse("Application=Test")
+	nsList, err := deploymentManager.client.Namespaces().List(api.ListOptions{
+		LabelSelector: selector,
+	})
+	if err != nil {
+		return *nsList, err
+	}
+	return *nsList, nil
 }
 
 //DeleteNamespace <description goes here>

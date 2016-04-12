@@ -11,14 +11,18 @@ import (
 
 func main() {
 
+	//Default to local client
 	clientConfig := restclient.Config{
 		Host: "127.0.0.1:8080",
 	}
+
 	envState := os.Getenv("DEPLOY_STATE")
 	switch envState {
 	case "PROD":
+		fmt.Printf("DEPLOY_STATE set to PROD\n")
 		clientConfig.Host = ""
 	case "DEV":
+		fmt.Printf("DEPLOY_STATE set to DEV\n")
 		clientConfig.Host = "127.0.0.1:8080"
 	default:
 		fmt.Printf("Defaulting to Local Dev Setup\n")

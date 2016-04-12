@@ -7,11 +7,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 
-	"github.com/30x/enrober/pkg/enrober"
 	"github.com/gorilla/mux"
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/client/restclient"
+	"k8s.io/kubernetes/pkg/labels"
+
+	k8sClient "k8s.io/kubernetes/pkg/client/unversioned"
 )
 
 //Server struct
@@ -19,14 +21,34 @@ type Server struct {
 	router *mux.Router
 }
 
-//Global Deployment Manager
-var dm *enrober.DeploymentManager
+//Global Kubernetes Client
+var client k8sClient.Client
 
 //Init does stuff
 func Init(clientConfig restclient.Config) error {
 	var err error
-	dm, err = enrober.CreateDeploymentManager(clientConfig)
-	return err
+	var tempClient *k8sClient.Client
+
+	//In Cluster Config
+	if clientConfig.Host == "" {
+		tempConfig, err := restclient.InClusterConfig()
+		if err != nil {
+			return err
+		}
+		tempClient, err = k8sClient.New(tempConfig)
+
+		client = *tempClient
+
+		//Local Config
+	} else {
+		tempClient, err = k8sClient.New(&clientConfig)
+		if err != nil {
+			return err
+		}
+		client = *tempClient
+	}
+
+	return nil
 }
 
 //NewServer creates a new server
@@ -57,11 +79,13 @@ func NewServer() (server *Server) {
 	sub.Path("/environmentGroups/{environmentGroupID}/environments/{environment}/deployments/{deployment}").Methods("DELETE").HandlerFunc(deleteDeployment)
 
 	//TODO: Remove when new route handlers work
-	sub.HandleFunc("/{Namespace}", NamespaceHandler).Methods("GET") //TODO: Add support for POST
+	/*
+		sub.HandleFunc("/{Namespace}", NamespaceHandler).Methods("GET") //TODO: Add support for POST
 
-	sub.HandleFunc("/{Namespace}/{application}", ApplicationHandler).Methods("GET")
+		sub.HandleFunc("/{Namespace}/{application}", ApplicationHandler).Methods("GET")
 
-	sub.HandleFunc("/{Namespace}/{application}/{revision}", RevisionHandler).Methods("GET", "PUT", "POST")
+		sub.HandleFunc("/{Namespace}/{application}/{revision}", RevisionHandler).Methods("GET", "PUT", "POST")
+	*/
 
 	server = &Server{
 		router: router,
@@ -75,42 +99,113 @@ func (server *Server) Start() error {
 }
 
 //Route handlers
+
+//getEnvironmentGrouos returns a list of all Environment Groups
 func getEnvironmentGroups(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//getEnvironmentGroup returns an Environment Group matching the given environmentGroupID
 func getEnvironmentGroup(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
 
 }
 
+//getEnvironments returns a list of all environments under a specific environmentGroupID
 func getEnvironments(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
+	pathVars := mux.Vars(r)
+	fmt.Printf("GET request on Group ID: %v\n", pathVars["environmentGroupID"])
 
+	selector, err := labels.Parse("Group=" + pathVars["environmentGroupID"])
+	nsList, err := client.Namespaces().List(api.ListOptions{
+		LabelSelector: selector,
+	})
+	if err != nil {
+		fmt.Printf("Error in getEnvironments: %v\n", err)
+		fmt.Fprintf(w, "%v\n", err)
+		return
+	}
+	for _, value := range nsList.Items {
+		fmt.Fprintf(w, "Got Namespace: %v\n", value.GetName())
+	}
 }
 
+//createEnvironment creates a kubernetes namespace matching the given environmentGroupID and environmentName
 func createEnvironment(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
+	pathVars := mux.Vars(r)
+	fmt.Printf("POST request on Group ID: %v\n", pathVars["environmentGroupID"])
 
+	//Struct to put JSON into
+	type environmentPost struct {
+		EnvironmentName string `json:"environmentName"`
+	}
+	//Decode passed JSON body
+	decoder := json.NewDecoder(r.Body)
+	var tempJSON environmentPost
+	err := decoder.Decode(&tempJSON)
+	if err != nil {
+		fmt.Printf("Error decoding JSON Body: %v\n", err)
+		return
+	}
+
+	nsObject := &api.Namespace{
+		ObjectMeta: api.ObjectMeta{
+			Name: pathVars["environmentGroupID"] + "-" + tempJSON.EnvironmentName,
+			Labels: map[string]string{
+				"Group": pathVars["environmentGroupID"],
+			},
+		},
+	}
+
+	createdNs, err := client.Namespaces().Create(nsObject)
+	if err != nil {
+		fmt.Printf("Error in createEnvironment: %v\n", err)
+		fmt.Fprintf(w, "%v\n", err)
+		return
+	}
+	fmt.Fprintf(w, "Created NS: %v\n", createdNs.GetName())
+	fmt.Printf("Created Namespace: %v\n", createdNs.GetName())
 }
 
+//getEnvironment returns a kubernetes namespace matching the given environmentGroupID and environmentName
 func getEnvironment(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
-	fmt.Printf("Got Environment: %v\n", vars["environment"])
+	pathVars := mux.Vars(r)
+
+	labelSelector, err := labels.Parse("Group=" + pathVars["environmentGroupID"])
+	if err != nil {
+		fmt.Printf("Error in getEnvironment: %v\n", err)
+	}
+	nsList, err := client.Namespaces().List(api.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	for _, value := range nsList.Items {
+		if value.GetName() == pathVars["environment"] {
+			fmt.Fprintf(w, "Got Namespace: %v\n", value.GetName())
+		}
+	}
+
+	fmt.Printf("GET request on Group ID: %v and Environment ID: %v\n", pathVars["environmentGroupID"], pathVars["environment"])
 
 }
 
+//deleteEnvironment deletes a kubernetes namespace matching the given environmentGroupID and environmentName
 func deleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
-	fmt.Printf("Got Environment: %v\n", vars["environment"])
+	fmt.Printf("DELETE request on Group ID: %v and Environment ID: %v\n", vars["environmentGroupID"], vars["environment"])
+
+	//TODO: Filter based on environmentGroupID
+
+	err := client.Namespaces().Delete(vars["environmentGroupID"] + "-" + vars["environment"])
+	if err != nil {
+		fmt.Printf("Error in deleteEnvironment: %v\n", err)
+		return
+	}
+	fmt.Fprintf(w, "Deleted Namespace: %v\n", vars["environment"])
 
 }
 
+//getDeployments returns a list of all deployments matching the given environmentGroupID and environmentName
 func getDeployments(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
@@ -118,6 +213,7 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//createDeployment creates a deployment in the given environment(namespace) with the given environmentGroupID based on the given deploymentBody
 func createDeployment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
@@ -125,6 +221,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//getDeployment returns a deployment matching the given environmentGroupID, environmentName, and deploymentName
 func getDeployment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
@@ -133,6 +230,7 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//updateDeployment updates a deployment matching the given environmentGroupID, environmentName, and deploymentName
 func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
@@ -141,6 +239,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//deleteDeployment deletes a deployment matching the given environmentGroupID, environmentName, and deploymentName
 func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
@@ -149,6 +248,9 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//TODO: Everything below this should go away
+
+/*
 //NamespaceHandler does stuff
 func NamespaceHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -345,3 +447,4 @@ func RevisionHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+*/
