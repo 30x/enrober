@@ -35,6 +35,10 @@ func main() {
 	}
 
 	server := server.NewServer()
-	server.Start()
+	err = server.Start()
+	if err != nil {
+		fmt.Printf("Error starting server\n")
+	}
+	return
 
 }
