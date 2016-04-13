@@ -18,7 +18,6 @@ paths:
         default:
           description: 5xx Errors
 
-    
   /environmentGroups/{environmentGroupID}:
     get:
       description: Returns an Environment Group matching the given Environment Group ID
@@ -167,13 +166,19 @@ paths:
       - $ref: "#/parameters/environmentGroupIDParam"
       - $ref: "#/parameters/environmentParam"
       - $ref: "#/parameters/deploymentParam"
+      - name: deployment_body
+        in: body
+        description: JSON Body
+        required: true
+        schema:
+          $ref: '#/definitions/deployment_patch'
       responses:
-        200:
-          description: Successful response
-        404:
-          description: Not Found
-        default:
-          description: 5xx Errors
+          200:
+            description: Successful response
+          404:
+            description: Not Found
+          default:
+            description: 5xx Errors
     
     delete:
       description: Deletes a deployment matching the given Environment Group ID, Environment Name, and Deployment Name
@@ -194,18 +199,34 @@ definitions:
   deployment_body:
     description: Deployment JSON body object
     properties:
-      traffic_hosts: 
+      deploymentName:
+        type: string
+        description: Name of deployment to be created
+      trafficHosts: 
         type: string
         description: Where deployment object is routed
-      traffic_weights:
-        type: integer
+      trafficWeights:
+        type: string
         description: How much traffic is sent to deployment object
       replicas:
         type: integer
         description: How many replicas to be deployed
-      pts_url:
+      ptsURL:
         type: string
         description: URL to pod template spec json
+        
+  deployment_patch:
+    description: Deployment JSON body object
+    properties:
+      trafficHosts: 
+        type: string
+        description: Where deployment object is routed
+      trafficWeights:
+        type: string
+        description: How much traffic is sent to deployment object
+      replicas:
+        type: integer
+
 
 #Top Level Path Parameters
 parameters:
