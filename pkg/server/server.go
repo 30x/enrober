@@ -80,13 +80,6 @@ func NewServer() (server *Server) {
 	sub.Path("/environmentGroups/{environmentGroupID}/environments/{environment}/deployments/{deployment}").Methods("PATCH").HandlerFunc(updateDeployment)
 	sub.Path("/environmentGroups/{environmentGroupID}/environments/{environment}/deployments/{deployment}").Methods("DELETE").HandlerFunc(deleteDeployment)
 
-	//TODO: Remove when new route handlers work
-	/*
-		sub.HandleFunc("/{Namespace}/{application}", ApplicationHandler).Methods("GET")
-
-		sub.HandleFunc("/{Namespace}/{application}/{revision}", RevisionHandler).Methods("GET", "PUT", "POST")
-	*/
-
 	server = &Server{
 		router: router,
 	}
@@ -217,16 +210,14 @@ func deleteEnvironment(w http.ResponseWriter, r *http.Request) {
 //getDeployments returns a list of all deployments matching the given environmentGroupID and environmentName
 func getDeployments(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
-	// fmt.Printf("GET request on Group ID: %v and Environment ID: %v\n", pathVars["environmentGroupID"], pathVars["environment"])
 
-	selector, err := labels.Parse("Group=" + pathVars["environmentGroupID"])
+	depList, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).List(api.ListOptions{
+		LabelSelector: labels.Everything(),
+	})
 	if err != nil {
-		fmt.Printf("Error creating label selector in getDeployments: %v\n", err)
+		fmt.Printf("Error retrieving deployment list: %v\n", err)
 		return
 	}
-	depList, err := client.Deployments(pathVars["environment"]).List(api.ListOptions{
-		LabelSelector: selector,
-	})
 	for _, value := range depList.Items {
 		fmt.Fprintf(w, "Got Deployment: %v\n", value.GetName())
 	}
@@ -292,29 +283,39 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 
 //getDeployment returns a deployment matching the given environmentGroupID, environmentName, and deploymentName
 func getDeployment(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
-	fmt.Printf("Got Environment: %v\n", vars["environment"])
-	fmt.Printf("Got Deployment: %v\n", vars["deployment"])
+	pathVars := mux.Vars(r)
+
+	depList, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).List(api.ListOptions{
+		LabelSelector: labels.Everything(),
+	})
+	if err != nil {
+		fmt.Printf("Error retrieving deployment list: %v\n", err)
+		return
+	}
+	for _, value := range depList.Items {
+		if value.GetName() == pathVars["deployment"] {
+			fmt.Fprintf(w, "Got Deployment: %v\n", value.GetName())
+		}
+	}
 
 }
 
+//TODO:
 //updateDeployment updates a deployment matching the given environmentGroupID, environmentName, and deploymentName
 func updateDeployment(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
-	fmt.Printf("Got Environment: %v\n", vars["environment"])
-	fmt.Printf("Got Deployment: %v\n", vars["deployment"])
+	// pathVars := mux.Vars(r)
 
 }
 
 //deleteDeployment deletes a deployment matching the given environmentGroupID, environmentName, and deploymentName
 func deleteDeployment(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
-	fmt.Printf("Got Environment: %v\n", vars["environment"])
-	fmt.Printf("Got Deployment: %v\n", vars["deployment"])
-
+	pathVars := mux.Vars(r)
+	err := client.Deployments(pathVars["environmentGroupID"]+"-"+pathVars["environment"]).Delete(pathVars["deployment"], &api.DeleteOptions{})
+	if err != nil {
+		fmt.Printf("Error deleting deployment: %v\n", err)
+		return
+	}
+	fmt.Fprintf(w, "Deleted Deployment: %v\n", pathVars["deployment"])
 }
 
 //TODO: Everything below this should go away

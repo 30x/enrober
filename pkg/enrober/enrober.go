@@ -13,7 +13,6 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
-	"k8s.io/kubernetes/pkg/client/restclient"
 	k8sClient "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/labels"
 )
@@ -37,40 +36,6 @@ type ImageDeployment struct {
 	Image           string
 	ImagePullSecret string
 	EnvVars         map[string]string
-}
-
-//CreateDeploymentManager creates an instance of the DeploymentManager from the config passed in, and returns the instance
-func CreateDeploymentManager(config restclient.Config) (*DeploymentManager, error) {
-	//Function scoping client
-	kubeclient := k8sClient.Client{}
-
-	//No given config so use InClusterConfig
-	if config.Host == "" {
-		c, err := restclient.InClusterConfig()
-
-		if err != nil {
-			return nil, err
-		}
-		client, err := k8sClient.New(c)
-
-		kubeclient = *client
-
-	} else {
-		//Creates client based on passed in config
-		client, err := k8sClient.New(&config)
-
-		if err != nil {
-			return nil, err
-		}
-
-		kubeclient = *client
-	}
-
-	//Create the DeploymentManager
-	DeploymentManager := &DeploymentManager{
-		client: &kubeclient,
-	}
-	return DeploymentManager, nil
 }
 
 //CreateNamespace <description goes here>
