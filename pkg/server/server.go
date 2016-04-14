@@ -1,6 +1,3 @@
-//TODO: Implement proper HTTP response codes
-//TODO: Remove fmt.Fprintf calls
-
 package server
 
 import (
@@ -59,8 +56,6 @@ func NewServer() (server *Server) {
 
 	sub := router.PathPrefix("/beeswax/deploy/api/v1").Subrouter()
 
-	//Refactor so that every combination gets it's own function
-
 	sub.Path("/environmentGroups").Methods("GET").HandlerFunc(getEnvironmentGroups)
 
 	sub.Path("/environmentGroups/{environmentGroupID}").Methods("GET").HandlerFunc(getEnvironmentGroup)
@@ -94,26 +89,30 @@ func (server *Server) Start() error {
 //Route handlers
 
 //getEnvironmentGrouos returns a list of all Environment Groups
+//What is an environmentGroup?
 func getEnvironmentGroups(w http.ResponseWriter, r *http.Request) {
 	//TODO: What is this supposed to do?
+	//For now I'll just return 404 I guess...
+	http.Error(w, "404 Page not found", 404)
 }
 
 //getEnvironmentGroup returns an Environment Group matching the given environmentGroupID
+//What is an environmentGroup?
 func getEnvironmentGroup(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	fmt.Printf("Got Group ID: %v\n", vars["environmentGroupID"])
+	// vars := mux.Vars(r)
 
 	//TODO: What is this supposed to do?
-
+	//For now I'll just return 404 I guess...
+	http.Error(w, "404 page not found", 404)
 }
 
 //getEnvironments returns a list of all environments under a specific environmentGroupID
 func getEnvironments(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
-	fmt.Printf("GET request on Group ID: %v\n", pathVars["environmentGroupID"])
 
 	selector, err := labels.Parse("Group=" + pathVars["environmentGroupID"])
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error creating label selector: %v\n", err)
 		return
 	}
@@ -121,11 +120,14 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 		LabelSelector: selector,
 	})
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error in getEnvironments: %v\n", err)
 		fmt.Fprintf(w, "%v\n", err)
 		return
 	}
 	for _, value := range nsList.Items {
+		//TODO: Add response body
+		w.WriteHeader(200)
 		fmt.Fprintf(w, "Got Namespace: %v\n", value.GetName())
 	}
 }
@@ -133,7 +135,6 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 //createEnvironment creates a kubernetes namespace matching the given environmentGroupID and environmentName
 func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
-	fmt.Printf("POST request on Group ID: %v\n", pathVars["environmentGroupID"])
 
 	//Struct to put JSON into
 	type environmentPost struct {
@@ -144,6 +145,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	var tempJSON environmentPost
 	err := decoder.Decode(&tempJSON)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error decoding JSON Body: %v\n", err)
 		return
 	}
@@ -159,21 +161,46 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	createdNs, err := client.Namespaces().Create(nsObject)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error in createEnvironment: %v\n", err)
-		fmt.Fprintf(w, "%v\n", err)
 		return
 	}
-	fmt.Fprintf(w, "Created NS: %v\n", createdNs.GetName())
+	//Print to console for logging
 	fmt.Printf("Created Namespace: %v\n", createdNs.GetName())
+
+	//TODO: Add response body
+	w.WriteHeader(201)
+	fmt.Fprintf(w, "Created Namespace: %v\n", createdNs.GetName())
+
+	tempSecret := api.Secret{
+		ObjectMeta: api.ObjectMeta{
+			Name: "ingress-api-key",
+		},
+		Data: map[string][]byte{
+			"test": []byte("12345"),
+		},
+		Type: "Opaque",
+	}
+	secret, err := client.Secrets(pathVars["environmentGroupID"] + "-" + tempJSON.EnvironmentName).Create(&tempSecret)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Printf("Error creating secret: %v\n", err)
+	}
+	//Print to console for logging
+	fmt.Printf("Created Secret: %v\n", secret.GetName())
+
+	//TODO: Add response body
+	w.WriteHeader(201)
+	fmt.Fprintf(w, "Created Secret: %v\n", secret.GetName())
 }
 
 //getEnvironment returns a kubernetes namespace matching the given environmentGroupID and environmentName
 func getEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
-	fmt.Printf("GET request on Group ID: %v and Environment ID: %v\n", pathVars["environmentGroupID"], pathVars["environment"])
 
 	labelSelector, err := labels.Parse("Group=" + pathVars["environmentGroupID"])
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error creating label selector in getEnvironment: %v\n", err)
 		return
 	}
@@ -182,10 +209,13 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error in getEnvironment: %v\n", err)
 	}
 	for _, value := range nsList.Items {
 		if value.GetName() == pathVars["environment"] {
+			//TODO: Add response body
+			w.WriteHeader(200)
 			fmt.Fprintf(w, "Got Namespace: %v\n", value.GetName())
 		}
 	}
@@ -194,16 +224,19 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 //deleteEnvironment deletes a kubernetes namespace matching the given environmentGroupID and environmentName
 func deleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
-	fmt.Printf("DELETE request on Group ID: %v and Environment ID: %v\n", pathVars["environmentGroupID"], pathVars["environment"])
 
 	//TODO: Filter based on environmentGroupID
 
 	err := client.Namespaces().Delete(pathVars["environmentGroupID"] + "-" + pathVars["environment"])
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error in deleteEnvironment: %v\n", err)
 		return
 	}
-	fmt.Fprintf(w, "Deleted Namespace: %v\n", pathVars["environment"])
+	//TODO: Add response body
+	w.WriteHeader(200)
+	fmt.Fprintf(w, "Deleted Namespace: %v\n", pathVars["environmentGroupID"]+"-"+pathVars["environment"])
+	fmt.Printf("Deleted Namespace: %v\n", pathVars["environmentGroupID"]+"-"+pathVars["environment"])
 
 }
 
@@ -215,11 +248,15 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 		LabelSelector: labels.Everything(),
 	})
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error retrieving deployment list: %v\n", err)
 		return
 	}
 	for _, value := range depList.Items {
+		//TODO: Add response body
+		w.WriteHeader(200)
 		fmt.Fprintf(w, "Got Deployment: %v\n", value.GetName())
+		fmt.Printf("Got Deployment: %v\n", value.GetName())
 	}
 }
 
@@ -232,6 +269,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		DeploymentName string `json:"deploymentName"`
 		TrafficHosts   string `json:"trafficHosts"`
 		TrafficWeights string `json:"trafficWeights"`
+		PublicPaths    string `json:"publicPaths"`
 		Replicas       int    `json:"Replicas"`
 		PtsURL         string `json:"ptsURL"`
 	}
@@ -240,6 +278,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	var tempJSON deploymentPost
 	err := decoder.Decode(&tempJSON)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error decoding JSON Body: %v\n", err)
 		return
 	}
@@ -248,16 +287,22 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	tempPTS := &api.PodTemplateSpec{}
 	urlJSON, err := http.Get(tempJSON.PtsURL)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error retrieving pod template spec: %v\n", err)
 		return
 	}
 	defer urlJSON.Body.Close()
 	err = json.NewDecoder(urlJSON.Body).Decode(tempPTS)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error decoding PTS JSON Body: %v\n", err)
+		return
 	}
+
+	tempPTS.Annotations = make(map[string]string)
 	tempPTS.Annotations["trafficHosts"] = tempJSON.TrafficHosts
 	tempPTS.Annotations["trafficWeights"] = tempJSON.TrafficWeights
+	tempPTS.Annotations["publicPaths"] = tempJSON.PublicPaths
 
 	template := extensions.Deployment{
 		ObjectMeta: api.ObjectMeta{
@@ -277,10 +322,14 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	//Create Deployment
 	dep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Create(&template)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error creating deployment: %v\n", err)
 		return
 	}
+	//TODO: Add response body
+	w.WriteHeader(201)
 	fmt.Fprintf(w, "Created Deployment: %v\n", dep.GetName())
+	fmt.Printf("Created Deployment: %v\n", dep.GetName())
 }
 
 //getDeployment returns a deployment matching the given environmentGroupID, environmentName, and deploymentName
@@ -291,12 +340,16 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 		LabelSelector: labels.Everything(),
 	})
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error retrieving deployment list: %v\n", err)
 		return
 	}
 	for _, value := range depList.Items {
 		if value.GetName() == pathVars["deployment"] {
+			//TODO: Add response body
+			w.WriteHeader(200)
 			fmt.Fprintf(w, "Got Deployment: %v\n", value.GetName())
+			fmt.Printf("Got Deployment: %v\n", value.GetName())
 		}
 	}
 
@@ -317,27 +370,32 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	var tempJSON deploymentPatch
 	err := decoder.Decode(&tempJSON)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error decoding JSON Body: %v\n", err)
 		return
 	}
 
 	getDep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get(pathVars["deployment"])
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error getting old deployment: %v\n", err)
+		return
 	}
 	getDep.Spec.Replicas = tempJSON.Replicas
-
-	//Make map first?
 	getDep.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
 	getDep.Spec.Template.Annotations["trafficHosts"] = tempJSON.TrafficHosts
 	getDep.Spec.Template.Annotations["trafficWeights"] = tempJSON.TrafficWeights
 
 	dep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Update(getDep)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error updating deployment: %v\n", err)
 		return
 	}
+	//TODO: Add response body
+	w.WriteHeader(200)
 	fmt.Fprintf(w, "Updated Deployment: %v\n", dep.GetName())
+	fmt.Printf("Updated Deployment: %v\n", dep.GetName())
 
 }
 
@@ -346,8 +404,12 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 	err := client.Deployments(pathVars["environmentGroupID"]+"-"+pathVars["environment"]).Delete(pathVars["deployment"], &api.DeleteOptions{})
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error deleting deployment: %v\n", err)
 		return
 	}
+	//TODO: Add response body
+	w.WriteHeader(200)
 	fmt.Fprintf(w, "Deleted Deployment: %v\n", pathVars["deployment"])
+	fmt.Printf("Deleted Deployment: %v\n", pathVars["deployment"])
 }

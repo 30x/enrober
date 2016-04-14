@@ -208,6 +208,9 @@ definitions:
       trafficWeights:
         type: string
         description: How much traffic is sent to deployment object
+      publicPaths:
+        type: string
+        description: Path of deployment
       replicas:
         type: integer
         description: How many replicas to be deployed
@@ -224,8 +227,12 @@ definitions:
       trafficWeights:
         type: string
         description: How much traffic is sent to deployment object
+      publicPaths:
+        type: string
+        description: Path of deployment
       replicas:
         type: integer
+        description: How many replicas to be deployed
 
 
 #Top Level Path Parameters
