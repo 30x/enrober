@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Server", func() {
+var _ = Describe("Server Test", func() {
 
 })
 

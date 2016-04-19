@@ -16,15 +16,12 @@ spec:
         microservice: "true"
       annotations:
         trafficHosts: "test.k8s.local"
-        publicPaths: "/beeswax/deploy"
-        pathPort: "9000"
+        publicPaths: "9000:/beeswax/deploy"
     spec:
       containers:
       - name: enrober
-        image: jbowen/enrober:v0
+        image: jbowen/enrober:v0.0.1
         env:
-          - name: PORT
-            value: "9000"
           - name: DEPLOY_STATE
             value: "PROD"
         ports:

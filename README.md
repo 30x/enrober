@@ -2,7 +2,7 @@
 
 >###Warning: There is currently minimal input validation on the json.
 
-This project consists of a wrapper library around the kubernetes client library as well as an API server that exposes said library. The server can be deployed both locally and as a docker container. 
+This project consists of a an API server that functions as a wrapper around the kubernetes client library. The server can be deployed both locally and as a docker container.
 
 ###Local Deployment
 
@@ -18,7 +18,7 @@ The server will be accesible at `localhost:9000/beeswax/deploy/api/v1`
 A prebuilt docker image is available with:
  
 ```sh
-docker pull jbowen/enrober:v0
+docker pull jbowen/enrober:v0.0.1
 ```
 
 To deploy the server as a docker container on a kubernetes cluster you should use the provided `deploy.yaml` file. Running `kubectl create -f deploy.yaml` will pull the image from dockerhub and deploy it to the default namespace.
@@ -41,7 +41,6 @@ docker build -t enrober .
 
 ##API Design
 
-The current implementation of the API is simple. It allows for a `GET` request to be made at any of the three levels `namespace`, `application`, `revision` or a `PUT/POST` request to be made at the `revision` level. 
 
 **Inputs:** 
 

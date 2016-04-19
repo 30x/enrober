@@ -54,12 +54,20 @@ paths:
       description: Creates an environment and its correpsonding kubernetes namespace matching the given Environment Group ID and Environment Name
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
-      - name: environmentName
+      - name: environment_post
         in: body
         description: Name of environment to be created
         required: true
         schema:
-          type: string
+         description: enivronment JSON body object
+         properties: 
+          environment_name:
+            type: string
+            description: Name of environment to be created
+          secret:
+             type: string
+             description: Authentication secret to be created within environment
+
       responses:
         201:
           description: Created
@@ -88,8 +96,32 @@ paths:
         default:
           description: 5xx Errors
     
+    patch:
+      description: Updates an environment, can modify the secret
+      produces: 
+      - application/json
+      parameters:
+      - $ref: "#/parameters/environmentGroupIDParam"
+      - $ref: "#/parameters/environmentParam"
+      - name: api_key_seret
+        in: body
+        description: New value of authentication key
+        required: true
+        schema: 
+          type: string
+      responses:
+        200:
+          description: Successful response
+        404: 
+          description: Not Found
+        default:
+          description: 5xx Errors
+    
+    
     delete:
       description: Deletes an environment and its correpsonding kubernetes namespace matching the given Environment Group ID and Environment Name
+      produces: 
+      - application/json
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       - $ref: "#/parameters/environmentParam"
@@ -237,7 +269,6 @@ definitions:
 
 #Top Level Path Parameters
 parameters:
-
   environmentGroupIDParam:
     name: environmentGroupID
     in: path
