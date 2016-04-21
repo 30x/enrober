@@ -18,7 +18,7 @@ import (
 
 //Server struct
 type Server struct {
-	router *mux.Router
+	Router *mux.Router
 }
 
 //Global Kubernetes Client
@@ -78,14 +78,14 @@ func NewServer() (server *Server) {
 	sub.Path("/environmentGroups/{environmentGroupID}/environments/{environment}/deployments/{deployment}").Methods("DELETE").HandlerFunc(deleteDeployment)
 
 	server = &Server{
-		router: router,
+		Router: router,
 	}
 	return server
 }
 
 //Start the server
 func (server *Server) Start() error {
-	return http.ListenAndServe(":9000", server.router)
+	return http.ListenAndServe(":9000", server.Router)
 }
 
 //Route handlers

@@ -103,7 +103,7 @@ paths:
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       - $ref: "#/parameters/environmentParam"
-      - name: api_key_seret
+      - name: secret
         in: body
         description: New value of authentication key
         required: true
