@@ -376,13 +376,26 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Get JSON from url
-	urlJSON, err := http.Get(tempJSON.PtsURL)
+	httpClient := &http.Client{}
+
+	req, err := http.NewRequest("GET", tempJSON.PtsURL, nil)
+	req.Header.Add("Content-Type", "application/json")
+
+	//TODO: In the future if we require a secret to access the PTS store
+	// then this call will need to pass in that key.
+	urlJSON, err := httpClient.Do(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error retrieving pod template spec: %v\n", err)
 		return
 	}
 	defer urlJSON.Body.Close()
+
+	if urlJSON.StatusCode != 200 {
+		fmt.Printf("Expected 200 got: %v\n", urlJSON.StatusCode)
+		http.Error(w, "", http.StatusInternalServerError)
+		return
+	}
 
 	tempPTS := &api.PodTemplateSpec{}
 	err = json.NewDecoder(urlJSON.Body).Decode(tempPTS)
