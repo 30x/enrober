@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: enrober
-        image: jbowen/enrober:v0.0.1
+        image: jbowen/enrober:v0
         env:
           - name: DEPLOY_STATE
             value: "PROD"
