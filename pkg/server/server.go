@@ -90,12 +90,12 @@ func (server *Server) Start() error {
 
 //Route handlers
 
-//getEnvironmentGrouos returns a list of all Environment Groups
+//getEnvironmentGroups returns a list of all Environment Groups
 //What is an environmentGroup?
 func getEnvironmentGroups(w http.ResponseWriter, r *http.Request) {
 	//TODO: What is this supposed to do?
-	//For now I'll just return 404 I guess...
-	http.Error(w, "404 Page not found", 404)
+	//For now I'll just return 405 I guess...
+	http.Error(w, "405 Method not allowed", 405)
 }
 
 //getEnvironmentGroup returns an Environment Group matching the given environmentGroupID
@@ -104,15 +104,15 @@ func getEnvironmentGroup(w http.ResponseWriter, r *http.Request) {
 	// vars := mux.Vars(r)
 
 	//TODO: What is this supposed to do?
-	//For now I'll just return 404 I guess...
-	http.Error(w, "404 page not found", 404)
+	//For now I'll just return 405 I guess...
+	http.Error(w, "405 Method not allowed", 405)
 }
 
 //getEnvironments returns a list of all environments under a specific environmentGroupID
 func getEnvironments(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	selector, err := labels.Parse("Group=" + pathVars["environmentGroupID"])
+	selector, err := labels.Parse("group=" + pathVars["environmentGroupID"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error creating label selector: %v\n", err)
@@ -211,7 +211,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 func getEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	labelSelector, err := labels.Parse("Group=" + pathVars["environmentGroupID"])
+	labelSelector, err := labels.Parse("group=" + pathVars["environmentGroupID"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error creating label selector in getEnvironment: %v\n", err)
@@ -284,6 +284,7 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				fmt.Printf("Error creating secret: %v\n", err)
+				return
 			}
 
 			w.WriteHeader(200)
@@ -293,6 +294,7 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 		} else {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			fmt.Printf("Error getting secret: %v\n", err)
+			return
 		}
 	} else {
 		getSecret.Data["api-key"] = []byte(tempJSON.Secret)
@@ -357,6 +359,7 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 func createDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
+	//TODO: Could be moved to types file
 	//Struct to put JSON into
 	type deploymentPost struct {
 		DeploymentName string `json:"deploymentName"`
@@ -374,6 +377,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//TODO: Duplicated code, could be moved to helper function
 	//Get JSON from url
 	httpClient := &http.Client{}
 
@@ -469,6 +473,8 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(js)
 			fmt.Printf("Got Deployment: %v\n", value.GetName())
+
+			break
 		}
 	}
 
@@ -479,6 +485,7 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
+	//TODO: Could be moved to types file
 	//Struct to put JSON into
 	type deploymentPatch struct {
 		TrafficHosts string `json:"trafficHosts"`
@@ -495,6 +502,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//TODO: Duplicated code, could be moved to helper function
 	//Get JSON from url
 	httpClient := &http.Client{}
 

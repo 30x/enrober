@@ -53,7 +53,7 @@ A swagger.yaml file is provided that documents the API per the OpenAPI specifica
 
 > Assuming you are running the server locally
 
-Create a new namespace group1-env1 with a secret
+Create a new namespace group1-env1 with a secret for use with [ingress](https://github.com/30x/k8s-pods-ingress#security)
 
 ```sh
 curl -X POST -d '{
