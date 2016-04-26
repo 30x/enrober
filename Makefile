@@ -7,8 +7,8 @@ push-to-local:
 	docker push localhost:5000/enrober
 	
 push-to-hub:
-	docker tag -f enrober jbowen/enrober:demo
-	docker push jbowen/enrober:demo
+	docker tag -f enrober jbowen/enrober:v0
+	docker push jbowen/enrober:v0
 
 deploy-to-kube:
 	kubectl run enrober --image=localhost:5000/enrober:latest
