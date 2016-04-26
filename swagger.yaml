@@ -13,8 +13,8 @@ paths:
       responses:
         200:
           description: Successful response
-        404:
-          description: Not Found
+        403:
+          description: Forbidden
         default:
           description: 5xx Errors
 
@@ -28,6 +28,8 @@ paths:
       responses:
         200:
           description: Successful response
+        403:
+          description: Forbidden
         404:
           description: Not Found
         default:
@@ -45,8 +47,8 @@ paths:
       responses:
         200:
           description: Successful response
-        404:
-          description: Not Found
+        403:
+          description: Forbidden
         default:
           description: 5xx Errors
 
@@ -71,12 +73,8 @@ paths:
       responses:
         201:
           description: Created
-        401:
-          description: Unauthorized
         403:
           description: Forbidden
-        404:
-          description: Not Found
         default:
           description: 5xx Errors
   
@@ -91,6 +89,8 @@ paths:
       responses:
         200:
           description: Successful response
+        403:
+          description: Forbidden
         404:
           description: Not Found
         default:
@@ -112,6 +112,8 @@ paths:
       responses:
         200:
           description: Successful response
+        403:
+          description: Forbidden
         404: 
           description: Not Found
         default:
@@ -128,6 +130,8 @@ paths:
       responses:
         200:
           description: Successful response
+        403:
+          description: Forbidden
         404:
           description: Not Found
         default:
@@ -144,8 +148,8 @@ paths:
       responses:
         200:
           description: Successful response
-        404:
-          description: Not Found
+        403:
+          description: Forbidden
         default:
           description: 5xx Errors
     
@@ -164,14 +168,8 @@ paths:
       responses:
         201:
           description: Created
-        400:
-          description: Bad Request
-        401:
-          description: Unauthorized
         403:
           description: Forbidden
-        404:
-          description: Not Found
         default:
           description: 5xx Errors
 
@@ -187,6 +185,8 @@ paths:
       responses:
         200:
           description: Successful response
+        403:
+          description: Forbidden
         404:
           description: Not Found
         default:
@@ -207,6 +207,8 @@ paths:
       responses:
           200:
             description: Successful response
+          403:
+            description: Forbidden
           404:
             description: Not Found
           default:
@@ -221,6 +223,8 @@ paths:
       responses:
         200:
           description: Successful response
+        403:
+          description: Forbidden
         404:
           description: Not Found
         default:

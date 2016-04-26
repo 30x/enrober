@@ -1,8 +1,6 @@
 #enrober
 
->###Warning: There is currently minimal input validation on the json.
-
-This project consists of a an API server that functions as a wrapper around the kubernetes client library. The server can be deployed both locally and as a docker container.
+This project consists of a an API server that functions as a wrapper around the kubernetes client library. The server can be deployed both locally and as a docker container within a kubernetes cluster.
 
 ###Local Deployment
 
@@ -25,82 +23,80 @@ To deploy the server as a docker container on a kubernetes cluster you should us
 
 The server will be accesible at `<pod-ip>/beeswax/deploy/api/v1`
 
-###Modifying the Server
-
-To build a static binary:
+You may also choose to build the files into your own docker image using the following steps:  
 
 ```sh
+#Build a static binary
 CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-w' -o enrober .
+
+#Build a docker image
+docker build -t enrober .
+
+#Tag the image
+docker tag -f enrober <desired name>
+
+#Push to dockerhub
+docker push <desired-name>
 ```
 
-To build a docker image:
+The server can now be deployed using:
 
 ```sh
-docker build -t enrober .
+kubectl run enrober --image=<desired-name>
 ```
 
 ##API Design
 
-
-**Inputs:** 
-
-`{namespace}` is a `string`
-
-`{application}` is a `string`
-
-`{revision}` is a `string`
-
-A `json` body with a corresponding header of `Content-Type: application/json` is required for `PUT/POST` requests. The body has the following contents:
-
-```
-{
-	"PodCount": 			Int,  				//Required 
-	"Image":				string, 			//Optional
-	"ImagePullSecret":		string				//Optional
-	"TrafficHosts": 		[string],			//Required
-	"PublicPaths":  		[string],			//Required 
-	"PathPort": 			Int	,				//Required
-	"EnvVars": { 			string: string,		//Optional
-	    					...,
-				 			...
-	}
-}
-```
+A swagger.yaml file is provided that documents the API per the OpenAPI specification.
 
 ###Usage
 
 > Assuming you are running the server locally
 
-Get all deployments that match a given namespace:
+Create a new namespace group1-env1 with a secret
 
 ```sh
-curl localhost:9000/beeswax/deploy/api/v1/{namespace}
+curl -X POST -d '{
+	"environmentName": "env1",
+	"secret": "12345"
+	}' \
+"localhost:9000/beeswax/deploy/api/v1/environmentGroups/group1/environments"
 ```
 
-Get all deployments that match a given namespace and application name:
+Create a new deployment dep1 
 
 ```sh
-curl localhost:9000/beeswax/deploy/api/v1/{namespace}/{application}
+curl -X POST -d '{
+	"deploymentName": "dep1",
+	"trafficHosts": "test.k8s.local",
+	"replicas": 1,
+	"ptsUrl": ""
+	}' \
+"localhost:9000/beeswax/deploy/api/v1/environmentGroups/group1/environments/env1/deployments"
 ```
 
-Check if a deployment exists that matches a given namespace, application name, and revision tag:
+Update deployment dep1 with new Pod Template Spec
+	
+```sh
+curl -X PATCH -d '{
+	"deploymentName": "dep1",
+	"trafficHosts": "test.k8s.local",
+	"replicas": 1,
+	"ptsUrl": ""
+	}' \
+"localhost:9000/beeswax/deploy/api/v1/environmentGroups/group1/environments/env1/deployments/dep1"
+```
+
+Delete deployment dep1
 
 ```sh
-curl localhost:9000/beeswax/deploy/api/v1/{namespace}/{application}/{revision}
+curl -X DELETE \
+"localhost:9000/beeswax/deploy/api/v1/environmentGroups/group1/environments/env1/deployments/dep1"
 ```
 
-Create a deployment in the given namespace, with the given application name and revision tag. If a namespace matching the passed in value doesn't exist it will be created. 
-
->Doesn't cover all options, only required ones.
+Delete namespace group1-env1
 
 ```sh
-curl -X PUT -H "Content-Type: application/json" -d '{"PodCount": 1, "TrafficHosts": ["test.k8s.local"], "PublicPaths": ["/app"], "PathPort": 9000}' "http://localhost:9000/beeswax/deploy/api/v1/{namespace}/{application}/{revision}"
+curl -X DELETE \
+"localhost:9000/beeswax/deploy/api/v1/environmentGroups/group1/environments/env1"
 ```
-
-If an Image is not passed in through the JSON body then the Image to be deployed is determined by concatenating the path parameters as follows:
-
-```
-{namespace} + "/" + {application} + ":" + {revision}
-```
-
-If an image matching this pattern isn't found then the deployed pods will fail with a `PullImageError` 
