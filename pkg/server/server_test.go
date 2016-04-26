@@ -70,7 +70,8 @@ var _ = Describe("Server Test", func() {
 			jsonStr := []byte(`{
 				    "trafficHosts": "deploy.k8s.local",
    					"trafficWeights": "weight1",
-    				"replicas": 3}`)
+    				"replicas": 3,
+					"ptsURL": "https://api.myjson.com/bins/4nja0"}`)
 
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
 
@@ -102,6 +103,30 @@ var _ = Describe("Server Test", func() {
 			resp, err := client.Do(req)
 
 			Expect(err).Should(BeNil(), "Shouldn't get an error on GET. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+		})
+
+		It("Delete Deployment", func() {
+			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep1", hostBase)
+			req, err := http.NewRequest("DELETE", url, nil)
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on DELETE. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+
+		})
+
+		It("Delete Environment", func() {
+			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1", hostBase)
+
+			req, err := http.NewRequest("DELETE", url, nil)
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on DELETE. Error: %v", err)
 
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
 		})

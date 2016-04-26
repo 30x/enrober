@@ -361,7 +361,6 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	type deploymentPost struct {
 		DeploymentName string `json:"deploymentName"`
 		TrafficHosts   string `json:"trafficHosts"`
-		TrafficWeights string `json:"trafficWeights"`
 		Replicas       int    `json:"Replicas"`
 		PtsURL         string `json:"ptsURL"`
 	}
@@ -405,12 +404,11 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//If the pass pod template spec doesn't have prior annotations
+	//If the passed pod template spec doesn't have prior annotations
 	//then we have to call the below line. Determine if we need to check this
 	//or if we are assuming all pod template specs have prior annotations.
 	// tempPTS.Annotations = make(map[string]string)
 	tempPTS.Annotations["trafficHosts"] = tempJSON.TrafficHosts
-	tempPTS.Annotations["trafficWeights"] = tempJSON.TrafficWeights
 
 	template := extensions.Deployment{
 		ObjectMeta: api.ObjectMeta{
@@ -476,15 +474,16 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//TODO: Allow modifying the PTS
 //updateDeployment updates a deployment matching the given environmentGroupID, environmentName, and deploymentName
 func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
 	//Struct to put JSON into
 	type deploymentPatch struct {
-		TrafficHosts   string `json:"trafficHosts"`
-		TrafficWeights string `json:"trafficWeights"`
-		Replicas       int    `json:"Replicas"`
+		TrafficHosts string `json:"trafficHosts"`
+		Replicas     int    `json:"Replicas"`
+		PtsURL       string `json:"ptsURL"`
 	}
 	//Decode passed JSON body
 	decoder := json.NewDecoder(r.Body)
@@ -496,6 +495,41 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//Get JSON from url
+	httpClient := &http.Client{}
+
+	req, err := http.NewRequest("GET", tempJSON.PtsURL, nil)
+	req.Header.Add("Content-Type", "application/json")
+
+	//TODO: In the future if we require a secret to access the PTS store
+	// then this call will need to pass in that key.
+	urlJSON, err := httpClient.Do(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Printf("Error retrieving pod template spec: %v\n", err)
+		return
+	}
+	defer urlJSON.Body.Close()
+
+	if urlJSON.StatusCode != 200 {
+		fmt.Printf("Expected 200 got: %v\n", urlJSON.StatusCode)
+		http.Error(w, "", http.StatusInternalServerError)
+		return
+	}
+
+	tempPTS := &api.PodTemplateSpec{}
+	err = json.NewDecoder(urlJSON.Body).Decode(tempPTS)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Printf("Error decoding PTS JSON Body: %v\n", err)
+		return
+	}
+	//If the old pod template spec doesn't have prior annotations
+	//then we have to call the below line. Determine if we need to check this
+	//or if we are assuming all pod template specs have prior annotations.
+	// tempPTS.Annotations = make(map[string]string)
+	tempPTS.Annotations["trafficHosts"] = tempJSON.TrafficHosts
+
 	getDep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get(pathVars["deployment"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -503,9 +537,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getDep.Spec.Replicas = tempJSON.Replicas
-	getDep.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
-	getDep.Spec.Template.Annotations["trafficHosts"] = tempJSON.TrafficHosts
-	getDep.Spec.Template.Annotations["trafficWeights"] = tempJSON.TrafficWeights
+	getDep.Spec.Template = *tempPTS
 
 	dep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Update(getDep)
 	if err != nil {
