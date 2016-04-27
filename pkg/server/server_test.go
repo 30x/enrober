@@ -44,15 +44,14 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
 		})
 
-		It("Create Deployment", func() {
+		It("Create Deployment from PTS URL", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments", hostBase)
 
 			jsonStr := []byte(`{
 				"deploymentName": "testdep1",
     			"trafficHosts": "deploy.k8s.local",
-    			"trafficWeights": "weight1",
     			"replicas": 1,
-    			"ptsURL": "https://api.myjson.com/bins/4nja0"}`)
+    			"ptsURL": "https://api.myjson.com/bins/2aot6"}`)
 
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 
@@ -64,14 +63,14 @@ var _ = Describe("Server Test", func() {
 
 		})
 
-		It("Update Deployment", func() {
+		It("Update Deployment from PTS URL", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep1", hostBase)
 
 			jsonStr := []byte(`{
 				    "trafficHosts": "deploy.k8s.local",
-   					"trafficWeights": "weight1",
     				"replicas": 3,
-					"ptsURL": "https://api.myjson.com/bins/4nja0"}`)
+					"ptsURL": "https://api.myjson.com/bins/2aot6"
+					}`)
 
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
 
@@ -83,8 +82,61 @@ var _ = Describe("Server Test", func() {
 
 		})
 
-		It("Get Deployment", func() {
+		It("Create Deployment from direct PTS", func() {
+			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments", hostBase)
+
+			jsonStr := []byte(`{
+				"deploymentName": "testdep2",
+    			"trafficHosts": "deploy.k8s.local",
+    			"replicas": 1,
+				"ptsURL": "https://api.myjson.com/bins/4nja0",
+				"pts": {"apiVersion":"v1","kind":"Pod","metadata":{"name":"nginx","labels":{"app":"web2","microservice":"true"},"annotations":{"publicPaths":"80:/ 90:/2"}},"spec":{"containers":[{"name":"nginx","image":"nginx","env":[{"name":"PORT","value":"80"}],"ports":[{"containerPort":80}]},{"name":"test","image":"jbowen/testapp:v0","env":[{"name":"PORT","value":"90"}],"ports":[{"containerPort":90}]}]}}
+					}`)
+
+			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(201), "Response should be 200 OK")
+
+		})
+
+		It("Update Deployment from direct PTS", func() {
+			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep2", hostBase)
+
+			jsonStr := []byte(`{
+				"trafficHosts": "deploy.k8s.local",
+				"replicas": 3,
+				"pts": {"apiVersion":"v1","kind":"Pod","metadata":{"name":"nginx","labels":{"app":"web2","microservice":"true"},"annotations":{"publicPaths":"80:/ 90:/2"}},"spec":{"containers":[{"name":"nginx","image":"nginx","env":[{"name":"PORT","value":"80"}],"ports":[{"containerPort":80}]},{"name":"test","image":"jbowen/testapp:v0","env":[{"name":"PORT","value":"90"}],"ports":[{"containerPort":90}]}]}}
+					}`)
+
+			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on PATCH. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+
+		})
+
+		It("Get Deployment testdep1", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep1", hostBase)
+
+			req, err := http.NewRequest("GET", url, nil)
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on GET. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+
+		})
+
+		It("Get Deployment testdep2", func() {
+			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep2", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
 
@@ -107,8 +159,20 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
 		})
 
-		It("Delete Deployment", func() {
+		It("Delete Deployment testdep1", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep1", hostBase)
+			req, err := http.NewRequest("DELETE", url, nil)
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on DELETE. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+
+		})
+
+		It("Delete Deployment testdep2", func() {
+			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep2", hostBase)
 			req, err := http.NewRequest("DELETE", url, nil)
 
 			resp, err := client.Do(req)

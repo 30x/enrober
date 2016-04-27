@@ -163,7 +163,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		ObjectMeta: api.ObjectMeta{
 			Name: pathVars["environmentGroupID"] + "-" + tempJSON.EnvironmentName,
 			Labels: map[string]string{
-				"Group": pathVars["environmentGroupID"],
+				"group": pathVars["environmentGroupID"],
 			},
 		},
 	}
@@ -362,10 +362,11 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	//TODO: Could be moved to types file
 	//Struct to put JSON into
 	type deploymentPost struct {
-		DeploymentName string `json:"deploymentName"`
-		TrafficHosts   string `json:"trafficHosts"`
-		Replicas       int    `json:"Replicas"`
-		PtsURL         string `json:"ptsURL"`
+		DeploymentName string               `json:"deploymentName"`
+		TrafficHosts   string               `json:"trafficHosts"`
+		Replicas       int                  `json:"Replicas"`
+		PtsURL         string               `json:"ptsURL"`
+		PTS            *api.PodTemplateSpec `json:"pts"`
 	}
 	//Decode passed JSON body
 	decoder := json.NewDecoder(r.Body)
@@ -377,35 +378,51 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//TODO: Duplicated code, could be moved to helper function
-	//Get JSON from url
-	httpClient := &http.Client{}
-
-	req, err := http.NewRequest("GET", tempJSON.PtsURL, nil)
-	req.Header.Add("Content-Type", "application/json")
-
-	//TODO: In the future if we require a secret to access the PTS store
-	// then this call will need to pass in that key.
-	urlJSON, err := httpClient.Do(req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Printf("Error retrieving pod template spec: %v\n", err)
-		return
-	}
-	defer urlJSON.Body.Close()
-
-	if urlJSON.StatusCode != 200 {
-		fmt.Printf("Expected 200 got: %v\n", urlJSON.StatusCode)
-		http.Error(w, "", http.StatusInternalServerError)
-		return
-	}
-
+	//Needs to be at higher scope than if statement
 	tempPTS := &api.PodTemplateSpec{}
-	err = json.NewDecoder(urlJSON.Body).Decode(tempPTS)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Printf("Error decoding PTS JSON Body: %v\n", err)
-		return
+	//Check if we got a URL or a direct PTS
+	if tempJSON.PTS == nil {
+		//No PTS so check ptsURL
+		fmt.Printf("No PTS\n")
+		if tempJSON.PtsURL == "" {
+			//No URL either so error
+			http.Error(w, "", http.StatusInternalServerError)
+			fmt.Printf("No ptsURL or PTS given\n")
+			return
+		}
+		//Get from URL
+		//TODO: Duplicated code, could be moved to helper function
+		//Get JSON from url
+		httpClient := &http.Client{}
+
+		req, err := http.NewRequest("GET", tempJSON.PtsURL, nil)
+		req.Header.Add("Content-Type", "application/json")
+
+		//TODO: In the future if we require a secret to access the PTS store
+		// then this call will need to pass in that key.
+		urlJSON, err := httpClient.Do(req)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fmt.Printf("Error retrieving pod template spec: %v\n", err)
+			return
+		}
+		defer urlJSON.Body.Close()
+
+		if urlJSON.StatusCode != 200 {
+			fmt.Printf("Expected 200 got: %v\n", urlJSON.StatusCode)
+			http.Error(w, "", http.StatusInternalServerError)
+			return
+		}
+
+		err = json.NewDecoder(urlJSON.Body).Decode(tempPTS)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fmt.Printf("Error decoding PTS JSON Body: %v\n", err)
+			return
+		}
+	} else {
+		//We got a direct PTS so just copy it
+		tempPTS = tempJSON.PTS
 	}
 
 	//If the passed pod template spec doesn't have prior annotations
@@ -488,9 +505,10 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	//TODO: Could be moved to types file
 	//Struct to put JSON into
 	type deploymentPatch struct {
-		TrafficHosts string `json:"trafficHosts"`
-		Replicas     int    `json:"Replicas"`
-		PtsURL       string `json:"ptsURL"`
+		TrafficHosts string               `json:"trafficHosts"`
+		Replicas     int                  `json:"Replicas"`
+		PtsURL       string               `json:"ptsURL"`
+		PTS          *api.PodTemplateSpec `json:"pts"`
 	}
 	//Decode passed JSON body
 	decoder := json.NewDecoder(r.Body)
@@ -502,36 +520,53 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//TODO: Duplicated code, could be moved to helper function
-	//Get JSON from url
-	httpClient := &http.Client{}
-
-	req, err := http.NewRequest("GET", tempJSON.PtsURL, nil)
-	req.Header.Add("Content-Type", "application/json")
-
-	//TODO: In the future if we require a secret to access the PTS store
-	// then this call will need to pass in that key.
-	urlJSON, err := httpClient.Do(req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Printf("Error retrieving pod template spec: %v\n", err)
-		return
-	}
-	defer urlJSON.Body.Close()
-
-	if urlJSON.StatusCode != 200 {
-		fmt.Printf("Expected 200 got: %v\n", urlJSON.StatusCode)
-		http.Error(w, "", http.StatusInternalServerError)
-		return
-	}
-
+	//Needs to be at higher scope than if statement
 	tempPTS := &api.PodTemplateSpec{}
-	err = json.NewDecoder(urlJSON.Body).Decode(tempPTS)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Printf("Error decoding PTS JSON Body: %v\n", err)
-		return
+	//Check if we got a URL or a direct PTS
+	if tempJSON.PTS == nil {
+		//No PTS so check ptsURL
+		fmt.Printf("No PTS\n")
+		if tempJSON.PtsURL == "" {
+			//No URL either so error
+			http.Error(w, "", http.StatusInternalServerError)
+			fmt.Printf("No ptsURL or PTS given\n")
+			return
+		}
+		//Get from URL
+		//TODO: Duplicated code, could be moved to helper function
+		//Get JSON from url
+		httpClient := &http.Client{}
+
+		req, err := http.NewRequest("GET", tempJSON.PtsURL, nil)
+		req.Header.Add("Content-Type", "application/json")
+
+		//TODO: In the future if we require a secret to access the PTS store
+		// then this call will need to pass in that key.
+		urlJSON, err := httpClient.Do(req)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fmt.Printf("Error retrieving pod template spec: %v\n", err)
+			return
+		}
+		defer urlJSON.Body.Close()
+
+		if urlJSON.StatusCode != 200 {
+			fmt.Printf("Expected 200 got: %v\n", urlJSON.StatusCode)
+			http.Error(w, "", http.StatusInternalServerError)
+			return
+		}
+
+		err = json.NewDecoder(urlJSON.Body).Decode(tempPTS)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fmt.Printf("Error decoding PTS JSON Body: %v\n", err)
+			return
+		}
+	} else {
+		//We got a direct PTS so just copy it
+		tempPTS = tempJSON.PTS
 	}
+
 	//If the old pod template spec doesn't have prior annotations
 	//then we have to call the below line. Determine if we need to check this
 	//or if we are assuming all pod template specs have prior annotations.
