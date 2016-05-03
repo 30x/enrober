@@ -26,3 +26,4 @@ spec:
             value: "PROD"
         ports:
           - containerPort: 9000
+      serviceAccount: admin
