@@ -1,10 +1,13 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"k8s.io/kubernetes/pkg/api"
@@ -23,6 +26,10 @@ type Server struct {
 
 //Global Kubernetes Client
 var client k8sClient.Client
+
+//Global Regex
+var validIPAddressRegex = regexp.MustCompile(`^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$`)
+var validHostnameRegex = regexp.MustCompile(`^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$`)
 
 //Init does stuff
 func Init(clientConfig restclient.Config) error {
@@ -124,7 +131,6 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error in getEnvironments: %v\n", err)
-		fmt.Fprintf(w, "%v\n", err)
 		return
 	}
 	js, err := json.Marshal(nsList)
@@ -146,9 +152,11 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	//Struct to put JSON into
 	type environmentPost struct {
-		EnvironmentName string `json:"environmentName"`
-		Secret          string `json:"secret"`
+		EnvironmentName string   `json:"environmentName"`
+		Secret          string   `json:"secret"`
+		HostNames       []string `json:"hostNames"`
 	}
+
 	//Decode passed JSON body
 	decoder := json.NewDecoder(r.Body)
 	var tempJSON environmentPost
@@ -159,11 +167,64 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//space delimited annotation of valid hostnames
+	var hostsList bytes.Buffer
+
+	//Loop through slice of HostNames
+	for index, value := range tempJSON.HostNames {
+		//Verify each Hostname matches regex
+		validIP := validIPAddressRegex.MatchString(value)
+		validHost := validHostnameRegex.MatchString(value)
+
+		if !(validIP || validHost) == true {
+			//Regex didn't match
+			http.Error(w, "", http.StatusInternalServerError)
+			fmt.Printf("Not a valid hostname: %v\n", value)
+			return
+		}
+		if index == 0 {
+			hostsList.WriteString(value)
+		} else {
+			hostsList.WriteString(" " + value)
+		}
+
+		//TODO: If this becomes a bottleneck at a high number of namespaces come back to this and optimize
+
+		//Verify that hostname isn't on another namespace
+
+		//Get list of all namespace and loop through each of their "validHosts" annotation looking for strings matching our value
+		nsList, err := client.Namespaces().List(api.ListOptions{
+			LabelSelector: labels.Everything(),
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fmt.Printf("Error in getting nsList in createEnvironment: %v\n", err)
+			fmt.Fprintf(w, "%v\n", err)
+			return
+		}
+
+		for _, ns := range nsList.Items {
+			//Make sure validHosts annotation exists
+			if val, ok := ns.Annotations["validHosts"]; ok {
+				//Get the hostsList annotation
+				if strings.Contains(val, value) {
+					//Duplicate HostNames
+					http.Error(w, "", http.StatusInternalServerError)
+					fmt.Printf("Duplicate Hostname: %v\n", value)
+					return
+				}
+			}
+		}
+	}
+
 	nsObject := &api.Namespace{
 		ObjectMeta: api.ObjectMeta{
 			Name: pathVars["environmentGroupID"] + "-" + tempJSON.EnvironmentName,
 			Labels: map[string]string{
 				"group": pathVars["environmentGroupID"],
+			},
+			Annotations: map[string]string{
+				"validHosts": hostsList.String(),
 			},
 		},
 	}
@@ -430,6 +491,9 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	//or if we are assuming all pod template specs have prior annotations.
 	// tempPTS.Annotations = make(map[string]string)
 	tempPTS.Annotations["trafficHosts"] = tempJSON.TrafficHosts
+
+	//Add calico annotations
+	tempPTS.Annotations["projectcalico.org/policy"] = "allow from namespace " + pathVars["environmentGroupID"] + "-" + pathVars["environment"]
 
 	template := extensions.Deployment{
 		ObjectMeta: api.ObjectMeta{
