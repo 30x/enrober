@@ -21,14 +21,27 @@ var _ = Describe("Server Test", func() {
 		It("Create Environment", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments", hostBase)
 
-			jsonStr := []byte(`{"environmentName": "testenv1","secret": "12345"}`)
+			jsonStr := []byte(`{"environmentName": "testenv1","secret": "12345", "hostNames": ["test1"]}`)
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 
 			resp, err := client.Do(req)
 
 			Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
 
-			Expect(resp.StatusCode).Should(Equal(201), "Respone should be 201 Created")
+			Expect(resp.StatusCode).Should(Equal(201), "Response should be 201 Created")
+		})
+
+		It("Create Environment with duplicated Host Name", func() {
+			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments", hostBase)
+
+			jsonStr := []byte(`{"environmentName": "testenv2","secret": "12345", "hostNames": ["test1"]}`)
+			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(500), "Response should be 500 Internal Server Error")
 		})
 
 		It("Update Environment", func() {
