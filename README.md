@@ -121,45 +121,6 @@ curl -X PATCH -d '{
 	"deploymentName": "dep1",
 	"trafficHosts": "test.k8s.local",
 	"replicas": 3,
-	"pts": 
-	{
-		"apiVersion": "v1",
-		"kind": "Pod",
-		"metadata": {
-			"name": "nginx",
-			"labels": {
-				"app": "web",
-				"microservice": "true"
-			},
-			"annotations": {
-				"publicPaths": "80:/ 90:/2",
-				"test": "test"
-			}
-		},
-		"spec": {
-			"containers": [{
-				"name": "nginx",
-				"image": "nginx",
-				"env": [{
-					"name": "PORT",
-					"value": "80"
-				}],
-				"ports": [{
-					"containerPort": 80
-				}]
-			}, {
-				"name": "test",
-				"image": "jbowen/testapp:v0",
-				"env": [{
-					"name": "PORT",
-					"value": "90"
-				}],
-				"ports": [{
-					"containerPort": 90
-				}]
-			}]
-		}
-	}
 }' \
 "localhost:9000/beeswax/deploy/api/v1/environmentGroups/group1/environments/env1/deployments/dep1"
 ```
