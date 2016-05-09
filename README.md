@@ -16,7 +16,7 @@ The server will be accesible at `localhost:9000/beeswax/deploy/api/v1`
 A prebuilt docker image is available with:
  
 ```sh
-docker pull jbowen/enrober:v0.0.1
+docker pull jbowen/enrober:v0
 ```
 
 To deploy the server as a docker container on a kubernetes cluster you should use the provided `deploy.yaml` file. Running `kubectl create -f deploy.yaml` will pull the image from dockerhub and deploy it to the default namespace.
@@ -58,7 +58,8 @@ Create a new namespace group1-env1 with a secret for use with [ingress](https://
 ```sh
 curl -X POST -d '{
 	"environmentName": "env1",
-	"secret": "12345"
+	"secret": "12345",
+	"hostNames": ["host1", "host2"]
 	}' \
 "localhost:9000/beeswax/deploy/api/v1/environmentGroups/group1/environments"
 ```
@@ -70,20 +71,96 @@ curl -X POST -d '{
 	"deploymentName": "dep1",
 	"trafficHosts": "test.k8s.local",
 	"replicas": 1,
-	"ptsUrl": ""
-	}' \
+	"pts": 
+	{
+		"apiVersion": "v1",
+		"kind": "Pod",
+		"metadata": {
+			"name": "nginx",
+			"labels": {
+				"app": "web",
+				"microservice": "true"
+			},
+			"annotations": {
+				"publicPaths": "80:/ 90:/2",
+				"test": "test"
+			}
+		},
+		"spec": {
+			"containers": [{
+				"name": "nginx",
+				"image": "nginx",
+				"env": [{
+					"name": "PORT",
+					"value": "80"
+				}],
+				"ports": [{
+					"containerPort": 80
+				}]
+			}, {
+				"name": "test",
+				"image": "jbowen/testapp:v0",
+				"env": [{
+					"name": "PORT",
+					"value": "90"
+				}],
+				"ports": [{
+					"containerPort": 90
+				}]
+			}]
+		}
+	}
+}' \
 "localhost:9000/beeswax/deploy/api/v1/environmentGroups/group1/environments/env1/deployments"
 ```
 
-Update deployment dep1 with new Pod Template Spec
+Update deployment dep1 with to have 3 replicas
 	
 ```sh
 curl -X PATCH -d '{
 	"deploymentName": "dep1",
 	"trafficHosts": "test.k8s.local",
-	"replicas": 1,
-	"ptsUrl": ""
-	}' \
+	"replicas": 3,
+	"pts": 
+	{
+		"apiVersion": "v1",
+		"kind": "Pod",
+		"metadata": {
+			"name": "nginx",
+			"labels": {
+				"app": "web",
+				"microservice": "true"
+			},
+			"annotations": {
+				"publicPaths": "80:/ 90:/2",
+				"test": "test"
+			}
+		},
+		"spec": {
+			"containers": [{
+				"name": "nginx",
+				"image": "nginx",
+				"env": [{
+					"name": "PORT",
+					"value": "80"
+				}],
+				"ports": [{
+					"containerPort": 80
+				}]
+			}, {
+				"name": "test",
+				"image": "jbowen/testapp:v0",
+				"env": [{
+					"name": "PORT",
+					"value": "90"
+				}],
+				"ports": [{
+					"containerPort": 90
+				}]
+			}]
+		}
+	}
+}' \
 "localhost:9000/beeswax/deploy/api/v1/environmentGroups/group1/environments/env1/deployments/dep1"
 ```
 

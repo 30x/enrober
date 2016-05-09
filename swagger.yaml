@@ -11,12 +11,8 @@ paths:
       produces: 
       - application/json
       responses:
-        200:
-          description: Successful response
-        403:
-          description: Forbidden
-        default:
-          description: 5xx Errors
+        405:
+          description: Method not allowed
 
   /environmentGroups/{environmentGroupID}:
     get:
@@ -26,16 +22,8 @@ paths:
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       responses:
-        200:
-          description: Successful response
-        403:
-          description: Forbidden
-        404:
-          description: Not Found
-        default:
-          description: 5xx Errors
-          
-
+        405:
+          description: Method not allowed
       
   /environmentGroups/{environmentGroupID}/environments:
     get:
@@ -69,6 +57,10 @@ paths:
           secret:
              type: string
              description: Authentication secret to be created within environment
+          hostNames:
+            type: array
+            items: 
+              type: string
 
       responses:
         201:
@@ -241,9 +233,6 @@ definitions:
       trafficHosts: 
         type: string
         description: Where deployment object is routed
-      trafficWeights:
-        type: string
-        description: How much traffic is sent to deployment object
       publicPaths:
         type: string
         description: Path of deployment
@@ -253,6 +242,10 @@ definitions:
       ptsURL:
         type: string
         description: URL to pod template spec json
+      pts:
+        type: object
+        description: Pod template spec to create
+          
         
   deployment_patch:
     description: Deployment JSON body object
@@ -260,16 +253,18 @@ definitions:
       trafficHosts: 
         type: string
         description: Where deployment object is routed
-      trafficWeights:
-        type: string
-        description: How much traffic is sent to deployment object
       publicPaths:
         type: string
         description: Path of deployment
       replicas:
         type: integer
         description: How many replicas to be deployed
-
+      ptsURL:
+        type: string
+        description: URL to pod template spec json
+      pts:
+        type: object
+        description: Pod template spec to create
 
 #Top Level Path Parameters
 parameters:
