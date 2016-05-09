@@ -176,7 +176,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		validIP := validIPAddressRegex.MatchString(value)
 		validHost := validHostnameRegex.MatchString(value)
 
-		if !(validIP || validHost) == true {
+		if !validIP && !validHost {
 			//Regex didn't match
 			http.Error(w, "", http.StatusInternalServerError)
 			fmt.Printf("Not a valid hostname: %v\n", value)
@@ -193,9 +193,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		//Verify that hostname isn't on another namespace
 
 		//Get list of all namespace and loop through each of their "validHosts" annotation looking for strings matching our value
-		nsList, err := client.Namespaces().List(api.ListOptions{
-			LabelSelector: labels.Everything(),
-		})
+		nsList, err := client.Namespaces().List(api.ListOptions{})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			fmt.Printf("Error in getting nsList in createEnvironment: %v\n", err)
