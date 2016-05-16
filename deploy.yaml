@@ -13,9 +13,9 @@ spec:
     metadata:
       labels:
         name: enrober
-        microservice: "true"
+        routable: "true"
       annotations:
-        trafficHosts: "deploy.k8s.local"
+        publicHosts: "test.k8s.local"
         publicPaths: "9000:/beeswax/deploy"
     spec:
       containers:

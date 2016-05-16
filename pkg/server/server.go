@@ -153,7 +153,8 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Struct to put JSON into
 	type environmentPost struct {
 		EnvironmentName string   `json:"environmentName"`
-		Secret          string   `json:"secret"`
+		PrivateSecret   string   `json:"privateSecret"`
+		PublicSecret    string   `json:"publicSecret"`
 		HostNames       []string `json:"hostNames"`
 	}
 
@@ -178,7 +179,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 
 		if !validIP && !validHost {
 			//Regex didn't match
-			http.Error(w, "", http.StatusInternalServerError)
+			http.Error(w, "Invalid Hostname", http.StatusInternalServerError)
 			fmt.Printf("Not a valid hostname: %v\n", value)
 			return
 		}
@@ -207,7 +208,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 				//Get the hostsList annotation
 				if strings.Contains(val, value) {
 					//Duplicate HostNames
-					http.Error(w, "", http.StatusInternalServerError)
+					http.Error(w, "Duplicate Hostname", http.StatusInternalServerError)
 					fmt.Printf("Duplicate Hostname: %v\n", value)
 					return
 				}
@@ -239,10 +240,11 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	tempSecret := api.Secret{
 		ObjectMeta: api.ObjectMeta{
-			Name: "ingress",
+			Name: "routing",
 		},
 		Data: map[string][]byte{
-			"api-key": []byte(tempJSON.Secret),
+			"public":  []byte(tempJSON.PublicSecret),
+			"private": []byte(tempJSON.PrivateSecret),
 		},
 		Type: "Opaque",
 	}
@@ -312,7 +314,9 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	//Struct to put JSON into
 	type environmentPost struct {
-		Secret string `json:"secret"`
+		PrivateSecret string   `json:"privateSecret"`
+		PublicSecret  string   `json:"publicSecret"`
+		HostNames     []string `json:"hostNames"`
 	}
 	//Decode passed JSON body
 	decoder := json.NewDecoder(r.Body)
@@ -324,18 +328,19 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//Check if there is a secret named ingress in the given environment
-	getSecret, err := client.Secrets(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get("ingress")
+	//Check if there is a secret named routing in the given environment
+	getSecret, err := client.Secrets(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get("routing")
 	if err != nil {
-		test := errors.New("secrets \"ingress\" not found")
+		test := errors.New("secret \"routing\" not found")
 		if err.Error() == test.Error() {
 			//Create secret
 			tempSecret := api.Secret{
 				ObjectMeta: api.ObjectMeta{
-					Name: "ingress",
+					Name: "routing",
 				},
 				Data: map[string][]byte{
-					"api-key": []byte(tempJSON.Secret),
+					"public":  []byte(tempJSON.PublicSecret),
+					"private": []byte(tempJSON.PrivateSecret),
 				},
 				Type: "Opaque",
 			}
@@ -356,7 +361,8 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		getSecret.Data["api-key"] = []byte(tempJSON.Secret)
+		getSecret.Data["private"] = []byte(tempJSON.PrivateSecret)
+		getSecret.Data["public"] = []byte(tempJSON.PublicSecret)
 		secret, err := client.Secrets(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Update(getSecret)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -422,7 +428,10 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	//Struct to put JSON into
 	type deploymentPost struct {
 		DeploymentName string               `json:"deploymentName"`
-		TrafficHosts   string               `json:"trafficHosts"`
+		PublicHosts    string               `json:"publicHosts"`
+		PublicPaths    string               `json:"publicPaths"`
+		PrivateHosts   string               `json:"privateHosts"`
+		PrivatePaths   string               `json:"privatePaths"`
 		Replicas       int                  `json:"Replicas"`
 		PtsURL         string               `json:"ptsURL"`
 		PTS            *api.PodTemplateSpec `json:"pts"`
@@ -434,6 +443,12 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error decoding JSON Body: %v\n", err)
+		return
+	}
+
+	if tempJSON.PublicHosts == "" && tempJSON.PrivateHosts == "" {
+		http.Error(w, "", http.StatusInternalServerError)
+		fmt.Printf("No privateHosts or publicHosts given\n")
 		return
 	}
 
@@ -484,14 +499,19 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		tempPTS = tempJSON.PTS
 	}
 
-	//If the passed pod template spec doesn't have prior annotations
-	//then we have to call the below line. Determine if we need to check this
-	//or if we are assuming all pod template specs have prior annotations.
-	// tempPTS.Annotations = make(map[string]string)
-	tempPTS.Annotations["trafficHosts"] = tempJSON.TrafficHosts
+	//If map is empty then we need to make it
+	if len(tempPTS.Annotations) == 0 {
+		tempPTS.Annotations = make(map[string]string)
+	}
 
-	//Add calico annotations
-	tempPTS.Annotations["projectcalico.org/policy"] = "allow from namespace " + pathVars["environmentGroupID"] + "-" + pathVars["environment"]
+	//Routing Annotations
+	tempPTS.Annotations["publicHosts"] = tempJSON.PublicHosts
+	tempPTS.Annotations["publicPaths"] = tempJSON.PublicPaths
+	tempPTS.Annotations["privateHosts"] = tempJSON.PrivateHosts
+	tempPTS.Annotations["privatePaths"] = tempJSON.PrivatePaths
+
+	//Add routable label
+	tempPTS.Labels["routable"] = "true"
 
 	template := extensions.Deployment{
 		ObjectMeta: api.ObjectMeta{
@@ -507,6 +527,12 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 			Template: *tempPTS,
 		},
 	}
+
+	//TODO: Need to check that there are no other deployments with the same MatchLabels otherwise things go crazy.
+	//Get list of all deployments in namespace
+	//Loop through looking for MatchLabels["app"] = tempPTS.Labels["app"]
+	//Break out of loop and return error if one is found
+	//Should probably return a useful message to user at this point
 
 	//Create Deployment
 	dep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Create(&template)
@@ -566,7 +592,10 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	//TODO: Could be moved to types file
 	//Struct to put JSON into
 	type deploymentPatch struct {
-		TrafficHosts string               `json:"trafficHosts"`
+		PublicHosts  string               `json:"publicHosts"`
+		PublicPaths  string               `json:"publicPaths"`
+		PrivateHosts string               `json:"privateHosts"`
+		PrivatePaths string               `json:"privatePaths"`
 		Replicas     int                  `json:"Replicas"`
 		PtsURL       string               `json:"ptsURL"`
 		PTS          *api.PodTemplateSpec `json:"pts"`
@@ -634,11 +663,27 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		tempPTS = tempJSON.PTS
 	}
 
-	//If the old pod template spec doesn't have prior annotations
-	//then we have to call the below line. Determine if we need to check this
-	//or if we are assuming all pod template specs have prior annotations.
-	// tempPTS.Annotations = make(map[string]string)
-	tempPTS.Annotations["trafficHosts"] = tempJSON.TrafficHosts
+	//If map is empty then we need to make it
+	if len(tempPTS.Annotations) == 0 {
+		tempPTS.Annotations = make(map[string]string)
+	}
+
+	//Don't overwrite routing annotations unless they're non empty
+	if tempJSON.PublicHosts != "" {
+		tempPTS.Annotations["publicHosts"] = tempJSON.PublicHosts
+	}
+	if tempJSON.PublicPaths != "" {
+		tempPTS.Annotations["publicPaths"] = tempJSON.PublicPaths
+	}
+	if tempJSON.PrivateHosts != "" {
+		tempPTS.Annotations["privateHosts"] = tempJSON.PrivateHosts
+	}
+	if tempJSON.PrivatePaths != "" {
+		tempPTS.Annotations["privatePaths"] = tempJSON.PrivatePaths
+	}
+
+	//Add routable label
+	tempPTS.Labels["routable"] = "true"
 
 	getDep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get(pathVars["deployment"])
 	if err != nil {

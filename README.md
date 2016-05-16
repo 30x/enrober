@@ -58,7 +58,8 @@ Create a new namespace group1-env1 with a secret for use with [ingress](https://
 ```sh
 curl -X POST -d '{
 	"environmentName": "env1",
-	"secret": "12345",
+	"publicSecret": "12345",
+	"privateSecret": "54321",
 	"hostNames": ["host1", "host2"]
 	}' \
 "localhost:9000/beeswax/deploy/api/v1/environmentGroups/group1/environments"
@@ -69,7 +70,10 @@ Create a new deployment dep1
 ```sh
 curl -X POST -d '{
 	"deploymentName": "dep1",
-	"trafficHosts": "test.k8s.local",
+    "publicHosts": "deploy.k8s.public",
+    "publicPaths": "80:/ 90:/2",
+    "privateHosts": "deploy.k8s.private",
+    "privatePaths": "80:/ 90:/2",
 	"replicas": 1,
 	"pts": 
 	{
@@ -79,11 +83,6 @@ curl -X POST -d '{
 			"name": "nginx",
 			"labels": {
 				"app": "web",
-				"microservice": "true"
-			},
-			"annotations": {
-				"publicPaths": "80:/ 90:/2",
-				"test": "test"
 			}
 		},
 		"spec": {
