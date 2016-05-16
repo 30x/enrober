@@ -46,17 +46,19 @@ paths:
       - $ref: "#/parameters/environmentGroupIDParam"
       - name: environment_post
         in: body
-        description: Name of environment to be created
+        description: environment JSON body object
         required: true
         schema:
-         description: enivronment JSON body object
          properties: 
           environment_name:
             type: string
             description: Name of environment to be created
-          secret:
-             type: string
-             description: Authentication secret to be created within environment
+          publicSecret:
+             type: boolean
+             description: Set to true if you want a public-api-key secret to be created
+          privateSecret:
+             type: boolean
+             description:  Set to true if you want a private-api-key secret to be created
           hostNames:
             type: array
             items: 
@@ -95,12 +97,22 @@ paths:
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       - $ref: "#/parameters/environmentParam"
-      - name: secret
+      - name: environment_patch
         in: body
-        description: New value of authentication key
-        required: true
+        description: environment JSON body object
+        required: false
         schema: 
-          type: string
+          properties:
+            publicSecret:
+               type: boolean
+               description: Set to true if you want a public-api-key secret to be modified or created
+            privateSecret:
+               type: boolean
+               description:  Set to true if you want a private-api-key secret to be modified or recreated
+            hostNames:
+              type: array
+              items: 
+                type: string
       responses:
         200:
           description: Successful response

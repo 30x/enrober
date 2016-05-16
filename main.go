@@ -17,6 +17,7 @@ func main() {
 	}
 
 	envState := os.Getenv("DEPLOY_STATE")
+
 	switch envState {
 	case "PROD":
 		fmt.Printf("DEPLOY_STATE set to PROD\n")
@@ -39,6 +40,7 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error starting server\n")
 	}
+
 	return
 
 }
