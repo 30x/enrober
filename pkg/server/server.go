@@ -293,11 +293,12 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Print to console for logging
 	fmt.Printf("Created Secret: %v\n", secret.GetName())
 
-	js, err := json.Marshal(createdNs)
+	js, err := json.Marshal(secret.Data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error marshalling namespace: %v\n", err)
 	}
+
 	w.WriteHeader(201)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
@@ -418,8 +419,16 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			js, err := json.Marshal(secret.Data)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				fmt.Printf("Error marshalling namespace: %v\n", err)
+			}
+
 			w.WriteHeader(200)
-			fmt.Fprintf(w, "Created Secret: %v\n", secret.GetName())
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(js)
+
 			fmt.Printf("Created Secret: %v\n", secret.GetName())
 
 		} else {
@@ -468,9 +477,17 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("Error updating secret: %v\n", err)
 		}
 
+		js, err := json.Marshal(secret.Data)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fmt.Printf("Error marshalling namespace: %v\n", err)
+		}
+
 		w.WriteHeader(200)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(js)
+
 		fmt.Printf("Updated Secret: %v\n", secret.GetName())
-		fmt.Fprintf(w, "Updated Secret: %v\n", secret.GetName())
 
 	}
 }
@@ -478,9 +495,6 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 //deleteEnvironment deletes a kubernetes namespace matching the given environmentGroupID and environmentName
 func deleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
-
-	//TODO: Can only delete a namespace based on its name not it's annotations.
-	//Ensure that this is thorough enough for our uses.
 
 	err := client.Namespaces().Delete(pathVars["environmentGroupID"] + "-" + pathVars["environment"])
 	if err != nil {
@@ -531,7 +545,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		PublicPaths    string               `json:"publicPaths"`
 		PrivateHosts   string               `json:"privateHosts"`
 		PrivatePaths   string               `json:"privatePaths"`
-		Replicas       int                  `json:"Replicas"`
+		Replicas       int                  `json:"replicas"`
 		PtsURL         string               `json:"ptsURL"`
 		PTS            *api.PodTemplateSpec `json:"pts"`
 	}
