@@ -2,11 +2,13 @@ package server_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/30x/enrober/pkg/server"
 
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/client/restclient"
 
 	. "github.com/onsi/ginkgo"
@@ -18,6 +20,10 @@ var _ = Describe("Server Test", func() {
 
 		client := &http.Client{}
 
+		//Higher scoped secret value
+		var globalPrivate string
+		var globalPublic string
+
 		It("Create Environment", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments", hostBase)
 
@@ -25,8 +31,22 @@ var _ = Describe("Server Test", func() {
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 
 			resp, err := client.Do(req)
-
 			Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
+
+			tempSecret := api.Secret{
+				Data: make(map[string][]byte),
+			}
+
+			err = json.NewDecoder(resp.Body).Decode(&tempSecret.Data)
+			Expect(err).Should(BeNil(), "Error decoding response: %v", err)
+
+			//Store the private-api-key in higher scope
+			globalPrivate = string(tempSecret.Data["private-api-key"])
+
+			//Store the public-api-key in higher scope
+			globalPublic = string(tempSecret.Data["public-api-key"])
+
+			Expect(tempSecret.Data).ShouldNot(BeNil())
 
 			Expect(resp.StatusCode).Should(Equal(201), "Response should be 201 Created")
 		})
@@ -34,7 +54,7 @@ var _ = Describe("Server Test", func() {
 		It("Create Environment with duplicated Host Name", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments", hostBase)
 
-			jsonStr := []byte(`{"environmentName": "testenv2","secret": "12345", "hostNames": ["testhost1"]}`)
+			jsonStr := []byte(`{"environmentName": "testenv2","publicSecret": true, "privateSecret": true, "hostNames": ["testhost1"]}`)
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 
 			resp, err := client.Do(req)
@@ -44,20 +64,30 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(500), "Response should be 500 Internal Server Error")
 		})
 
-		It("Update Environment", func() {
+		It("Update Environment to not change privateSecret", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1", hostBase)
 
-			jsonStr := []byte(`{"publicSecret": true, "privateSecret": true, "hostNames": ["testhost1"]}`)
+			jsonStr := []byte(`{"publicSecret": true, "privateSecret": false, "hostNames": ["testhost1"]}`)
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
 
 			resp, err := client.Do(req)
-
 			Expect(err).Should(BeNil(), "Shouldn't get an error on PATCH. Error: %v", err)
+
+			tempSecret := api.Secret{
+				Data: make(map[string][]byte),
+			}
+
+			err = json.NewDecoder(resp.Body).Decode(&tempSecret.Data)
+			Expect(err).Should(BeNil(), "Error decoding response: %v", err)
+
+			//Make sure that private-api-key wasn't changed
+			Expect(string(tempSecret.Data["private-api-key"])).Should(Equal(globalPrivate))
+
+			//Make sure that public-api-key was changed
+			Expect(string(tempSecret.Data["public-api-key"])).ShouldNot(Equal(globalPublic))
 
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
 		})
-
-		//TODO: Test secret creation stuff
 
 		It("Create Deployment from PTS URL", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments", hostBase)

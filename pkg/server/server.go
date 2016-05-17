@@ -537,7 +537,6 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 func createDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	//TODO: Could be moved to types file
 	//Struct to put JSON into
 	type deploymentPost struct {
 		DeploymentName string               `json:"deploymentName"`
@@ -642,10 +641,16 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//TODO: Need to check that there are no other deployments with the same MatchLabels otherwise things go crazy.
-	//Get list of all deployments in namespace
-	//Loop through looking for MatchLabels["app"] = tempPTS.Labels["app"]
-	//Break out of loop and return error if one is found
-	//Should probably return a useful message to user at this point
+	labelSelector, err := labels.Parse("app=" + tempPTS.Labels["app"])
+	//Get list of all deployments in namespace with MatchLabels["app"] = tempPTS.Labels["app"]
+	depList, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).List(api.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if len(depList.Items) != 0 {
+		fmt.Printf("LabelSelector " + labelSelector.String() + " already exists")
+		http.Error(w, "LabelSelector "+labelSelector.String()+" already exists", http.StatusInternalServerError)
+		return
+	}
 
 	//Create Deployment
 	dep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Create(&template)
@@ -702,7 +707,6 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	//TODO: Could be moved to types file
 	//Struct to put JSON into
 	type deploymentPatch struct {
 		PublicHosts  string               `json:"publicHosts"`
