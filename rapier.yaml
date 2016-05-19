@@ -1,0 +1,148 @@
+title: Shipyard Deployment API
+version: "0.1"
+consumes: application/json
+produces: application/json text/html
+conventions:
+  queryPathSelectorLocation: pathSegment
+  patchConsumes: application/merge-patch+json
+  errorResponse:
+    type: string
+entities:
+  Shipyard:
+    wellKnownURLs: /
+    queryPaths:
+    - environments
+    - sharingSets
+    - sharingSets;{id}
+    - sharingSets;{id}/environments;{name}
+    - sharingSets;{id}/environments;{name}/deployments
+    - sharingSets;{id}/environments;{name}/deployments;{name}
+    - deployments
+    - deployments;{name}
+    properties:
+      kind:
+        type: string
+        enum: [Shipyard]
+      sharingSets:
+        type: string
+        format: uri
+        relationship:
+          entities: '#SharingSet'
+          multiplicity: n
+          collectionResource: '#Collection'
+          readOnly: true
+      environments:
+        type: string
+        format: uri
+        relationship:
+          entities: '#Environment'
+          multiplicity: n
+          collectionResource: '#Collection'
+          usage: c        
+      deployments:
+        type: string
+        format: uri
+        relationship:
+          entities: '#Deployment'
+          multiplicity: n
+          collectionResource: '#Collection'
+          usage: c        
+    readOnly: true
+  SharingSet:
+    properties:
+      id:
+        type: string
+      environments:
+        type: string
+        format: uri
+        relationship:
+          entities: '#Environment'
+          multiplicity: n
+          collectionResource: '#Collection'
+          readOnly: true
+        readOnly: true    
+  Environment:
+    properties:
+      kind:
+        type: string
+        enum: [Environment]
+      sharingSet:
+        type: string
+        format: uri
+      name:
+        type: string
+        usage: c r #write once, read many
+      publicSecret:
+        type: string
+        readOnly: true
+      privateSecret:
+        type: string
+        readOnly: true
+      hostnames:
+        type: array
+        items:
+          type: string
+      deployments:
+        type: string
+        format: uri
+        relationship:
+          entities: '#Environment'
+          multiplicity: n
+          collectionResource: '#Collection'
+  Deployment:
+    properties:
+      kind:
+        type: string
+        enum: [Deployment]
+      name:
+        type: string
+        usage: c r #write once, read many
+      deploymentName:
+        type: string
+        description: Name of deployment to be created
+      trafficHosts: 
+        type: string
+        description: Where deployment object is routed
+      publicPaths:
+        type: string
+        description: Path of deployment
+      replicas:
+        type: integer
+        description: How many replicas to be deployed
+      podTemplateSpec:
+        description: Pod Template Spec. could be a URL or an in-line PTS       
+        oneOf:
+        - type: string
+          format: uri
+        - $ref: '#/entities/PodTemplateSpec'
+  PodTemplateSpec:
+    type: object          
+    # should probably say more
+  Collection:
+    allOf:
+    - $ref: '#/entities/Resource'
+    properties:
+      kind:
+        type: string
+        enum: [Collection]
+      items:
+        type: array
+        items: 
+          type: object
+    readOnly: true
+  Resource:
+    type: object
+    properties:
+      _self:
+        type: string
+        readOnly: true
+      kind:
+        type: string
+securityDefinitions:
+  sso:
+    type: oauth2
+    scopes: {}
+    flow: application
+    tokenUrl: whatever
+security:
+- sso: []
