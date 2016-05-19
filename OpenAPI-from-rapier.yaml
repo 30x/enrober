@@ -880,7 +880,7 @@ definitions:
     type: string
   Shipyard:
     properties:
-      kind:
+      isA:
         type: string
         enum:
         - Shipyard
@@ -910,7 +910,7 @@ definitions:
     x-interface: '#/x-interfaces/SharingSet'
   Environment:
     properties:
-      kind:
+      isA:
         type: string
         enum:
         - Environment
@@ -936,7 +936,7 @@ definitions:
     x-interface: '#/x-interfaces/Environment'
   Deployment:
     properties:
-      kind:
+      isA:
         type: string
         enum:
         - Deployment
@@ -967,7 +967,7 @@ definitions:
     allOf:
     - $ref: '#/definitions/Resource'
     properties:
-      kind:
+      isA:
         type: string
         enum:
         - Collection
@@ -982,7 +982,7 @@ definitions:
       _self:
         type: string
         readOnly: true
-      kind:
+      isA:
         type: string
 parameters:
   Accept:

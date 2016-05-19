@@ -20,7 +20,7 @@ entities:
     - deployments
     - deployments;{name}
     properties:
-      kind:
+      isA:
         type: string
         enum: [Shipyard]
       sharingSets:
@@ -63,7 +63,7 @@ entities:
         readOnly: true    
   Environment:
     properties:
-      kind:
+      isA:
         type: string
         enum: [Environment]
       sharingSet:
@@ -91,7 +91,7 @@ entities:
           collectionResource: '#Collection'
   Deployment:
     properties:
-      kind:
+      isA:
         type: string
         enum: [Deployment]
       name:
@@ -122,7 +122,7 @@ entities:
     allOf:
     - $ref: '#/entities/Resource'
     properties:
-      kind:
+      isA:
         type: string
         enum: [Collection]
       items:
@@ -136,7 +136,7 @@ entities:
       _self:
         type: string
         readOnly: true
-      kind:
+      isA:
         type: string
 securityDefinitions:
   sso:
