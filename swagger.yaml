@@ -5,25 +5,6 @@ info:
   title: Enrober
 
 paths:
-  /environmentGroups:
-    get:
-      description: Returns a list of all Environment Groups
-      produces: 
-      - application/json
-      responses:
-        405:
-          description: Method not allowed
-
-  /environmentGroups/{environmentGroupID}:
-    get:
-      description: Returns an Environment Group matching the given Environment Group ID
-      produces: 
-      - application/json
-      parameters:
-      - $ref: "#/parameters/environmentGroupIDParam"
-      responses:
-        405:
-          description: Method not allowed
       
   /environmentGroups/{environmentGroupID}/environments:
     get:
@@ -35,6 +16,13 @@ paths:
       responses:
         200:
           description: Successful response
+          schema: 
+            properties:
+              environmentList: 
+                description: An array of environment objects matching the environmentGroupID
+                type: array
+                items:
+                  $ref: '#/definitions/environment_object'
         403:
           description: Forbidden
         default:
@@ -53,14 +41,9 @@ paths:
           environment_name:
             type: string
             description: Name of environment to be created
-          publicSecret:
-             type: boolean
-             description: Set to true if you want a public-api-key secret to be created
-          privateSecret:
-             type: boolean
-             description:  Set to true if you want a private-api-key secret to be created
           hostNames:
             type: array
+            description: Array of valid hostnames to accept traffic from
             items: 
               type: string
 
@@ -68,14 +51,7 @@ paths:
         201:
           description: Created
           schema:
-            properties:
-              publicSecret:
-                type: string
-                description: 256-bit generated public-api-key
-              privateSecret:
-                type: string
-                description: 256-bit generated private-api-key
-
+            $ref: '#/definitions/environment_object'
         403:
           description: Forbidden
         default:
@@ -92,6 +68,8 @@ paths:
       responses:
         200:
           description: Successful response
+          schema:
+            $ref: '#/definitions/environment_object'
         403:
           description: Forbidden
         404:
@@ -112,13 +90,8 @@ paths:
         required: false
         schema: 
           properties:
-            publicSecret:
-               type: boolean
-               description: Set to true if you want a public-api-key secret to be modified or created
-            privateSecret:
-               type: boolean
-               description:  Set to true if you want a private-api-key secret to be modified or recreated
             hostNames:
+              description: Array of valid hostnames to accept traffic from
               type: array
               items: 
                 type: string
@@ -126,14 +99,7 @@ paths:
         200:
           description: Successful response
           schema:
-            properties:
-              publicSecret:
-                type: string
-                description: 256-bit generated public-api-key
-              privateSecret:
-                type: string
-                description: 256-bit generated private-api-key
-
+            $ref: '#/definitions/environment_object'
         403:
           description: Forbidden
         404: 
@@ -170,6 +136,9 @@ paths:
       responses:
         200:
           description: Successful response
+          schema: 
+            type: object
+            description: Kubernetes DeploymentList object
         403:
           description: Forbidden
         default:
@@ -186,10 +155,13 @@ paths:
         description: JSON Body
         required: true
         schema:
-          $ref: '#/definitions/deployment_body'
+          $ref: '#/definitions/deployment_post'
       responses:
         201:
           description: Created
+          schema:
+            type: object
+            description: Kubernetes Deployment Object
         403:
           description: Forbidden
         default:
@@ -207,6 +179,9 @@ paths:
       responses:
         200:
           description: Successful response
+          schema:
+            type: object
+            description: Kubernetes Deployment Object
         403:
           description: Forbidden
         404:
@@ -229,6 +204,9 @@ paths:
       responses:
           200:
             description: Successful response
+            schema: 
+              type: object
+              description: Kubernetes Deployment Object
           403:
             description: Forbidden
           404:
@@ -254,18 +232,18 @@ paths:
   
 #Top level definitions          
 definitions:
-  deployment_body:
+  deployment_post:
     description: Deployment JSON body object
     properties:
       deploymentName:
         type: string
         description: Name of deployment to be created
-      trafficHosts: 
+      publicHosts: 
         type: string
-        description: Where deployment object is routed
-      publicPaths:
+        description: Where deployment object is routed for public traffic
+      privateHosts:
         type: string
-        description: Path of deployment
+        description: Where deployment object is routed for private traffic
       replicas:
         type: integer
         description: How many replicas to be deployed
@@ -280,12 +258,12 @@ definitions:
   deployment_patch:
     description: Deployment JSON body object
     properties:
-      trafficHosts: 
+      publicHosts: 
         type: string
-        description: Where deployment object is routed
-      publicPaths:
+        description: Where deployment object is routed for public traffic
+      privateHosts: 
         type: string
-        description: Path of deployment
+        description: Where deployment object is routed for private traffic
       replicas:
         type: integer
         description: How many replicas to be deployed
@@ -294,7 +272,26 @@ definitions:
         description: URL to pod template spec json
       pts:
         type: object
-        description: Pod template spec to create
+        description: Kubernetes Pod Template object
+  
+  environment_object:
+    description: Environment JSON object
+    properties: 
+      name: 
+        type: string
+        description: Name of environment
+      publicSecret:
+        type: string
+        description: API key for public routing
+      privateSecret:
+        type: string
+        description: API key for private routing
+      hostNames:
+        type: array
+        description: Array of valid hostnames to accept traffic from
+        items: 
+          type: string
+    
 
 #Top Level Path Parameters
 parameters:
