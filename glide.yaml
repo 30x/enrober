@@ -15,3 +15,4 @@ import:
   subpackages:
   - ginkgo
 - package: github.com/onsi/gomega
+- package: github.com/30x/authsdk

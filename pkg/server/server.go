@@ -18,6 +18,8 @@ import (
 	k8sClient "k8s.io/kubernetes/pkg/client/unversioned"
 
 	"github.com/30x/enrober/pkg/helper"
+
+	"github.com/30x/authsdk"
 )
 
 //Server struct
@@ -46,6 +48,17 @@ type deploymentRequest struct {
 	Replicas       int                  `json:"replicas"`
 	PtsURL         string               `json:"ptsURL"`
 	PTS            *api.PodTemplateSpec `json:"pts"`
+}
+
+type deploymentResponse struct {
+	DeploymentName  string               `json:"deploymentName"`
+	PublicHosts     string               `json:"publicHosts"`
+	PublicPaths     string               `json:"publicPaths"`
+	PrivateHosts    string               `json:"privateHosts"`
+	PrivatePaths    string               `json:"privatePaths"`
+	Replicas        int                  `json:"replicas"`
+	Environment     string               `json:"environment"`
+	PodTemplateSpec *api.PodTemplateSpec `json:"podTemplateSpec"`
 }
 
 //Global Kubernetes Client
@@ -119,8 +132,6 @@ func (server *Server) Start() error {
 func getEnvironments(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	//TODO: Get a full environmentResponse object for each environment
-
 	selector, err := labels.Parse("group=" + pathVars["environmentGroupID"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -173,7 +184,7 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
 
-	//TODO: Modify this
+	//TODO: What do we want logging response to be?
 	for _, value := range nsList.Items {
 		//For debug/logging
 		fmt.Printf("Got namespace: %v\n", value.GetName())
@@ -184,7 +195,22 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	//TODO: Add in the Auth SDK
+	token, err := authsdk.NewJWTTokenFromRequest(r)
+	if err != nil {
+		fmt.Printf("Error getting JWT Token: %v\n", err)
+		http.Error(w, "", http.StatusInternalServerError)
+	}
+	isAdmin, err := token.IsOrgAdmin(pathVars["environmentGroupID"])
+	if err != nil {
+		fmt.Printf("Error checking caller is an Org Admin: %v\n", err)
+		http.Error(w, "", http.StatusInternalServerError)
+	}
+	if !isAdmin {
+		//Throwing a 403
+		fmt.Printf("Caller isn't an Org Admin")
+		http.Error(w, "You aren't an Org Admin", http.StatusForbidden)
+		return
+	}
 
 	//Struct to put JSON into
 	type environmentPost struct {
@@ -195,7 +221,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Decode passed JSON body
 	decoder := json.NewDecoder(r.Body)
 	var tempJSON environmentPost
-	err := decoder.Decode(&tempJSON)
+	err = decoder.Decode(&tempJSON)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error decoding JSON Body: %v\n", err)
@@ -232,9 +258,8 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		//Get list of all namespace and loop through each of their "validHosts" annotation looking for strings matching our value
 		nsList, err := client.Namespaces().List(api.ListOptions{})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "", http.StatusInternalServerError)
 			fmt.Printf("Error in getting nsList in createEnvironment: %v\n", err)
-			fmt.Fprintf(w, "%v\n", err)
 			return
 		}
 
@@ -302,7 +327,6 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Print to console for logging
 	fmt.Printf("Created Secret: %v\n", secret.GetName())
 
-	//TODO: Also return the name of the deployment and an array of its hostNames
 	var jsResponse environmentResponse
 	jsResponse.Name = tempJSON.EnvironmentName
 	jsResponse.PrivateSecret = secret.Data["private-api-key"]
@@ -312,10 +336,10 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	js, err := json.Marshal(jsResponse)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Printf("Error marshalling namespace: %v\n", err)
+		fmt.Printf("Error marshalling response JSON: %v\n", err)
+		return
 	}
 
-	//TODO: Proper JSON response
 	w.WriteHeader(201)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
@@ -325,44 +349,40 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 func getEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	//TODO: See if we need to get a list or if a simple get on the namespace works
-
-	labelSelector, err := labels.Parse("group=" + pathVars["environmentGroupID"])
+	getNs, err := client.Namespaces().Get(pathVars["environmentGroupID"] + "-" + pathVars["environment"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Printf("Error creating label selector in getEnvironment: %v\n", err)
+		fmt.Printf("Error getting existing Environment: %v\n", err)
 		return
 	}
 
-	nsList, err := client.Namespaces().List(api.ListOptions{
-		LabelSelector: labelSelector,
-	})
+	getSecret, err := client.Secrets(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get("routing")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Printf("Error in getEnvironment: %v\n", err)
+		fmt.Printf("Error getting existing Secret: %v\n", err)
 		return
 	}
-	//Flag indicating there is at least one value matching that name
-	flag := false
 
-	for _, value := range nsList.Items {
-		if value.GetName() == pathVars["environmentGroupID"]+"-"+pathVars["environment"] {
-			flag = true
-			js, err := json.Marshal(value)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				fmt.Printf("Error marshalling namespace: %v\n", err)
-			}
-			//TODO: Proper JSON response
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(js)
-			fmt.Printf("Got Namespace: %v\n", value.GetName())
-		}
+	var jsResponse environmentResponse
+	jsResponse.Name = getNs.Labels["envName"]
+	jsResponse.PrivateSecret = getSecret.Data["private-api-key"]
+	jsResponse.PublicSecret = getSecret.Data["public-api-key"]
+	jsResponse.HostNames = strings.Split(getNs.Annotations["hostNames"], " ")
+
+	js, err := json.Marshal(jsResponse)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Printf("Error marshalling response JSON: %v\n", err)
+		return
 	}
-	if flag != true {
-		w.WriteHeader(404)
-		fmt.Fprintf(w, "Environment not found")
-	}
+
+	w.WriteHeader(200)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+
+	//TODO: What do we want the logging response to be
+	fmt.Printf("Got Namespace: %v\n", getNs.GetName())
+	fmt.Printf("Got Secret: %v\n", getSecret.GetName())
 }
 
 func updateEnvironment(w http.ResponseWriter, r *http.Request) {
@@ -522,7 +542,6 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error marshalling deployment list: %v\n", err)
 	}
-	//TODO: Proper JSON response
 	w.WriteHeader(200)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
@@ -658,7 +677,6 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error marshalling deployment: %v\n", err)
 	}
 
-	//TODO: Proper JSON response
 	w.WriteHeader(201)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
