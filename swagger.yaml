@@ -17,12 +17,10 @@ paths:
         200:
           description: Successful response
           schema: 
-            properties:
-              environmentList: 
-                description: An array of environment objects matching the environmentGroupID
-                type: array
-                items:
-                  $ref: '#/definitions/environment_object'
+            type: array
+            items:
+              $ref: '#/definitions/environment_object'
+
         403:
           description: Forbidden
         default:
