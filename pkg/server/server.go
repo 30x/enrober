@@ -35,8 +35,8 @@ type environmentRequest struct {
 type environmentResponse struct {
 	Name          string   `json:"name"`
 	HostNames     []string `json:"hostNames"`
-	PublicSecret  string   `json:"publicSecret"`
-	PrivateSecret string   `json:"privateSecret"`
+	PublicSecret  []byte   `json:"publicSecret"`
+	PrivateSecret []byte   `json:"privateSecret"`
 }
 
 type deploymentRequest struct {
@@ -119,6 +119,8 @@ func (server *Server) Start() error {
 func getEnvironments(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
+	//TODO: Get a full environmentResponse object for each environment
+
 	selector, err := labels.Parse("group=" + pathVars["environmentGroupID"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -133,30 +135,60 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error in getEnvironments: %v\n", err)
 		return
 	}
-	js, err := json.Marshal(nsList)
+
+	var envList []environmentResponse
+
+	for _, value := range nsList.Items {
+		//Construct a temp object
+		var tempEnv environmentResponse
+
+		//Get []string from the space delimited annotation
+		hostNamesArray := strings.Split(value.Annotations["hostNames"], " ")
+
+		//Need to initialize the tempEnv.HostNames slice
+		tempEnv.HostNames = hostNamesArray
+		tempEnv.Name = value.Labels["envName"]
+
+		//For each namespace we have to do a get on the secrets in it
+		//DEBUG
+		fmt.Printf("DEBUG %v\n", value.Labels["group"]+"-"+value.Labels["envName"])
+		getSecret, err := client.Secrets(value.Labels["group"] + "-" + value.Labels["envName"]).Get("routing")
+		if err != nil {
+			fmt.Printf("Error: couldn't get secret from namespace: %v\n", err)
+			http.Error(w, "", http.StatusInternalServerError)
+			return
+		}
+		tempEnv.PrivateSecret = getSecret.Data["private-api-key"]
+		tempEnv.PublicSecret = getSecret.Data["public-api-key"]
+
+		//Append the temp object to the slice
+		envList = append(envList, tempEnv)
+	}
+
+	js, err := json.Marshal(envList)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Printf("Error marshalling namespace list: %v\n", err)
+		fmt.Printf("Error marshalling environment array: %v\n", err)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
+
+	//TODO: Modify this
 	for _, value := range nsList.Items {
 		//For debug/logging
 		fmt.Printf("Got namespace: %v\n", value.GetName())
 	}
 }
 
-//TODO: Create both secrets everytime
-//TODO: Integrate permissions sdk
 //createEnvironment creates a kubernetes namespace matching the given environmentGroupID and environmentName
 func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
+	//TODO: Add in the Auth SDK
+
 	//Struct to put JSON into
 	type environmentPost struct {
 		EnvironmentName string   `json:"environmentName"`
-		PrivateSecret   bool     `json:"privateSecret"`
-		PublicSecret    bool     `json:"publicSecret"`
 		HostNames       []string `json:"hostNames"`
 	}
 
@@ -173,7 +205,6 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	//space delimited annotation of valid hostnames
 	var hostsList bytes.Buffer
 
-	//Loop through slice of HostNames
 	for index, value := range tempJSON.HostNames {
 		//Verify each Hostname matches regex
 		validIP := validIPAddressRegex.MatchString(value)
@@ -190,7 +221,10 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		} else {
 			hostsList.WriteString(" " + value)
 		}
+	}
 
+	//Loop through slice of HostNames
+	for _, value := range tempJSON.HostNames {
 		//TODO: If this becomes a bottleneck at a high number of namespaces come back to this and optimize
 
 		//Verify that hostname isn't on another namespace
@@ -222,7 +256,8 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		ObjectMeta: api.ObjectMeta{
 			Name: pathVars["environmentGroupID"] + "-" + tempJSON.EnvironmentName,
 			Labels: map[string]string{
-				"group": pathVars["environmentGroupID"],
+				"group":   pathVars["environmentGroupID"],
+				"envName": tempJSON.EnvironmentName,
 			},
 			Annotations: map[string]string{
 				"hostNames": hostsList.String(),
@@ -267,7 +302,14 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Print to console for logging
 	fmt.Printf("Created Secret: %v\n", secret.GetName())
 
-	js, err := json.Marshal(secret.Data)
+	//TODO: Also return the name of the deployment and an array of its hostNames
+	var jsResponse environmentResponse
+	jsResponse.Name = tempJSON.EnvironmentName
+	jsResponse.PrivateSecret = secret.Data["private-api-key"]
+	jsResponse.PublicSecret = secret.Data["public-api-key"]
+	jsResponse.HostNames = tempJSON.HostNames
+
+	js, err := json.Marshal(jsResponse)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error marshalling namespace: %v\n", err)
@@ -282,6 +324,8 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 //getEnvironment returns a kubernetes namespace matching the given environmentGroupID and environmentName
 func getEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
+
+	//TODO: See if we need to get a list or if a simple get on the namespace works
 
 	labelSelector, err := labels.Parse("group=" + pathVars["environmentGroupID"])
 	if err != nil {
@@ -324,11 +368,21 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
+	//TODO: Add in the Auth SDK
+
 	//Need to get the existing environment
 	getNs, err := client.Namespaces().Get(pathVars["environmentGroupID"] + "-" + pathVars["environment"])
 	if err != nil {
 		fmt.Printf("Error: Namespace doesn't exist\n")
 		http.Error(w, "", http.StatusNotFound)
+		return
+	}
+
+	//Looks like we have to do a get on the existing secrets in the namespace to print them out
+	getSecret, err := client.Secrets(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get("routing")
+	if err != nil {
+		fmt.Printf("Error: Failed to get existing secrets\n")
+		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
 
@@ -345,8 +399,6 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	//TODO: Do this split into two things for createEnvironment too
 
 	//space delimited annotation of valid hostnames
 	var hostsList bytes.Buffer
@@ -373,7 +425,7 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Can do a quick optimization to just check if the new hostNames are the same as the old
 	//if they are we can just give a 200 back without doing anything
 	if bytes.Equal(hostsList.Bytes(), []byte(getNs.Annotations["hostNames"])) {
-		fmt.Printf("New hostNames == Old hostNames so not modifying anything")
+		fmt.Printf("No changes to hostnames so just returning")
 		return
 	}
 
@@ -408,7 +460,6 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	//Modify the hostNames annotation if we are still good here
 	getNs.Annotations["hostNames"] = hostsList.String()
 
 	updateNS, err := client.Namespaces().Update(getNs)
@@ -416,14 +467,24 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error: Failed to update existing namespace\n")
 		http.Error(w, "", http.StatusInternalServerError)
 		return
-		//500
 	}
 	fmt.Printf("Updated hostNames: %v\n", updateNS.Annotations["hostNames"])
 
-	//TODO: Modify namespaces hostNames annotation
-	//TODO: Proper JSON response
+	var jsResponse environmentResponse
+	jsResponse.Name = pathVars["environment"]
+	jsResponse.PrivateSecret = getSecret.Data["private-api-key"]
+	jsResponse.PublicSecret = getSecret.Data["public-api-key"]
+	jsResponse.HostNames = tempJSON.HostNames
+
+	js, err := json.Marshal(jsResponse)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Printf("Error marshalling namespace: %v\n", err)
+	}
+
 	w.WriteHeader(200)
 	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
 
 }
 
@@ -437,9 +498,9 @@ func deleteEnvironment(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error in deleteEnvironment: %v\n", err)
 		return
 	}
-	w.WriteHeader(200)
-	//TODO: Proper JSON response
-	fmt.Fprintf(w, "Deleted Namespace: %v\n", pathVars["environmentGroupID"]+"-"+pathVars["environment"])
+	w.WriteHeader(204)
+
+	//Print to stdout for logging
 	fmt.Printf("Deleted Namespace: %v\n", pathVars["environmentGroupID"]+"-"+pathVars["environment"])
 
 }
@@ -478,9 +539,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	type deploymentPost struct {
 		DeploymentName string               `json:"deploymentName"`
 		PublicHosts    string               `json:"publicHosts"`
-		PublicPaths    string               `json:"publicPaths"`
 		PrivateHosts   string               `json:"privateHosts"`
-		PrivatePaths   string               `json:"privatePaths"`
 		Replicas       int                  `json:"replicas"`
 		PtsURL         string               `json:"ptsURL"`
 		PTS            *api.PodTemplateSpec `json:"pts"`
@@ -643,12 +702,18 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
+	//Get the old namespace first so we can fail quickly if it's not there
+	getDep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get(pathVars["deployment"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		fmt.Printf("Error getting existing deployment: %v\n", err)
+		return
+	}
+
 	//Struct to put JSON into
 	type deploymentPatch struct {
 		PublicHosts  string               `json:"publicHosts"`
-		PublicPaths  string               `json:"publicPaths"`
 		PrivateHosts string               `json:"privateHosts"`
-		PrivatePaths string               `json:"privatePaths"`
 		Replicas     int                  `json:"Replicas"`
 		PtsURL       string               `json:"ptsURL"`
 		PTS          *api.PodTemplateSpec `json:"pts"`
@@ -656,14 +721,13 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	//Decode passed JSON body
 	decoder := json.NewDecoder(r.Body)
 	var tempJSON deploymentPatch
-	err := decoder.Decode(&tempJSON)
+	err = decoder.Decode(&tempJSON)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error decoding JSON Body: %v\n", err)
 		return
 	}
 
-	//Needs to be at higher scope than if statement
 	tempPTS := &api.PodTemplateSpec{}
 	//Check if we got a URL or a direct PTS
 	if tempJSON.PTS == nil {
@@ -716,30 +780,12 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		tempPTS = tempJSON.PTS
 	}
 
+	//TODO: We may want this to be failure at some point
 	//If map is empty then we need to make it
 	if len(tempPTS.Annotations) == 0 {
 		tempPTS.Annotations = make(map[string]string)
 	}
 
-	//Don't overwrite routing annotations unless they're non empty
-	if tempJSON.PublicHosts != "" {
-		tempPTS.Annotations["publicHosts"] = tempJSON.PublicHosts
-	}
-	if tempJSON.PrivateHosts != "" {
-		tempPTS.Annotations["privateHosts"] = tempJSON.PrivateHosts
-	}
-
-	//Add routable label
-	//TODO: routable label should already exist, do we need this?
-	tempPTS.Labels["routable"] = "true"
-
-	getDep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get(pathVars["deployment"])
-	if err != nil {
-		//TODO: Should this be a 404?
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Printf("Error getting old deployment: %v\n", err)
-		return
-	}
 	getDep.Spec.Replicas = tempJSON.Replicas
 	getDep.Spec.Template = *tempPTS
 
@@ -749,6 +795,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error updating deployment: %v\n", err)
 		return
 	}
+
 	js, err := json.Marshal(dep)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -829,7 +876,5 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	//TODO: Proper JSON response
-	w.WriteHeader(200)
-	fmt.Fprintf(w, "Deleted Deployment: %v\n", pathVars["deployment"])
+	w.WriteHeader(204)
 }
