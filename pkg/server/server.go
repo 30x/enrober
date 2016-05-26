@@ -199,11 +199,13 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error getting JWT Token: %v\n", err)
 		http.Error(w, "", http.StatusInternalServerError)
+		return
 	}
 	isAdmin, err := token.IsOrgAdmin(pathVars["environmentGroupID"])
 	if err != nil {
 		fmt.Printf("Error checking caller is an Org Admin: %v\n", err)
 		http.Error(w, "", http.StatusInternalServerError)
+		return
 	}
 	if !isAdmin {
 		//Throwing a 403
