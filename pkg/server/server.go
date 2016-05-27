@@ -22,7 +22,7 @@ import (
 	"github.com/30x/authsdk"
 )
 
-//Server struct
+//Server structa
 type Server struct {
 	Router *mux.Router
 }
@@ -36,15 +36,15 @@ type environmentRequest struct {
 
 type environmentResponse struct {
 	Name          string   `json:"name"`
-	HostNames     []string `json:"hostNames"`
+	HostNames     []string `json:"hostNames,omitempty"`
 	PublicSecret  []byte   `json:"publicSecret"`
 	PrivateSecret []byte   `json:"privateSecret"`
 }
 
 type deploymentRequest struct {
 	DeploymentName string               `json:"deploymentName"`
-	PublicHosts    string               `json:"publicHosts"`
-	PrivateHosts   string               `json:"privateHosts"`
+	PublicHosts    string               `json:"publicHosts,omitempty"`
+	PrivateHosts   string               `json:"privateHosts,omitempty"`
 	Replicas       int                  `json:"replicas"`
 	PtsURL         string               `json:"ptsURL"`
 	PTS            *api.PodTemplateSpec `json:"pts"`
@@ -52,10 +52,10 @@ type deploymentRequest struct {
 
 type deploymentResponse struct {
 	DeploymentName  string               `json:"deploymentName"`
-	PublicHosts     string               `json:"publicHosts"`
-	PublicPaths     string               `json:"publicPaths"`
-	PrivateHosts    string               `json:"privateHosts"`
-	PrivatePaths    string               `json:"privatePaths"`
+	PublicHosts     string               `json:"publicHosts,omitempty"`
+	PublicPaths     string               `json:"publicPaths,omitempty"`
+	PrivateHosts    string               `json:"privateHosts,omitempty"`
+	PrivatePaths    string               `json:"privatePaths,omitempty"`
 	Replicas        int                  `json:"replicas"`
 	Environment     string               `json:"environment"`
 	PodTemplateSpec *api.PodTemplateSpec `json:"podTemplateSpec"`
@@ -217,7 +217,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Struct to put JSON into
 	type environmentPost struct {
 		EnvironmentName string   `json:"environmentName"`
-		HostNames       []string `json:"hostNames"`
+		HostNames       []string `json:"hostNames,omitempty"`
 	}
 
 	//Decode passed JSON body
@@ -390,7 +390,24 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	//TODO: Add in the Auth SDK
+	token, err := authsdk.NewJWTTokenFromRequest(r)
+	if err != nil {
+		fmt.Printf("Error getting JWT Token: %v\n", err)
+		http.Error(w, "", http.StatusInternalServerError)
+		return
+	}
+	isAdmin, err := token.IsOrgAdmin(pathVars["environmentGroupID"])
+	if err != nil {
+		fmt.Printf("Error checking caller is an Org Admin: %v\n", err)
+		http.Error(w, "", http.StatusInternalServerError)
+		return
+	}
+	if !isAdmin {
+		//Throwing a 403
+		fmt.Printf("Caller isn't an Org Admin")
+		http.Error(w, "You aren't an Org Admin", http.StatusForbidden)
+		return
+	}
 
 	//Need to get the existing environment
 	getNs, err := client.Namespaces().Get(pathVars["environmentGroupID"] + "-" + pathVars["environment"])
@@ -559,11 +576,11 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	//Struct to put JSON into
 	type deploymentPost struct {
 		DeploymentName string               `json:"deploymentName"`
-		PublicHosts    string               `json:"publicHosts"`
-		PrivateHosts   string               `json:"privateHosts"`
+		PublicHosts    string               `json:"publicHosts,omitempty"`
+		PrivateHosts   string               `json:"privateHosts,omitempty"`
 		Replicas       int                  `json:"replicas"`
-		PtsURL         string               `json:"ptsURL"`
-		PTS            *api.PodTemplateSpec `json:"pts"`
+		PtsURL         string               `json:"ptsURL,omitempty"`
+		PTS            *api.PodTemplateSpec `json:"pts,omitempty"`
 	}
 	//Decode passed JSON body
 	decoder := json.NewDecoder(r.Body)
@@ -632,11 +649,14 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	if len(tempPTS.Annotations) == 0 {
 		tempPTS.Annotations = make(map[string]string)
 	}
-
 	//Routing Annotations
 	tempPTS.Annotations["publicHosts"] = tempJSON.PublicHosts
 	tempPTS.Annotations["privateHosts"] = tempJSON.PrivateHosts
 
+	//If map is empty then we need to make it
+	if len(tempPTS.Labels) == 0 {
+		tempPTS.Labels = make(map[string]string)
+	}
 	//Add routable label
 	tempPTS.Labels["routable"] = "true"
 
@@ -690,31 +710,23 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 func getDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	depList, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).List(api.ListOptions{
-		LabelSelector: labels.Everything(),
-	})
+	getDep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get(pathVars["deployment"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Printf("Error retrieving deployment list: %v\n", err)
+		fmt.Printf("Error retrieving deployment: %v\n", err)
 		return
 	}
-	for _, value := range depList.Items {
-		if value.GetName() == pathVars["deployment"] {
-			js, err := json.Marshal(value)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				fmt.Printf("Error marshalling deployment: %v\n", err)
-			}
-
-			//TODO: Proper JSON response
-			w.WriteHeader(200)
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(js)
-			fmt.Printf("Got Deployment: %v\n", value.GetName())
-
-			break
-		}
+	js, err := json.Marshal(getDep)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Printf("Error marshalling deployment: %v\n", err)
 	}
+	w.WriteHeader(200)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+
+	//TODO: What do we want logging message to be?
+	fmt.Printf("Got Deployment: %v\n", getDep.GetName())
 
 }
 
@@ -800,10 +812,14 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		tempPTS = tempJSON.PTS
 	}
 
-	//TODO: We may want this to be failure at some point
-	//If map is empty then we need to make it
+	//If annotations map is empty then we need to make it
 	if len(tempPTS.Annotations) == 0 {
 		tempPTS.Annotations = make(map[string]string)
+	}
+
+	//If labels map is empty then we need to make it
+	if len(tempPTS.Labels) == 0 {
+		tempPTS.Labels = make(map[string]string)
 	}
 
 	getDep.Spec.Replicas = tempJSON.Replicas
@@ -822,7 +838,6 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error marshalling deployment: %v\n", err)
 	}
 
-	//TODO: Proper JSON response
 	w.WriteHeader(200)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
