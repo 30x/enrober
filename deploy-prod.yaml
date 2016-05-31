@@ -15,13 +15,13 @@ spec:
         name: enrober
         routable: "true"
       annotations:
-        projectcalico.org/policy: "allow tcp"
+        projectcalico.org/policy: "allow tcp from cidr 192.168.0.0/16; allow tcp from cidr 10.1.0.0/16"
         publicHosts: "ingress.apigee.com"
         publicPaths: "9000:/beeswax/deploy"
     spec:
       containers:
       - name: enrober
-        image: jbowen/enrober:v0.0.2
+        image: jbowen/enrober:v0.1.0
         env:
           - name: DEPLOY_STATE
             value: "PROD"
