@@ -195,10 +195,11 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
+	//TODO: Duplicate Code, could be separate function
 	token, err := authsdk.NewJWTTokenFromRequest(r)
 	if err != nil {
 		fmt.Printf("Error getting JWT Token: %v\n", err)
-		http.Error(w, "", http.StatusInternalServerError)
+		http.Error(w, "Invalid Token", http.StatusInternalServerError)
 		return
 	}
 	isAdmin, err := token.IsOrgAdmin(pathVars["environmentGroupID"])
@@ -209,7 +210,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	}
 	if !isAdmin {
 		//Throwing a 403
-		fmt.Printf("Caller isn't an Org Admin")
+		fmt.Printf("Caller isn't an Org Admin\n")
 		http.Error(w, "You aren't an Org Admin", http.StatusForbidden)
 		return
 	}
@@ -390,6 +391,7 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
+	//TODO: Duplicate Code, could be separate function
 	token, err := authsdk.NewJWTTokenFromRequest(r)
 	if err != nil {
 		fmt.Printf("Error getting JWT Token: %v\n", err)
@@ -480,7 +482,7 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 		nsList, err := client.Namespaces().List(api.ListOptions{})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-			fmt.Printf("Error in getting nsList in createEnvironment: %v\n", err)
+			fmt.Printf("Error in getting nsList in updateEnvironment: %v\n", err)
 			fmt.Fprintf(w, "%v\n", err)
 			return
 		}
@@ -490,10 +492,14 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 			if val, ok := ns.Annotations["hostNames"]; ok {
 				//Get the hostsList annotation
 				if strings.Contains(val, value) {
-					//Duplicate HostNames
-					http.Error(w, "Duplicate Hostname", http.StatusInternalServerError)
-					fmt.Printf("Duplicate Hostname: %v\n", value)
-					return
+					// Ignore duplicate hostNames on the namespace we are updating
+					if !(ns.GetName() == getNs.GetName()) {
+						//Duplicate HostNames
+						http.Error(w, "Duplicate Hostname", http.StatusInternalServerError)
+						fmt.Printf("Duplicate Hostname: %v\n", value)
+						return
+					}
+
 				}
 			}
 		}
@@ -644,6 +650,8 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		//We got a direct PTS so just copy it
 		tempPTS = tempJSON.PTS
 	}
+
+	//TODO: In the future we may want to have a check to ensure that publicPaths and/or privatePaths exists
 
 	//If map is empty then we need to make it
 	if len(tempPTS.Annotations) == 0 {

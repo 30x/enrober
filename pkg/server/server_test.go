@@ -27,7 +27,7 @@ var _ = Describe("Server Test", func() {
 		It("Create Environment", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments", hostBase)
 
-			jsonStr := []byte(`{"environmentName": "testenv1","publicSecret": true, "privateSecret": true, "hostNames": ["testhost1"]}`)
+			jsonStr := []byte(`{"environmentName": "testenv1", "hostNames": ["testhost1"]}`)
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 
 			resp, err := client.Do(req)
@@ -54,7 +54,7 @@ var _ = Describe("Server Test", func() {
 		It("Create Environment with duplicated Host Name", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments", hostBase)
 
-			jsonStr := []byte(`{"environmentName": "testenv2","publicSecret": true, "privateSecret": true, "hostNames": ["testhost1"]}`)
+			jsonStr := []byte(`{"environmentName": "testenv2", "hostNames": ["testhost1"]}`)
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 
 			resp, err := client.Do(req)
@@ -67,7 +67,7 @@ var _ = Describe("Server Test", func() {
 		It("Update Environment to not change privateSecret", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1", hostBase)
 
-			jsonStr := []byte(`{"publicSecret": true, "privateSecret": false, "hostNames": ["testhost1"]}`)
+			jsonStr := []byte(`{"hostNames": ["testhost1"]}`)
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
 
 			resp, err := client.Do(req)
