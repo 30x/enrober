@@ -8,7 +8,7 @@ paths:
       
   /environmentGroups/{environmentGroupID}/environments:
     get:
-      description: Returns a list of all environments under a specific Environment Group ID 
+      description: Returns an array of all environments under a specific Environment Group ID 
       produces: 
       - application/json
       parameters:
@@ -27,7 +27,7 @@ paths:
           description: 5xx Errors
 
     post:
-      description: Creates an environment and its correpsonding kubernetes namespace matching the given Environment Group ID and Environment Name
+      description: Creates an environment consisting of a kubernetes namespace and a secret. 
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       - name: environment_post
@@ -57,7 +57,7 @@ paths:
   
   /environmentGroups/{environmentGroupID}/environments/{environment}:
     get:
-      description: Returns an environment and its correpsonding kubernetes namespace matching the given Environment Group ID and Environment Name
+      description: Returns an environment consisting of a kubernetes namespace and a secret.
       produces: 
       - application/json
       parameters:
@@ -76,7 +76,7 @@ paths:
           description: 5xx Errors
     
     patch:
-      description: Updates an environment, can modify the secret
+      description: Updates the hostNames array on an environment.
       produces: 
       - application/json
       parameters:
@@ -107,7 +107,7 @@ paths:
     
     
     delete:
-      description: Deletes an environment and its correpsonding kubernetes namespace matching the given Environment Group ID and Environment Name
+      description: Deletes an environment consisting of a namespace and a secret.
       produces: 
       - application/json
       parameters:
@@ -125,7 +125,7 @@ paths:
       
   /environmentGroups/{environmentGroupID}/environments/{environment}/deployments:
     get:
-      description: Returns a list of all deployments in a given environment with the given environment group ID
+      description: Returns a list of all deployments in a given environment.
       produces: 
       - application/json
       parameters:
@@ -143,7 +143,7 @@ paths:
           description: 5xx Errors
     
     post:
-      description: Creates a deployment in the given environment with the given environment group ID based on the given deployment_body
+      description: Creates a deployment in the given environment.
       parameters:
       - $ref: "#/parameters/environmentGroupIDParam"
       - $ref: "#/parameters/environmentParam"

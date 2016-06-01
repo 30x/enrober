@@ -195,6 +195,8 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
+	//TODO: May be useful to make JWT Token optional
+
 	//TODO: Duplicate Code, could be separate function
 	token, err := authsdk.NewJWTTokenFromRequest(r)
 	if err != nil {
@@ -740,6 +742,8 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 
 //updateDeployment updates a deployment matching the given environmentGroupID, environmentName, and deploymentName
 func updateDeployment(w http.ResponseWriter, r *http.Request) {
+	//TODO: Should use deploymentRequest not deploymentPatch
+
 	pathVars := mux.Vars(r)
 
 	//Get the old namespace first so we can fail quickly if it's not there
@@ -752,8 +756,8 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 
 	//Struct to put JSON into
 	type deploymentPatch struct {
-		PublicHosts  string               `json:"publicHosts"`
-		PrivateHosts string               `json:"privateHosts"`
+		PublicHosts  string               `json:"publicHosts,omitempty"`
+		PrivateHosts string               `json:"privateHosts,omitempty"`
 		Replicas     int                  `json:"Replicas"`
 		PtsURL       string               `json:"ptsURL"`
 		PTS          *api.PodTemplateSpec `json:"pts"`
@@ -833,6 +837,13 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	getDep.Spec.Replicas = tempJSON.Replicas
 	getDep.Spec.Template = *tempPTS
 
+	if tempJSON.PrivateHosts != "" {
+		getDep.Spec.Template.Annotations["privateHosts"] = tempJSON.PrivateHosts
+	}
+
+	if tempJSON.PublicHosts != "" {
+		getDep.Spec.Template.Annotations["publicHosts"] = tempJSON.PublicHosts
+	}
 	dep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Update(getDep)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -8,12 +8,23 @@ import (
 
 	"github.com/30x/enrober/pkg/server"
 
-	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/client/restclient"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
+
+type environmentRequest struct {
+	Name      string   `json:"name"`
+	HostNames []string `json:"hostNames"`
+}
+
+type environmentResponse struct {
+	Name          string   `json:"name"`
+	HostNames     []string `json:"hostNames,omitempty"`
+	PublicSecret  []byte   `json:"publicSecret"`
+	PrivateSecret []byte   `json:"privateSecret"`
+}
 
 var _ = Describe("Server Test", func() {
 	ServerTests := func(testServer *server.Server, hostBase string) {
@@ -29,24 +40,24 @@ var _ = Describe("Server Test", func() {
 
 			jsonStr := []byte(`{"environmentName": "testenv1", "hostNames": ["testhost1"]}`)
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+			req.Header.Add("Authorization", `Bearer eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiI1MmI5MjRlZS0wZTQwLTRjNjktYmZiMC04MjEwN2Q3ZWM2MGQiLCJzdWIiOiJlNTdjNDg1MS04YTJlLTRlYzItYmEyYy1jY2RiMDJiYjIwNmMiLCJzY29wZSI6WyJzY2ltLm1lIiwib3BlbmlkIiwicGFzc3dvcmQud3JpdGUiLCJhcHByb3ZhbHMubWUiLCJvYXV0aC5hcHByb3ZhbHMiXSwiY2xpZW50X2lkIjoiZWRnZWNsaSIsImNpZCI6ImVkZ2VjbGkiLCJhenAiOiJlZGdlY2xpIiwiZ3JhbnRfdHlwZSI6InBhc3N3b3JkIiwidXNlcl9pZCI6ImU1N2M0ODUxLThhMmUtNGVjMi1iYTJjLWNjZGIwMmJiMjA2YyIsIm9yaWdpbiI6InVzZXJncmlkIiwidXNlcl9uYW1lIjoiamJvd2VuQGFwaWdlZS5jb20iLCJlbWFpbCI6Impib3dlbkBhcGlnZWUuY29tIiwiYXV0aF90aW1lIjoxNDY0Nzk2MDIyLCJyZXZfc2lnIjoiNGVlODcwYjgiLCJpYXQiOjE0NjQ3OTYwMjIsImV4cCI6MTQ2NDc5NzgyMiwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5hcGlnZWUuY29tL29hdXRoL3Rva2VuIiwiemlkIjoidWFhIiwiYXVkIjpbImVkZ2VjbGkiLCJzY2ltIiwib3BlbmlkIiwicGFzc3dvcmQiLCJhcHByb3ZhbHMiLCJvYXV0aCJdfQ.LyP58pOr-lj1yIdaLGH_oCDm-HivLIiBM-wgETiFXALi_ZQLoJTqvLLFmgzmspShAyrbHfbrALrHH5DwRHE3skU6L8mnetTA0Q9cBZHq2pgkNsnw7S2K8A1jMZQEuijnoOZbnQ1v2JhgbHtnr-b_aLMT7WS58oWx0yj6mqL242P3AHdo1RHVmig_jNEn6fiVTCU9pTx9IuX5uB8RYahWhfI6T2bs4EqPdUr0MdwGhu6QPgP2cPNITdzfj2u9xXIUXOzYBxLGc6rPVIpmxKqEbjkdkVOqoNOof75AkegXkULBZk6so50yNGsEkBk4aChg5gDR-KRw4a1yYkNLMJ__vg`)
 
 			resp, err := client.Do(req)
 			Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
 
-			tempSecret := api.Secret{
-				Data: make(map[string][]byte),
-			}
+			respStore := environmentResponse{}
 
-			err = json.NewDecoder(resp.Body).Decode(&tempSecret.Data)
+			err = json.NewDecoder(resp.Body).Decode(&respStore)
 			Expect(err).Should(BeNil(), "Error decoding response: %v", err)
 
 			//Store the private-api-key in higher scope
-			globalPrivate = string(tempSecret.Data["private-api-key"])
+			globalPrivate = string(respStore.PrivateSecret)
 
 			//Store the public-api-key in higher scope
-			globalPublic = string(tempSecret.Data["public-api-key"])
+			globalPublic = string(respStore.PublicSecret)
 
-			Expect(tempSecret.Data).ShouldNot(BeNil())
+			Expect(respStore.PrivateSecret).ShouldNot(BeNil())
+			Expect(respStore.PublicSecret).ShouldNot(BeNil())
 
 			Expect(resp.StatusCode).Should(Equal(201), "Response should be 201 Created")
 		})
@@ -56,6 +67,7 @@ var _ = Describe("Server Test", func() {
 
 			jsonStr := []byte(`{"environmentName": "testenv2", "hostNames": ["testhost1"]}`)
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+			req.Header.Add("Authorization", `Bearer eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiI1MmI5MjRlZS0wZTQwLTRjNjktYmZiMC04MjEwN2Q3ZWM2MGQiLCJzdWIiOiJlNTdjNDg1MS04YTJlLTRlYzItYmEyYy1jY2RiMDJiYjIwNmMiLCJzY29wZSI6WyJzY2ltLm1lIiwib3BlbmlkIiwicGFzc3dvcmQud3JpdGUiLCJhcHByb3ZhbHMubWUiLCJvYXV0aC5hcHByb3ZhbHMiXSwiY2xpZW50X2lkIjoiZWRnZWNsaSIsImNpZCI6ImVkZ2VjbGkiLCJhenAiOiJlZGdlY2xpIiwiZ3JhbnRfdHlwZSI6InBhc3N3b3JkIiwidXNlcl9pZCI6ImU1N2M0ODUxLThhMmUtNGVjMi1iYTJjLWNjZGIwMmJiMjA2YyIsIm9yaWdpbiI6InVzZXJncmlkIiwidXNlcl9uYW1lIjoiamJvd2VuQGFwaWdlZS5jb20iLCJlbWFpbCI6Impib3dlbkBhcGlnZWUuY29tIiwiYXV0aF90aW1lIjoxNDY0Nzk2MDIyLCJyZXZfc2lnIjoiNGVlODcwYjgiLCJpYXQiOjE0NjQ3OTYwMjIsImV4cCI6MTQ2NDc5NzgyMiwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5hcGlnZWUuY29tL29hdXRoL3Rva2VuIiwiemlkIjoidWFhIiwiYXVkIjpbImVkZ2VjbGkiLCJzY2ltIiwib3BlbmlkIiwicGFzc3dvcmQiLCJhcHByb3ZhbHMiLCJvYXV0aCJdfQ.LyP58pOr-lj1yIdaLGH_oCDm-HivLIiBM-wgETiFXALi_ZQLoJTqvLLFmgzmspShAyrbHfbrALrHH5DwRHE3skU6L8mnetTA0Q9cBZHq2pgkNsnw7S2K8A1jMZQEuijnoOZbnQ1v2JhgbHtnr-b_aLMT7WS58oWx0yj6mqL242P3AHdo1RHVmig_jNEn6fiVTCU9pTx9IuX5uB8RYahWhfI6T2bs4EqPdUr0MdwGhu6QPgP2cPNITdzfj2u9xXIUXOzYBxLGc6rPVIpmxKqEbjkdkVOqoNOof75AkegXkULBZk6so50yNGsEkBk4aChg5gDR-KRw4a1yYkNLMJ__vg`)
 
 			resp, err := client.Do(req)
 
@@ -64,27 +76,26 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(500), "Response should be 500 Internal Server Error")
 		})
 
-		It("Update Environment to not change privateSecret", func() {
+		It("Update Environment", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1", hostBase)
 
-			jsonStr := []byte(`{"hostNames": ["testhost1"]}`)
+			jsonStr := []byte(`{"hostNames": ["testhost2"]}`)
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
+			req.Header.Add("Authorization", `Bearer eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiI1MmI5MjRlZS0wZTQwLTRjNjktYmZiMC04MjEwN2Q3ZWM2MGQiLCJzdWIiOiJlNTdjNDg1MS04YTJlLTRlYzItYmEyYy1jY2RiMDJiYjIwNmMiLCJzY29wZSI6WyJzY2ltLm1lIiwib3BlbmlkIiwicGFzc3dvcmQud3JpdGUiLCJhcHByb3ZhbHMubWUiLCJvYXV0aC5hcHByb3ZhbHMiXSwiY2xpZW50X2lkIjoiZWRnZWNsaSIsImNpZCI6ImVkZ2VjbGkiLCJhenAiOiJlZGdlY2xpIiwiZ3JhbnRfdHlwZSI6InBhc3N3b3JkIiwidXNlcl9pZCI6ImU1N2M0ODUxLThhMmUtNGVjMi1iYTJjLWNjZGIwMmJiMjA2YyIsIm9yaWdpbiI6InVzZXJncmlkIiwidXNlcl9uYW1lIjoiamJvd2VuQGFwaWdlZS5jb20iLCJlbWFpbCI6Impib3dlbkBhcGlnZWUuY29tIiwiYXV0aF90aW1lIjoxNDY0Nzk2MDIyLCJyZXZfc2lnIjoiNGVlODcwYjgiLCJpYXQiOjE0NjQ3OTYwMjIsImV4cCI6MTQ2NDc5NzgyMiwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5hcGlnZWUuY29tL29hdXRoL3Rva2VuIiwiemlkIjoidWFhIiwiYXVkIjpbImVkZ2VjbGkiLCJzY2ltIiwib3BlbmlkIiwicGFzc3dvcmQiLCJhcHByb3ZhbHMiLCJvYXV0aCJdfQ.LyP58pOr-lj1yIdaLGH_oCDm-HivLIiBM-wgETiFXALi_ZQLoJTqvLLFmgzmspShAyrbHfbrALrHH5DwRHE3skU6L8mnetTA0Q9cBZHq2pgkNsnw7S2K8A1jMZQEuijnoOZbnQ1v2JhgbHtnr-b_aLMT7WS58oWx0yj6mqL242P3AHdo1RHVmig_jNEn6fiVTCU9pTx9IuX5uB8RYahWhfI6T2bs4EqPdUr0MdwGhu6QPgP2cPNITdzfj2u9xXIUXOzYBxLGc6rPVIpmxKqEbjkdkVOqoNOof75AkegXkULBZk6so50yNGsEkBk4aChg5gDR-KRw4a1yYkNLMJ__vg`)
 
 			resp, err := client.Do(req)
 			Expect(err).Should(BeNil(), "Shouldn't get an error on PATCH. Error: %v", err)
 
-			tempSecret := api.Secret{
-				Data: make(map[string][]byte),
-			}
+			respStore := environmentResponse{}
 
-			err = json.NewDecoder(resp.Body).Decode(&tempSecret.Data)
+			err = json.NewDecoder(resp.Body).Decode(&respStore)
 			Expect(err).Should(BeNil(), "Error decoding response: %v", err)
 
 			//Make sure that private-api-key wasn't changed
-			Expect(string(tempSecret.Data["private-api-key"])).Should(Equal(globalPrivate))
+			Expect(string(respStore.PrivateSecret)).Should(Equal(globalPrivate))
 
-			//Make sure that public-api-key was changed
-			Expect(string(tempSecret.Data["public-api-key"])).ShouldNot(Equal(globalPublic))
+			//Make sure that public-api-key wasn't changed
+			Expect(string(respStore.PublicSecret)).Should(Equal(globalPublic))
 
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
 		})
@@ -95,11 +106,9 @@ var _ = Describe("Server Test", func() {
 			jsonStr := []byte(`{
 				"deploymentName": "testdep1",
 				"publicHosts": "deploy.k8s.public",
-				"publicPaths": "80:/ 90:/2",
 				"privateHosts": "deploy.k8s.private",
-				"privatePaths": "80:/ 90:/2",
     			"replicas": 1,
-    			"ptsURL": "https://api.myjson.com/bins/2aot6"}`)
+    			"ptsURL": "https://api.myjson.com/bins/4gqeq"}`)
 
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 
@@ -107,16 +116,15 @@ var _ = Describe("Server Test", func() {
 
 			Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
 
-			Expect(resp.StatusCode).Should(Equal(201), "Response should be 200 OK")
+			Expect(resp.StatusCode).Should(Equal(201), "Response should be 201 Created")
 
 		})
-
 		It("Update Deployment from PTS URL", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep1", hostBase)
 
 			jsonStr := []byte(`{
     				"replicas": 3,
-					"ptsURL": "https://api.myjson.com/bins/2aot6"
+					"ptsURL": "https://api.myjson.com/bins/4ivki"
 					}`)
 
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
@@ -135,11 +143,8 @@ var _ = Describe("Server Test", func() {
 			jsonStr := []byte(`{
 				"deploymentName": "testdep2",
  				"publicHosts": "deploy.k8s.public",
-				"publicPaths": "80:/ 90:/2",
 				"privateHosts": "deploy.k8s.private",
-				"privatePaths": "80:/ 90:/2",
     			"replicas": 1,
-				"ptsURL": "https://api.myjson.com/bins/4nja0",
 				"pts":     
 				{
 					"apiVersion": "v1",
@@ -148,6 +153,10 @@ var _ = Describe("Server Test", func() {
 						"name": "nginx",
 						"labels": {
 							"app": "web"
+						},
+						"annotations": {
+							"publicPaths": "80:/ 90:/2",
+      						"privatePaths": "80:/ 90:/2"
 						}
 					},
 					"spec": {
@@ -184,6 +193,7 @@ var _ = Describe("Server Test", func() {
 
 			Expect(resp.StatusCode).Should(Equal(201), "Response should be 200 OK")
 
+			//TODO: Maybe more thorough checking of response
 		})
 
 		It("Update Deployment from direct PTS", func() {
@@ -200,6 +210,10 @@ var _ = Describe("Server Test", func() {
 						"name": "nginx",
 						"labels": {
 							"app": "web"
+						},
+						"annotations": {
+							"publicPaths": "80:/ 100:/2",
+      						"privatePaths": "80:/ 100:/2"
 						}
 					},
 					"spec": {
@@ -218,10 +232,10 @@ var _ = Describe("Server Test", func() {
 							"image": "jbowen/testapp:v0",
 							"env": [{
 								"name": "PORT",
-								"value": "90"
+								"value": "100"
 							}],
 							"ports": [{
-								"containerPort": 90
+								"containerPort": 100
 							}]
 						}]
 					}
@@ -235,6 +249,8 @@ var _ = Describe("Server Test", func() {
 			Expect(err).Should(BeNil(), "Shouldn't get an error on PATCH. Error: %v", err)
 
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+
+			//TODO: Maybe more thorough checking of response
 
 		})
 
@@ -283,7 +299,7 @@ var _ = Describe("Server Test", func() {
 
 			Expect(err).Should(BeNil(), "Shouldn't get an error on DELETE. Error: %v", err)
 
-			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+			Expect(resp.StatusCode).Should(Equal(204), "Response should be 200 OK")
 
 		})
 
@@ -295,7 +311,7 @@ var _ = Describe("Server Test", func() {
 
 			Expect(err).Should(BeNil(), "Shouldn't get an error on DELETE. Error: %v", err)
 
-			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+			Expect(resp.StatusCode).Should(Equal(204), "Response should be 200 OK")
 
 		})
 
@@ -308,7 +324,7 @@ var _ = Describe("Server Test", func() {
 
 			Expect(err).Should(BeNil(), "Shouldn't get an error on DELETE. Error: %v", err)
 
-			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+			Expect(resp.StatusCode).Should(Equal(204), "Response should be 200 OK")
 		})
 	}
 
