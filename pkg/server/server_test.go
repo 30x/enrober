@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/30x/enrober/pkg/server"
 
@@ -108,7 +109,7 @@ var _ = Describe("Server Test", func() {
 				"publicHosts": "deploy.k8s.public",
 				"privateHosts": "deploy.k8s.private",
     			"replicas": 1,
-    			"ptsURL": "https://api.myjson.com/bins/4gqeq"}`)
+    			"ptsURL": "https://api.myjson.com/bins/2g3im"}`)
 
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 
@@ -119,12 +120,16 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(201), "Response should be 201 Created")
 
 		})
+
 		It("Update Deployment from PTS URL", func() {
+			//Need to wait a little before we run an update
+			//Should look into a better fix
+			time.Sleep(50 * time.Millisecond)
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep1", hostBase)
 
 			jsonStr := []byte(`{
     				"replicas": 3,
-					"ptsURL": "https://api.myjson.com/bins/4ivki"
+					"ptsURL": "https://api.myjson.com/bins/3p3vy"
 					}`)
 
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
@@ -150,9 +155,9 @@ var _ = Describe("Server Test", func() {
 					"apiVersion": "v1",
 					"kind": "Pod",
 					"metadata": {
-						"name": "nginx",
+						"name": "testpod2",
 						"labels": {
-							"app": "web"
+							"app": "web2"
 						},
 						"annotations": {
 							"publicPaths": "80:/ 90:/2",
@@ -207,9 +212,9 @@ var _ = Describe("Server Test", func() {
 					"apiVersion": "v1",
 					"kind": "Pod",
 					"metadata": {
-						"name": "nginx",
+						"name": "testpod2",
 						"labels": {
-							"app": "web"
+							"app": "web2"
 						},
 						"annotations": {
 							"publicPaths": "80:/ 100:/2",
