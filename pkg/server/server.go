@@ -161,8 +161,6 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 		tempEnv.Name = value.Labels["envName"]
 
 		//For each namespace we have to do a get on the secrets in it
-		//DEBUG
-		fmt.Printf("DEBUG %v\n", value.Labels["group"]+"-"+value.Labels["envName"])
 		getSecret, err := client.Secrets(value.Labels["group"] + "-" + value.Labels["envName"]).Get("routing")
 		if err != nil {
 			fmt.Printf("Error: couldn't get secret from namespace: %v\n", err)
@@ -584,8 +582,8 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	//Struct to put JSON into
 	type deploymentPost struct {
 		DeploymentName string               `json:"deploymentName"`
-		PublicHosts    string               `json:"publicHosts,omitempty"`
-		PrivateHosts   string               `json:"privateHosts,omitempty"`
+		PublicHosts    *string              `json:"publicHosts,omitempty"`
+		PrivateHosts   *string              `json:"privateHosts,omitempty"`
 		Replicas       int                  `json:"replicas"`
 		PtsURL         string               `json:"ptsURL,omitempty"`
 		PTS            *api.PodTemplateSpec `json:"pts,omitempty"`
@@ -600,7 +598,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if tempJSON.PublicHosts == "" && tempJSON.PrivateHosts == "" {
+	if tempJSON.PublicHosts == nil && tempJSON.PrivateHosts == nil {
 		http.Error(w, "", http.StatusInternalServerError)
 		fmt.Printf("No privateHosts or publicHosts given\n")
 		return
@@ -659,9 +657,13 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	if len(tempPTS.Annotations) == 0 {
 		tempPTS.Annotations = make(map[string]string)
 	}
-	//Routing Annotations
-	tempPTS.Annotations["publicHosts"] = tempJSON.PublicHosts
-	tempPTS.Annotations["privateHosts"] = tempJSON.PrivateHosts
+	if tempJSON.PrivateHosts != nil {
+		tempPTS.Annotations["privateHosts"] = *tempJSON.PrivateHosts
+	}
+
+	if tempJSON.PublicHosts != nil {
+		tempPTS.Annotations["publicHosts"] = *tempJSON.PublicHosts
+	}
 
 	//If map is empty then we need to make it
 	if len(tempPTS.Labels) == 0 {
@@ -756,8 +758,8 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 
 	//Struct to put JSON into
 	type deploymentPatch struct {
-		PublicHosts  string               `json:"publicHosts,omitempty"`
-		PrivateHosts string               `json:"privateHosts,omitempty"`
+		PublicHosts  *string              `json:"publicHosts,omitempty"`
+		PrivateHosts *string              `json:"privateHosts,omitempty"`
 		Replicas     int                  `json:"Replicas"`
 		PtsURL       string               `json:"ptsURL"`
 		PTS          *api.PodTemplateSpec `json:"pts"`
@@ -837,12 +839,12 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	getDep.Spec.Replicas = tempJSON.Replicas
 	getDep.Spec.Template = *tempPTS
 
-	if tempJSON.PrivateHosts != "" {
-		getDep.Spec.Template.Annotations["privateHosts"] = tempJSON.PrivateHosts
+	if tempJSON.PrivateHosts != nil {
+		getDep.Spec.Template.Annotations["privateHosts"] = *tempJSON.PrivateHosts
 	}
 
-	if tempJSON.PublicHosts != "" {
-		getDep.Spec.Template.Annotations["publicHosts"] = tempJSON.PublicHosts
+	if tempJSON.PublicHosts != nil {
+		getDep.Spec.Template.Annotations["publicHosts"] = *tempJSON.PublicHosts
 	}
 	dep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Update(getDep)
 	if err != nil {
