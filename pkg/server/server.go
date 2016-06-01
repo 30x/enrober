@@ -657,6 +657,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	if len(tempPTS.Annotations) == 0 {
 		tempPTS.Annotations = make(map[string]string)
 	}
+
 	if tempJSON.PrivateHosts != nil {
 		tempPTS.Annotations["privateHosts"] = *tempJSON.PrivateHosts
 	}
@@ -836,8 +837,15 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		tempPTS.Labels = make(map[string]string)
 	}
 
+	//Need to cache the previous annotations
+	cacheAnnotations := getDep.Spec.Template.Annotations
+
 	getDep.Spec.Replicas = tempJSON.Replicas
 	getDep.Spec.Template = *tempPTS
+
+	//Replace the privateHosts and publicHosts annotations with cached ones
+	getDep.Spec.Template.Annotations["publicHosts"] = cacheAnnotations["publicHosts"]
+	getDep.Spec.Template.Annotations["privateHosts"] = cacheAnnotations["privateHosts"]
 
 	if tempJSON.PrivateHosts != nil {
 		getDep.Spec.Template.Annotations["privateHosts"] = *tempJSON.PrivateHosts
@@ -846,6 +854,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	if tempJSON.PublicHosts != nil {
 		getDep.Spec.Template.Annotations["publicHosts"] = *tempJSON.PublicHosts
 	}
+
 	dep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Update(getDep)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
