@@ -52,6 +52,27 @@ A swagger.yaml file is provided that documents the API per the OpenAPI specifica
 An environment consists of a kubernetes namespace and our specific secrets associated with it. Each environment comes with a `routing` secret that contains two key-value pairs, a `public-api-key` and a `private-api-key`. These are for use with the [k8s-pods-ingress](https://github.com/30x/k8s-pods-ingress) to allow for secure communication with pods from inside and outside of the kubernetes cluster.  
 
 
+##Apigee Specific Annotations
+
+####Environments
+
+When created environments can accept an array of valid host names to accept traffic from. This array is represented on the namespace object as a space delimited annotation. The individual values must be either a valid IP address or valid host name. 
+
+####Deployments
+
+When created deployments can accept a `publicHosts` value, a `privateHosts` value or both. These values are for use with the [k8s-pods-ingress](https://github.com/30x/k8s-pods-ingress) and are the host name where the deployment can be reached. These values are stored as annotations on the deployed pods. 
+
+####Pod Template Specs
+
+When they are provided to the deployments endpoint pod template specs must have several Apigee specific labels and annotations.  
+
+**Labels:**
+For pods to be recognized by the [k8s-pods-ingress](https://github.com/30x/k8s-pods-ingress) they must have a label named `"routable"` with a value of `"true"`.
+
+**Annotations:**
+For pods to be properly routed by the [k8s-pods-ingress](https://github.com/30x/k8s-pods-ingress) they must have a `"publicPaths"` and/or `"privatePaths"` annotation where the value is of the form `{PORT}:{PATH}`. You may have multiple space delimited `{PORT}:{PATH}` combinations on each annotation. 
+ 
+
 ##Usage
 
 > This assumes you are running the server locally, it is accessible at localhost:9000, and your kubernetes cluster is exposed with `kubectl proxy --port=8080`
