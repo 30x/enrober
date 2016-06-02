@@ -47,7 +47,10 @@ A swagger.yaml file is provided that documents the API per the OpenAPI specifica
 
 ##Key Components
 
-TODO: Explain stuff
+####Environments
+
+An environment consists of a kubernetes namespace and our specific secrets associated with it. Each environment comes with a `routing` secret that contains two key-value pairs, a `public-api-key` and a `private-api-key`. These are for use with the [k8s-pods-ingress](https://github.com/30x/k8s-pods-ingress) to allow for secure communication with pods from inside and outside of the kubernetes cluster.  
+
 
 ##Usage
 
