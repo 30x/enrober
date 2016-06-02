@@ -330,6 +330,23 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Print to console for logging
 	fmt.Printf("Created Secret: %v\n", secret.GetName())
 
+	//FIXME: Hardcoding secret copying for now
+	getPullSecret, err := client.Secrets("apigee").Get("shipyard-pull-secret")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Printf("Error getting Image Pull Secret: %v\n", err)
+	}
+	//Blank out all the metadata
+	getPullSecret.ObjectMeta = api.ObjectMeta{}
+	//Have to set the name
+	getPullSecret.SetName("shipyard-pull-secret")
+	newPullSecret, err := client.Secrets(pathVars["environmentGroupID"] + "-" + tempJSON.EnvironmentName).Create(getPullSecret)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Printf("Error creating new Image Pull Secret: %v\n", err)
+	}
+	fmt.Printf("New Pull Secret: %v\n", newPullSecret.GetName())
+
 	var jsResponse environmentResponse
 	jsResponse.Name = tempJSON.EnvironmentName
 	jsResponse.PrivateSecret = secret.Data["private-api-key"]

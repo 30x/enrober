@@ -22,7 +22,7 @@ spec:
       containers:
       - name: enrober
         image: jbowen/enrober:v0.1.2
-        imagePullPolicy: Always            
+        imagePullPolicy: Always
         env:
           - name: DEPLOY_STATE
             value: "PROD"
@@ -30,3 +30,4 @@ spec:
             value: "test"
         ports:
           - containerPort: 9000
+
