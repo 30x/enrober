@@ -30,7 +30,7 @@ Please note that this allows for insecure communication with your kubernetes clu
 A prebuilt docker image is available with:
  
 ```sh
-docker pull jbowen/enrober:v0.1.0
+docker pull jbowen/enrober:v0.1.2
 ```
 
 To deploy the server as a docker container on a kubernetes cluster you should use the provided `deploy-base.yaml` file. Running `kubectl create -f deploy-base.yaml` will pull the image from dockerhub and deploy it to the default namespace.
@@ -79,8 +79,10 @@ For pods to be properly routed by the [k8s-pods-ingress](https://github.com/30x/
 
 ####Create a new environment:
 
+**Note:** Creating and modifying an environment require a valid JWT to be passed into an authorization header. For this example we are using an empty JSON object that has been base64 encoded.
+
 ```sh
-curl -X POST -d '{
+curl -X POST -H "Authorization: Bearer e30.e30.e30" -d '{
 	"environmentName": "env1",
 	"hostNames": ["host1"]
 	}' \
@@ -94,10 +96,13 @@ This will create a `group1-env1` namespace and a secret named `routing` with two
 
 The value of each of these keys-value pairs will a 256-bit base64 encoded randomized string. These secrets are for use with [30x/k8s-pods-ingress](https://github.com/30x/k8s-pods-ingress)
 
+
 ###Update the environment
 
+**Note:** Creating and modifying an environment require a valid JWT to be passed into an authorization header. For this example we are using an empty JSON object that has been base64 encoded.
+
 ```sh
-curl -X PATCH -d '{
+curl -X PATCH -H "Authorization: Bearer e30.e30.e30" -d '{
 	"hostNames": ["host1", "host2"]
 	}' \
 "localhost:9000/beeswax/deploy/api/v1/environmentGroups/group1/environments/env1"
