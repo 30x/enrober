@@ -1,10 +1,10 @@
 hash: 662a7155f6a8b7e7130d1b1deb64ca94cb60cb33a0dc86d203ed6dd2801d83be
-updated: 2016-06-03T11:41:17.391650815-06:00
+updated: 2016-06-03T11:55:04.884027684-06:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c
 - name: github.com/30x/authsdk
-  version: 6b14ddd8c44287bebe38af3b7902d33046ac7118
+  version: 453c08f68c1ba49d56203d32cb8487edcb415714
 - name: github.com/beorn7/perks
   version: b965b613227fddccbfffe13eae360ed3fa822f8d
   subpackages:
