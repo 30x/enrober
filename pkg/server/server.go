@@ -78,6 +78,9 @@ var validHostnameRegex = regexp.MustCompile(`^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-
 //Global ECR Pull Secrets
 var lookForECRSecret bool
 
+//Global Privileged container flag
+var allowPrivilegedContainers bool
+
 //Init runs once
 func Init(clientConfig restclient.Config) error {
 	var err error
@@ -102,11 +105,18 @@ func Init(clientConfig restclient.Config) error {
 		client = *tempClient
 	}
 
-	//Set global ECR secret check
+	//Set global ECR secret flag
 	if os.Getenv("ECR_SECRET") == "true" {
 		lookForECRSecret = true
 	} else {
 		lookForECRSecret = false
+	}
+
+	//Set privileged container flag
+	if os.Getenv("ALLOW_PRIV_CONTAINERS") == "true" {
+		allowPrivilegedContainers = true
+	} else {
+		allowPrivilegedContainers = false
 	}
 
 	return nil
@@ -674,7 +684,11 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//TODO: Need to do a check to make sure this is false for all containers
-	// tempPTS.Spec.Containers[0].SecurityContext.Privileged = func() *bool { b := false; return &b }()
+	if allowPrivilegedContainers == false {
+		for _, val := range tempPTS.Spec.Containers {
+			val.SecurityContext.Privileged = func() *bool { b := false; return &b }()
+		}
+	}
 
 	//TODO: In the future we may want to have a check to ensure that publicPaths and/or privatePaths exists
 

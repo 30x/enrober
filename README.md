@@ -30,7 +30,7 @@ Please note that this allows for insecure communication with your kubernetes clu
 A prebuilt docker image is available with:
  
 ```sh
-docker pull jbowen/enrober:v0.1.2
+docker pull thirtyx/enrober:v0.1.2
 ```
 
 To deploy the server as a docker container on a kubernetes cluster you should use the provided `deploy-base.yaml` file. Running `kubectl create -f deploy-base.yaml` will pull the image from dockerhub and deploy it to the default namespace.
@@ -40,6 +40,10 @@ The server will be accesible at `<pod-ip>/beeswax/deploy/api/v1`
 You can choose to expose the pod using the [k8s-pods-ingress](https://github.com/30x/k8s-pods-ingress). Make sure to modify the `deploy.yaml` file to match your ingress configuration. 
 
 Alternatively you can expose the server using a kubernetes service. Refer to the docs [here](http://kubernetes.io/docs/user-guide/services/).
+
+###Privileged Containers
+
+By default enrober doesn't allow privileged containers to be deployed and will modify the containers security context at deploy time so that `Priveleged = false`. If you have a need for privileged containers set the `ALLOW_PRIV_CONTAINERS` environment variable to `"true"` in enrobers deployment yaml file.
 
 ##API Design
 
@@ -115,7 +119,7 @@ This will modify the previously created environment's hostNames array to equal:
 ### Create a new deployment from an inline Pod Template Spec
 
 ```sh
-curl -X POST -d '{
+curl -X POST -H "Authorization: Bearer e30.e30.e30" -d '{
 	"deploymentName": "dep1",
     "publicHosts": "deploy.k8s.public",
     "privateHosts": "deploy.k8s.private",
@@ -171,7 +175,7 @@ This will create a deployment that will guarantee a single replica of a pod cons
 ### Update deployment
 	
 ```sh
-curl -X PATCH -d '{
+curl -X PATCH -H "Authorization: Bearer e30.e30.e30" -d '{
 	"deploymentName": "dep1",
 	"replicas": 3,
 }' \
@@ -184,7 +188,7 @@ This will modify the previous deployment to now guarantee 3 replicas of the pod.
 ###Delete deployment
 
 ```sh
-curl -X DELETE \
+curl -X DELETE -H "Authorization: Bearer e30.e30.e30" \
 "localhost:9000/beeswax/deploy/api/v1/environmentGroups/group1/environments/env1/deployments/dep1"
 ```
 
@@ -193,7 +197,7 @@ This will delete the previously created deployment and all related resources suc
 ###Delete environment
 
 ```sh
-curl -X DELETE \
+curl -X DELETE -H "Authorization: Bearer e30.e30.e30" \
 "localhost:9000/beeswax/deploy/api/v1/environmentGroups/group1/environments/env1"
 ```
 
