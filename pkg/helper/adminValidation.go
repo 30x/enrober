@@ -12,19 +12,19 @@ func ValidAdmin(namespace string, w http.ResponseWriter, r *http.Request) bool {
 	token, err := authsdk.NewJWTTokenFromRequest(r)
 	if err != nil {
 		fmt.Printf("Error getting JWT Token: %v\n", err)
-		http.Error(w, "Invalid Token", http.StatusInternalServerError)
+		http.Error(w, "Invalid Token", http.StatusUnauthorized) //401
 		return false
 	}
 	isAdmin, err := token.IsOrgAdmin(namespace)
 	if err != nil {
-		fmt.Printf("Error checking caller is an Org Admin: %v\n", err)
-		http.Error(w, "", http.StatusInternalServerError)
+		fmt.Printf("Error checking caller is an Org Admin: %v\n", err) //401
+		http.Error(w, "", http.StatusUnauthorized)
 		return false
 	}
 	if !isAdmin {
 		//Throwing a 403
 		fmt.Printf("Caller isn't an Org Admin\n")
-		http.Error(w, "You aren't an Org Admin", http.StatusForbidden)
+		http.Error(w, "You aren't an Org Admin", http.StatusForbidden) //403
 		return false
 	}
 	return true
