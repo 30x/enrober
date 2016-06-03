@@ -41,7 +41,7 @@ var _ = Describe("Server Test", func() {
 
 			jsonStr := []byte(`{"environmentName": "testenv1", "hostNames": ["testhost1"]}`)
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-			req.Header.Add("Authorization", `Bearer eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiI1MmI5MjRlZS0wZTQwLTRjNjktYmZiMC04MjEwN2Q3ZWM2MGQiLCJzdWIiOiJlNTdjNDg1MS04YTJlLTRlYzItYmEyYy1jY2RiMDJiYjIwNmMiLCJzY29wZSI6WyJzY2ltLm1lIiwib3BlbmlkIiwicGFzc3dvcmQud3JpdGUiLCJhcHByb3ZhbHMubWUiLCJvYXV0aC5hcHByb3ZhbHMiXSwiY2xpZW50X2lkIjoiZWRnZWNsaSIsImNpZCI6ImVkZ2VjbGkiLCJhenAiOiJlZGdlY2xpIiwiZ3JhbnRfdHlwZSI6InBhc3N3b3JkIiwidXNlcl9pZCI6ImU1N2M0ODUxLThhMmUtNGVjMi1iYTJjLWNjZGIwMmJiMjA2YyIsIm9yaWdpbiI6InVzZXJncmlkIiwidXNlcl9uYW1lIjoiamJvd2VuQGFwaWdlZS5jb20iLCJlbWFpbCI6Impib3dlbkBhcGlnZWUuY29tIiwiYXV0aF90aW1lIjoxNDY0Nzk2MDIyLCJyZXZfc2lnIjoiNGVlODcwYjgiLCJpYXQiOjE0NjQ3OTYwMjIsImV4cCI6MTQ2NDc5NzgyMiwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5hcGlnZWUuY29tL29hdXRoL3Rva2VuIiwiemlkIjoidWFhIiwiYXVkIjpbImVkZ2VjbGkiLCJzY2ltIiwib3BlbmlkIiwicGFzc3dvcmQiLCJhcHByb3ZhbHMiLCJvYXV0aCJdfQ.LyP58pOr-lj1yIdaLGH_oCDm-HivLIiBM-wgETiFXALi_ZQLoJTqvLLFmgzmspShAyrbHfbrALrHH5DwRHE3skU6L8mnetTA0Q9cBZHq2pgkNsnw7S2K8A1jMZQEuijnoOZbnQ1v2JhgbHtnr-b_aLMT7WS58oWx0yj6mqL242P3AHdo1RHVmig_jNEn6fiVTCU9pTx9IuX5uB8RYahWhfI6T2bs4EqPdUr0MdwGhu6QPgP2cPNITdzfj2u9xXIUXOzYBxLGc6rPVIpmxKqEbjkdkVOqoNOof75AkegXkULBZk6so50yNGsEkBk4aChg5gDR-KRw4a1yYkNLMJ__vg`)
+			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 			Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
@@ -68,7 +68,7 @@ var _ = Describe("Server Test", func() {
 
 			jsonStr := []byte(`{"environmentName": "testenv2", "hostNames": ["testhost1"]}`)
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-			req.Header.Add("Authorization", `Bearer eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiI1MmI5MjRlZS0wZTQwLTRjNjktYmZiMC04MjEwN2Q3ZWM2MGQiLCJzdWIiOiJlNTdjNDg1MS04YTJlLTRlYzItYmEyYy1jY2RiMDJiYjIwNmMiLCJzY29wZSI6WyJzY2ltLm1lIiwib3BlbmlkIiwicGFzc3dvcmQud3JpdGUiLCJhcHByb3ZhbHMubWUiLCJvYXV0aC5hcHByb3ZhbHMiXSwiY2xpZW50X2lkIjoiZWRnZWNsaSIsImNpZCI6ImVkZ2VjbGkiLCJhenAiOiJlZGdlY2xpIiwiZ3JhbnRfdHlwZSI6InBhc3N3b3JkIiwidXNlcl9pZCI6ImU1N2M0ODUxLThhMmUtNGVjMi1iYTJjLWNjZGIwMmJiMjA2YyIsIm9yaWdpbiI6InVzZXJncmlkIiwidXNlcl9uYW1lIjoiamJvd2VuQGFwaWdlZS5jb20iLCJlbWFpbCI6Impib3dlbkBhcGlnZWUuY29tIiwiYXV0aF90aW1lIjoxNDY0Nzk2MDIyLCJyZXZfc2lnIjoiNGVlODcwYjgiLCJpYXQiOjE0NjQ3OTYwMjIsImV4cCI6MTQ2NDc5NzgyMiwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5hcGlnZWUuY29tL29hdXRoL3Rva2VuIiwiemlkIjoidWFhIiwiYXVkIjpbImVkZ2VjbGkiLCJzY2ltIiwib3BlbmlkIiwicGFzc3dvcmQiLCJhcHByb3ZhbHMiLCJvYXV0aCJdfQ.LyP58pOr-lj1yIdaLGH_oCDm-HivLIiBM-wgETiFXALi_ZQLoJTqvLLFmgzmspShAyrbHfbrALrHH5DwRHE3skU6L8mnetTA0Q9cBZHq2pgkNsnw7S2K8A1jMZQEuijnoOZbnQ1v2JhgbHtnr-b_aLMT7WS58oWx0yj6mqL242P3AHdo1RHVmig_jNEn6fiVTCU9pTx9IuX5uB8RYahWhfI6T2bs4EqPdUr0MdwGhu6QPgP2cPNITdzfj2u9xXIUXOzYBxLGc6rPVIpmxKqEbjkdkVOqoNOof75AkegXkULBZk6so50yNGsEkBk4aChg5gDR-KRw4a1yYkNLMJ__vg`)
+			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -82,7 +82,7 @@ var _ = Describe("Server Test", func() {
 
 			jsonStr := []byte(`{"hostNames": ["testhost2"]}`)
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
-			req.Header.Add("Authorization", `Bearer eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiI1MmI5MjRlZS0wZTQwLTRjNjktYmZiMC04MjEwN2Q3ZWM2MGQiLCJzdWIiOiJlNTdjNDg1MS04YTJlLTRlYzItYmEyYy1jY2RiMDJiYjIwNmMiLCJzY29wZSI6WyJzY2ltLm1lIiwib3BlbmlkIiwicGFzc3dvcmQud3JpdGUiLCJhcHByb3ZhbHMubWUiLCJvYXV0aC5hcHByb3ZhbHMiXSwiY2xpZW50X2lkIjoiZWRnZWNsaSIsImNpZCI6ImVkZ2VjbGkiLCJhenAiOiJlZGdlY2xpIiwiZ3JhbnRfdHlwZSI6InBhc3N3b3JkIiwidXNlcl9pZCI6ImU1N2M0ODUxLThhMmUtNGVjMi1iYTJjLWNjZGIwMmJiMjA2YyIsIm9yaWdpbiI6InVzZXJncmlkIiwidXNlcl9uYW1lIjoiamJvd2VuQGFwaWdlZS5jb20iLCJlbWFpbCI6Impib3dlbkBhcGlnZWUuY29tIiwiYXV0aF90aW1lIjoxNDY0Nzk2MDIyLCJyZXZfc2lnIjoiNGVlODcwYjgiLCJpYXQiOjE0NjQ3OTYwMjIsImV4cCI6MTQ2NDc5NzgyMiwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5hcGlnZWUuY29tL29hdXRoL3Rva2VuIiwiemlkIjoidWFhIiwiYXVkIjpbImVkZ2VjbGkiLCJzY2ltIiwib3BlbmlkIiwicGFzc3dvcmQiLCJhcHByb3ZhbHMiLCJvYXV0aCJdfQ.LyP58pOr-lj1yIdaLGH_oCDm-HivLIiBM-wgETiFXALi_ZQLoJTqvLLFmgzmspShAyrbHfbrALrHH5DwRHE3skU6L8mnetTA0Q9cBZHq2pgkNsnw7S2K8A1jMZQEuijnoOZbnQ1v2JhgbHtnr-b_aLMT7WS58oWx0yj6mqL242P3AHdo1RHVmig_jNEn6fiVTCU9pTx9IuX5uB8RYahWhfI6T2bs4EqPdUr0MdwGhu6QPgP2cPNITdzfj2u9xXIUXOzYBxLGc6rPVIpmxKqEbjkdkVOqoNOof75AkegXkULBZk6so50yNGsEkBk4aChg5gDR-KRw4a1yYkNLMJ__vg`)
+			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 			Expect(err).Should(BeNil(), "Shouldn't get an error on PATCH. Error: %v", err)
@@ -112,6 +112,7 @@ var _ = Describe("Server Test", func() {
     			"ptsURL": "https://api.myjson.com/bins/2g3im"}`)
 
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -124,7 +125,7 @@ var _ = Describe("Server Test", func() {
 		It("Update Deployment from PTS URL", func() {
 			//Need to wait a little before we run an update
 			//Should look into a better fix
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(200 * time.Millisecond)
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep1", hostBase)
 
 			jsonStr := []byte(`{
@@ -133,6 +134,7 @@ var _ = Describe("Server Test", func() {
 					}`)
 
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
+			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -191,6 +193,7 @@ var _ = Describe("Server Test", func() {
 			}`)
 
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -248,6 +251,7 @@ var _ = Describe("Server Test", func() {
 			}`)
 
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
+			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -263,6 +267,7 @@ var _ = Describe("Server Test", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep1", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
+			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -276,6 +281,7 @@ var _ = Describe("Server Test", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep2", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
+			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -287,7 +293,9 @@ var _ = Describe("Server Test", func() {
 
 		It("Get Environment", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1", hostBase)
+
 			req, err := http.NewRequest("GET", url, nil)
+			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -298,7 +306,9 @@ var _ = Describe("Server Test", func() {
 
 		It("Delete Deployment testdep1", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep1", hostBase)
+
 			req, err := http.NewRequest("DELETE", url, nil)
+			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -310,7 +320,9 @@ var _ = Describe("Server Test", func() {
 
 		It("Delete Deployment testdep2", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep2", hostBase)
+
 			req, err := http.NewRequest("DELETE", url, nil)
+			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -324,6 +336,7 @@ var _ = Describe("Server Test", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1", hostBase)
 
 			req, err := http.NewRequest("DELETE", url, nil)
+			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 

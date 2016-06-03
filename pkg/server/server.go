@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 
@@ -18,8 +19,6 @@ import (
 	k8sClient "k8s.io/kubernetes/pkg/client/unversioned"
 
 	"github.com/30x/enrober/pkg/helper"
-
-	"github.com/30x/authsdk"
 )
 
 //Server structa
@@ -41,13 +40,21 @@ type environmentResponse struct {
 	PrivateSecret []byte   `json:"privateSecret"`
 }
 
-type deploymentRequest struct {
+type deploymentPost struct {
 	DeploymentName string               `json:"deploymentName"`
-	PublicHosts    string               `json:"publicHosts,omitempty"`
-	PrivateHosts   string               `json:"privateHosts,omitempty"`
+	PublicHosts    *string              `json:"publicHosts,omitempty"`
+	PrivateHosts   *string              `json:"privateHosts,omitempty"`
 	Replicas       int                  `json:"replicas"`
-	PtsURL         string               `json:"ptsURL"`
-	PTS            *api.PodTemplateSpec `json:"pts"`
+	PtsURL         string               `json:"ptsURL,omitempty"`
+	PTS            *api.PodTemplateSpec `json:"pts,omitempty"`
+}
+
+type deploymentPatch struct {
+	PublicHosts  *string              `json:"publicHosts,omitempty"`
+	PrivateHosts *string              `json:"privateHosts,omitempty"`
+	Replicas     int                  `json:"Replicas"`
+	PtsURL       string               `json:"ptsURL"`
+	PTS          *api.PodTemplateSpec `json:"pts"`
 }
 
 type deploymentResponse struct {
@@ -67,6 +74,9 @@ var client k8sClient.Client
 //Global Regex
 var validIPAddressRegex = regexp.MustCompile(`^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$`)
 var validHostnameRegex = regexp.MustCompile(`^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$`)
+
+//Global ECR Pull Secrets
+var lookForECRSecret bool
 
 //Init runs once
 func Init(clientConfig restclient.Config) error {
@@ -90,6 +100,13 @@ func Init(clientConfig restclient.Config) error {
 			return err
 		}
 		client = *tempClient
+	}
+
+	//Set global ECR secret check
+	if os.Getenv("ECR_SECRET") == "true" {
+		lookForECRSecret = true
+	} else {
+		lookForECRSecret = false
 	}
 
 	return nil
@@ -165,6 +182,7 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			fmt.Printf("Error: couldn't get secret from namespace: %v\n", err)
 			http.Error(w, "", http.StatusInternalServerError)
+			//TODO: This may not be right?
 			return
 		}
 		tempEnv.PrivateSecret = getSecret.Data["private-api-key"]
@@ -172,6 +190,12 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 
 		//Append the temp object to the slice
 		envList = append(envList, tempEnv)
+	}
+	//If there are no environments then return a blank json
+	if len(envList) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		return
 	}
 
 	js, err := json.Marshal(envList)
@@ -193,25 +217,8 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	//TODO: May be useful to make JWT Token optional
-
-	//TODO: Duplicate Code, could be separate function
-	token, err := authsdk.NewJWTTokenFromRequest(r)
-	if err != nil {
-		fmt.Printf("Error getting JWT Token: %v\n", err)
-		http.Error(w, "Invalid Token", http.StatusInternalServerError)
-		return
-	}
-	isAdmin, err := token.IsOrgAdmin(pathVars["environmentGroupID"])
-	if err != nil {
-		fmt.Printf("Error checking caller is an Org Admin: %v\n", err)
-		http.Error(w, "", http.StatusInternalServerError)
-		return
-	}
-	if !isAdmin {
-		//Throwing a 403
-		fmt.Printf("Caller isn't an Org Admin\n")
-		http.Error(w, "You aren't an Org Admin", http.StatusForbidden)
+	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+		//Errors should be returned from function
 		return
 	}
 
@@ -224,7 +231,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Decode passed JSON body
 	decoder := json.NewDecoder(r.Body)
 	var tempJSON environmentPost
-	err = decoder.Decode(&tempJSON)
+	err := decoder.Decode(&tempJSON)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error decoding JSON Body: %v\n", err)
@@ -331,21 +338,23 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Created Secret: %v\n", secret.GetName())
 
 	//FIXME: Hardcoding secret copying for now
-	getPullSecret, err := client.Secrets("apigee").Get("shipyard-pull-secret")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Printf("Error getting Image Pull Secret: %v\n", err)
+	if lookForECRSecret {
+		getPullSecret, err := client.Secrets("apigee").Get("shipyard-pull-secret")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fmt.Printf("Error getting Image Pull Secret: %v\n", err)
+		}
+		//Blank out all the metadata
+		getPullSecret.ObjectMeta = api.ObjectMeta{}
+		//Have to set the name
+		getPullSecret.SetName("shipyard-pull-secret")
+		newPullSecret, err := client.Secrets(pathVars["environmentGroupID"] + "-" + tempJSON.EnvironmentName).Create(getPullSecret)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fmt.Printf("Error creating new Image Pull Secret: %v\n", err)
+		}
+		fmt.Printf("New Pull Secret: %v\n", newPullSecret.GetName())
 	}
-	//Blank out all the metadata
-	getPullSecret.ObjectMeta = api.ObjectMeta{}
-	//Have to set the name
-	getPullSecret.SetName("shipyard-pull-secret")
-	newPullSecret, err := client.Secrets(pathVars["environmentGroupID"] + "-" + tempJSON.EnvironmentName).Create(getPullSecret)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Printf("Error creating new Image Pull Secret: %v\n", err)
-	}
-	fmt.Printf("New Pull Secret: %v\n", newPullSecret.GetName())
 
 	var jsResponse environmentResponse
 	jsResponse.Name = tempJSON.EnvironmentName
@@ -368,6 +377,11 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 //getEnvironment returns a kubernetes namespace matching the given environmentGroupID and environmentName
 func getEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
+
+	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+		//Errors should be returned from function
+		return
+	}
 
 	getNs, err := client.Namespaces().Get(pathVars["environmentGroupID"] + "-" + pathVars["environment"])
 	if err != nil {
@@ -408,23 +422,8 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	//TODO: Duplicate Code, could be separate function
-	token, err := authsdk.NewJWTTokenFromRequest(r)
-	if err != nil {
-		fmt.Printf("Error getting JWT Token: %v\n", err)
-		http.Error(w, "", http.StatusInternalServerError)
-		return
-	}
-	isAdmin, err := token.IsOrgAdmin(pathVars["environmentGroupID"])
-	if err != nil {
-		fmt.Printf("Error checking caller is an Org Admin: %v\n", err)
-		http.Error(w, "", http.StatusInternalServerError)
-		return
-	}
-	if !isAdmin {
-		//Throwing a 403
-		fmt.Printf("Caller isn't an Org Admin")
-		http.Error(w, "You aren't an Org Admin", http.StatusForbidden)
+	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+		//Errors should be returned from function
 		return
 	}
 
@@ -554,6 +553,11 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 func deleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
+	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+		//Errors should be returned from function
+		return
+	}
+
 	err := client.Namespaces().Delete(pathVars["environmentGroupID"] + "-" + pathVars["environment"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -570,6 +574,11 @@ func deleteEnvironment(w http.ResponseWriter, r *http.Request) {
 //getDeployments returns a list of all deployments matching the given environmentGroupID and environmentName
 func getDeployments(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
+
+	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+		//Errors should be returned from function
+		return
+	}
 
 	depList, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).List(api.ListOptions{
 		LabelSelector: labels.Everything(),
@@ -596,15 +605,11 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 func createDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	//Struct to put JSON into
-	type deploymentPost struct {
-		DeploymentName string               `json:"deploymentName"`
-		PublicHosts    *string              `json:"publicHosts,omitempty"`
-		PrivateHosts   *string              `json:"privateHosts,omitempty"`
-		Replicas       int                  `json:"replicas"`
-		PtsURL         string               `json:"ptsURL,omitempty"`
-		PTS            *api.PodTemplateSpec `json:"pts,omitempty"`
+	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+		//Errors should be returned from function
+		return
 	}
+
 	//Decode passed JSON body
 	decoder := json.NewDecoder(r.Body)
 	var tempJSON deploymentPost
@@ -667,6 +672,9 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		//We got a direct PTS so just copy it
 		tempPTS = tempJSON.PTS
 	}
+
+	//TODO: Need to do a check to make sure this is false for all containers
+	// tempPTS.Spec.Containers[0].SecurityContext.Privileged = func() *bool { b := false; return &b }()
 
 	//TODO: In the future we may want to have a check to ensure that publicPaths and/or privatePaths exists
 
@@ -740,6 +748,11 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 func getDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
+	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+		//Errors should be returned from function
+		return
+	}
+
 	getDep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get(pathVars["deployment"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -762,9 +775,13 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 
 //updateDeployment updates a deployment matching the given environmentGroupID, environmentName, and deploymentName
 func updateDeployment(w http.ResponseWriter, r *http.Request) {
-	//TODO: Should use deploymentRequest not deploymentPatch
 
 	pathVars := mux.Vars(r)
+
+	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+		//Errors should be returned from function
+		return
+	}
 
 	//Get the old namespace first so we can fail quickly if it's not there
 	getDep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get(pathVars["deployment"])
@@ -894,6 +911,11 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 //deleteDeployment deletes a deployment matching the given environmentGroupID, environmentName, and deploymentName
 func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
+
+	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+		//Errors should be returned from function
+		return
+	}
 
 	//Get the deployment object
 	dep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get(pathVars["deployment"])
