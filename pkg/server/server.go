@@ -722,6 +722,13 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	if len(tempPTS.Labels) == 0 {
 		tempPTS.Labels = make(map[string]string)
 	}
+
+	//REVIEW: Going to fail if map is empty as we are expecting a label.component
+	if tempPTS.Labels["component"] == "" {
+		http.Error(w, "Requested Pod Template Spec has no component label", http.StatusInternalServerError)
+		fmt.Printf("Requested Pod Template Spec has no component label: %v\n", err)
+		return
+	}
 	//Add routable label
 	tempPTS.Labels["routable"] = "true"
 
@@ -733,7 +740,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 			Replicas: tempJSON.Replicas,
 			Selector: &unversioned.LabelSelector{
 				MatchLabels: map[string]string{
-					"app": tempPTS.Labels["app"],
+					"component": tempPTS.Labels["component"],
 				},
 			},
 			Template: *tempPTS,
