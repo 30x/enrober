@@ -666,6 +666,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		//Get from URL
 		//TODO: Duplicated code, could be moved to helper function
 		//Get JSON from url
+
 		httpClient := &http.Client{}
 
 		req, err := http.NewRequest("GET", tempJSON.PtsURL, nil)
@@ -767,8 +768,11 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error marshalling deployment: %v\n", err)
 	}
 
+	//Create absolute path for Location header
+	url := "/beeswax/deploy/api/v1/environmentGroups/" + pathVars["environmentGroupID"] + "/environments/" + pathVars["environment"] + "/deployments/" + tempJSON.DeploymentName
+	w.Header().Add("Location", url)
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(201)
-	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
 
 	fmt.Printf("Created Deployment: %v\n", dep.GetName())
