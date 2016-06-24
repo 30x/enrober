@@ -391,8 +391,11 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//Create absolute path for Location header
+	url := "/beeswax/deploy/api/v1/environmentGroups/" + pathVars["environmentGroupID"] + "/environments/" + tempJSON.EnvironmentName
+	w.Header().Add("Location", url)
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(201)
-	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
 }
 
