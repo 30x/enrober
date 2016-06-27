@@ -109,7 +109,16 @@ var _ = Describe("Server Test", func() {
 				"publicHosts": "deploy.k8s.public",
 				"privateHosts": "deploy.k8s.private",
     			"replicas": 1,
-    			"ptsURL": "https://api.myjson.com/bins/2g3im"}`)
+    			"ptsURL": "https://api.myjson.com/bins/2g3im",
+				"envVars": [{
+					"name": "test1",
+					"value": "test3"
+				},
+				{
+					"name": "test2",
+					"value": "test4"
+   				}] 
+			}`)
 
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
@@ -129,9 +138,17 @@ var _ = Describe("Server Test", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep1", hostBase)
 
 			jsonStr := []byte(`{
-    				"replicas": 3,
-					"ptsURL": "https://api.myjson.com/bins/3p3vy"
-					}`)
+				"replicas": 3,
+				"ptsURL": "https://api.myjson.com/bins/3p3vy",
+				"envVars": [{
+					"name": "test1",
+					"value": "test3"
+				},
+				{
+					"name": "test2",
+					"value": "test4"
+				}] 
+			}`)
 
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
 			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
@@ -189,7 +206,15 @@ var _ = Describe("Server Test", func() {
 							}]
 						}]
 					}
-				}
+				},
+				"envVars": [{
+					"name": "test1",
+					"value": "test3"
+				},
+				{
+					"name": "test2",
+					"value": "test4"
+				}] 
 			}`)
 
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
@@ -247,7 +272,15 @@ var _ = Describe("Server Test", func() {
 							}]
 						}]
 					}
-				}
+				},
+				"envVars": [{
+					"name": "test1",
+					"value": "test3"
+				},
+				{
+					"name": "test2",
+					"value": "test4"
+				}] 
 			}`)
 
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))

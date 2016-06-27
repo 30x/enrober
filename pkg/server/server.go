@@ -21,11 +21,12 @@ import (
 	"github.com/30x/enrober/pkg/helper"
 )
 
-//Server structa
+//Server struct
 type Server struct {
 	Router *mux.Router
 }
 
+//TODO: Move to types file
 //JSON object definitions
 
 type environmentRequest struct {
@@ -47,6 +48,7 @@ type deploymentPost struct {
 	Replicas       int                  `json:"replicas"`
 	PtsURL         string               `json:"ptsURL,omitempty"`
 	PTS            *api.PodTemplateSpec `json:"pts,omitempty"`
+	EnvVars        []api.EnvVar         `json:"envVars,omitempty"`
 }
 
 type deploymentPatch struct {
@@ -55,6 +57,7 @@ type deploymentPatch struct {
 	Replicas     int                  `json:"Replicas"`
 	PtsURL       string               `json:"ptsURL"`
 	PTS          *api.PodTemplateSpec `json:"pts"`
+	EnvVars      []api.EnvVar         `json:"envVars,omitempty"`
 }
 
 type deploymentResponse struct {
@@ -227,6 +230,7 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error marshalling environment array: %v\n", err)
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
 	w.Write(js)
 
 	//TODO: What do we want logging response to be?
@@ -435,8 +439,8 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(200)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
 	w.Write(js)
 
 	//TODO: What do we want the logging response to be
@@ -567,9 +571,8 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error marshalling namespace: %v\n", err)
 	}
-
-	w.WriteHeader(200)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
 	w.Write(js)
 
 }
@@ -618,8 +621,8 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error marshalling deployment list: %v\n", err)
 	}
-	w.WriteHeader(200)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
 	w.Write(js)
 	for _, value := range depList.Items {
 		fmt.Printf("Got Deployment: %v\n", value.GetName())
@@ -709,6 +712,33 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 
 	//TODO: In the future we may want to have a check to ensure that publicPaths and/or privatePaths exists
 
+	//TODO: Break this out into function later
+
+	//Need to cache the previous envVars
+	cacheEnvVars := tempPTS.Spec.Containers[0].Env
+
+	//Check for envVar conflicts and prioritize ones from passed JSON.
+	finalEnvVar := cacheEnvVars
+
+	//Keep track of which jsonVars modified vs need to be added
+	jsonEnvLength := len(tempJSON.EnvVars)
+	trackArray := make([]bool, jsonEnvLength)
+
+	//Add on any additional envVars
+	for i, jsonVar := range tempJSON.EnvVars {
+		for j, cacheVar := range cacheEnvVars {
+			if cacheVar.Name == jsonVar.Name {
+				finalEnvVar[j] = jsonVar
+				trackArray[i] = true
+			}
+		}
+		if trackArray[i] == false {
+			finalEnvVar = append(finalEnvVar, jsonVar)
+		}
+	}
+
+	tempPTS.Spec.Containers[0].Env = finalEnvVar
+
 	//If map is empty then we need to make it
 	if len(tempPTS.Annotations) == 0 {
 		tempPTS.Annotations = make(map[string]string)
@@ -727,12 +757,6 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		tempPTS.Labels = make(map[string]string)
 	}
 
-	//REVIEW: Going to fail if map is empty as we are expecting a label.component
-	if tempPTS.Labels["component"] == "" {
-		http.Error(w, "Requested Pod Template Spec has no component label", http.StatusInternalServerError)
-		fmt.Printf("Requested Pod Template Spec has no component label: %v\n", err)
-		return
-	}
 	//Add routable label
 	tempPTS.Labels["routable"] = "true"
 
@@ -744,7 +768,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 			Replicas: tempJSON.Replicas,
 			Selector: &unversioned.LabelSelector{
 				MatchLabels: map[string]string{
-					"component": tempPTS.Labels["component"],
+					"app": tempPTS.Labels["app"],
 				},
 			},
 			Template: *tempPTS,
@@ -805,8 +829,8 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error marshalling deployment: %v\n", err)
 	}
-	w.WriteHeader(200)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
 	w.Write(js)
 
 	//TODO: What do we want logging message to be?
@@ -830,15 +854,6 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		fmt.Printf("Error getting existing deployment: %v\n", err)
 		return
-	}
-
-	//Struct to put JSON into
-	type deploymentPatch struct {
-		PublicHosts  *string              `json:"publicHosts,omitempty"`
-		PrivateHosts *string              `json:"privateHosts,omitempty"`
-		Replicas     int                  `json:"Replicas"`
-		PtsURL       string               `json:"ptsURL"`
-		PTS          *api.PodTemplateSpec `json:"pts"`
 	}
 	//Decode passed JSON body
 	decoder := json.NewDecoder(r.Body)
@@ -912,6 +927,9 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		tempPTS.Labels = make(map[string]string)
 	}
 
+	//Need to cache the previous envVars
+	cacheEnvVars := getDep.Spec.Template.Spec.Containers[0].Env
+
 	//Need to cache the previous annotations
 	cacheAnnotations := getDep.Spec.Template.Annotations
 
@@ -930,6 +948,28 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		getDep.Spec.Template.Annotations["publicHosts"] = *tempJSON.PublicHosts
 	}
 
+	//Check for envVar conflicts and prioritize ones from passed JSON.
+	finalEnvVar := cacheEnvVars
+
+	//Keep track of which jsonVars modified vs need to be added
+	jsonEnvLength := len(tempJSON.EnvVars)
+	trackArray := make([]bool, jsonEnvLength)
+
+	//Add on any additional envVars
+	for i, jsonVar := range tempJSON.EnvVars {
+		for j, cacheVar := range cacheEnvVars {
+			if cacheVar.Name == jsonVar.Name {
+				finalEnvVar[j] = jsonVar
+				trackArray[i] = true
+			}
+		}
+		if trackArray[i] == false {
+			finalEnvVar = append(finalEnvVar, jsonVar)
+		}
+	}
+
+	getDep.Spec.Template.Spec.Containers[0].Env = finalEnvVar
+
 	//Add routable label
 	getDep.Spec.Template.Labels["routable"] = "true"
 
@@ -945,9 +985,8 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error marshalling deployment: %v\n", err)
 	}
-
-	w.WriteHeader(200)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
 	w.Write(js)
 	fmt.Printf("Updated Deployment: %v\n", dep.GetName())
 }
