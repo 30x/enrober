@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -135,6 +136,7 @@ func Init(clientConfig restclient.Config) error {
 		allowPrivilegedContainers = false
 	}
 
+	//Flag for determining whether we check the host URL
 	return nil
 }
 
@@ -208,7 +210,6 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			fmt.Printf("Error: couldn't get secret from namespace: %v\n", err)
 			http.Error(w, "", http.StatusInternalServerError)
-			//TODO: This may not be right?
 			return
 		}
 		tempEnv.PrivateSecret = getSecret.Data["private-api-key"]
@@ -244,9 +245,11 @@ func getEnvironments(w http.ResponseWriter, r *http.Request) {
 func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
-		//Errors should be returned from function
-		return
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+			//Errors should be returned from function
+			return
+		}
 	}
 
 	//Struct to put JSON into
@@ -407,9 +410,11 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 func getEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
-		//Errors should be returned from function
-		return
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+			//Errors should be returned from function
+			return
+		}
 	}
 
 	getNs, err := client.Namespaces().Get(pathVars["environmentGroupID"] + "-" + pathVars["environment"])
@@ -451,9 +456,11 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
-		//Errors should be returned from function
-		return
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+			//Errors should be returned from function
+			return
+		}
 	}
 
 	//Need to get the existing environment
@@ -581,9 +588,11 @@ func updateEnvironment(w http.ResponseWriter, r *http.Request) {
 func deleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
-		//Errors should be returned from function
-		return
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+			//Errors should be returned from function
+			return
+		}
 	}
 
 	err := client.Namespaces().Delete(pathVars["environmentGroupID"] + "-" + pathVars["environment"])
@@ -633,9 +642,11 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 func createDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
-		//Errors should be returned from function
-		return
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+			//Errors should be returned from function
+			return
+		}
 	}
 
 	//Decode passed JSON body
@@ -697,6 +708,21 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("Error decoding PTS JSON Body: %v\n", err)
 			return
 		}
+
+		if os.Getenv("DEPLOY_STATE") == "PROD" {
+			u, err := url.Parse(tempJSON.PtsURL)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				fmt.Printf("Error parsing ptsURL")
+				return
+			}
+			if u.Host != r.Host {
+				fmt.Printf("Attempting to use PTS from unauthorized host: %v, expected: %v\n", u.Host, r.Host)
+				http.Error(w, "", http.StatusInternalServerError)
+				return
+			}
+		}
+
 	} else {
 		//We got a direct PTS so just copy it
 		tempPTS = tempJSON.PTS
@@ -813,9 +839,11 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 func getDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
-		//Errors should be returned from function
-		return
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+			//Errors should be returned from function
+			return
+		}
 	}
 
 	getDep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get(pathVars["deployment"])
@@ -843,9 +871,11 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 
 	pathVars := mux.Vars(r)
 
-	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
-		//Errors should be returned from function
-		return
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+			//Errors should be returned from function
+			return
+		}
 	}
 
 	//Get the old namespace first so we can fail quickly if it's not there
@@ -995,9 +1025,11 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
-		//Errors should be returned from function
-		return
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["environmentGroupID"], w, r) {
+			//Errors should be returned from function
+			return
+		}
 	}
 
 	//Get the deployment object
@@ -1009,7 +1041,7 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Get the match label
-	selector, err := labels.Parse("app=" + dep.Labels["app"])
+	selector, err := labels.Parse("component=" + dep.Labels["component"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Printf("Error creating label selector: %v\n", err)

@@ -41,7 +41,6 @@ var _ = Describe("Server Test", func() {
 
 			jsonStr := []byte(`{"environmentName": "testenv1", "hostNames": ["testhost1"]}`)
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 			Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
@@ -68,7 +67,6 @@ var _ = Describe("Server Test", func() {
 
 			jsonStr := []byte(`{"environmentName": "testenv2", "hostNames": ["testhost1"]}`)
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -82,7 +80,6 @@ var _ = Describe("Server Test", func() {
 
 			jsonStr := []byte(`{"hostNames": ["testhost2"]}`)
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
-			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 			Expect(err).Should(BeNil(), "Shouldn't get an error on PATCH. Error: %v", err)
@@ -121,7 +118,6 @@ var _ = Describe("Server Test", func() {
 			}`)
 
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -151,7 +147,6 @@ var _ = Describe("Server Test", func() {
 			}`)
 
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
-			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -218,7 +213,6 @@ var _ = Describe("Server Test", func() {
 			}`)
 
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -284,7 +278,6 @@ var _ = Describe("Server Test", func() {
 			}`)
 
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
-			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -300,7 +293,6 @@ var _ = Describe("Server Test", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep1", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
-			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -314,7 +306,6 @@ var _ = Describe("Server Test", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep2", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
-			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -328,7 +319,6 @@ var _ = Describe("Server Test", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
-			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -341,7 +331,6 @@ var _ = Describe("Server Test", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep1", hostBase)
 
 			req, err := http.NewRequest("DELETE", url, nil)
-			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -355,7 +344,6 @@ var _ = Describe("Server Test", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1/deployments/testdep2", hostBase)
 
 			req, err := http.NewRequest("DELETE", url, nil)
-			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
@@ -369,7 +357,6 @@ var _ = Describe("Server Test", func() {
 			url := fmt.Sprintf("%s/environmentGroups/testgroup/environments/testenv1", hostBase)
 
 			req, err := http.NewRequest("DELETE", url, nil)
-			req.Header.Add("Authorization", `Bearer e30.e30.e30`)
 
 			resp, err := client.Do(req)
 
