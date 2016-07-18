@@ -136,7 +136,6 @@ func Init(clientConfig restclient.Config) error {
 		allowPrivilegedContainers = false
 	}
 
-	//Flag for determining whether we check the host URL
 	return nil
 }
 
@@ -670,7 +669,6 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	//Check if we got a URL or a direct PTS
 	if tempJSON.PTS == nil {
 		//No PTS so check ptsURL
-		fmt.Printf("No PTS\n")
 		if tempJSON.PtsURL == "" {
 			//No URL either so error
 			http.Error(w, "", http.StatusInternalServerError)
@@ -718,7 +716,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 			}
 			if u.Host != r.Host {
 				fmt.Printf("Attempting to use PTS from unauthorized host: %v, expected: %v\n", u.Host, r.Host)
-				http.Error(w, "", http.StatusInternalServerError)
+				http.Error(w, "Attempting to use PTS from unauthorized host", http.StatusInternalServerError)
 				return
 			}
 		}
@@ -899,9 +897,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	//Check if we got a URL or a direct PTS
 	if tempJSON.PTS == nil {
 		//No PTS so check ptsURL
-		fmt.Printf("No PTS\n")
 		if tempJSON.PtsURL == "" {
-			fmt.Printf("No ptsURL\n")
 			//No URL either
 			prevDep, err := client.Deployments(pathVars["environmentGroupID"] + "-" + pathVars["environment"]).Get(pathVars["deployment"])
 			if err != nil {
@@ -940,6 +936,20 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				fmt.Printf("Error decoding PTS JSON Body: %v\n", err)
 				return
+			}
+
+			if os.Getenv("DEPLOY_STATE") == "PROD" {
+				u, err := url.Parse(tempJSON.PtsURL)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					fmt.Printf("Error parsing ptsURL")
+					return
+				}
+				if u.Host != r.Host {
+					fmt.Printf("Attempting to use PTS from unauthorized host: %v, expected: %v\n", u.Host, r.Host)
+					http.Error(w, "Attempting to use PTS from unauthorized host", http.StatusInternalServerError)
+					return
+				}
 			}
 		}
 	} else {
