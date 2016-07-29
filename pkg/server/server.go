@@ -29,21 +29,28 @@ type Server struct {
 	Router http.Handler
 }
 
-//Global Kubernetes Client
-var client k8sClient.Client
+//Global Vars
+var (
+	//Kubernetes Client
+	client k8sClient.Client
 
-//Global Regex
-var validIPAddressRegex = regexp.MustCompile(`^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$`)
-var validHostnameRegex = regexp.MustCompile(`^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$`)
+	//Global Regex
+	validIPAddressRegex = regexp.MustCompile(`^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$`)
+	validHostnameRegex  = regexp.MustCompile(`^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$`)
 
-var envNameRegex = regexp.MustCompile(`\w+\-\w+`)
+	//Env Name Regex
+	envNameRegex = regexp.MustCompile(`\w+\-\w+`)
 
-//Global ECR Pull Secrets
-var lookForECRSecret bool
-var ecrSecretName string
+	//ECR Pull Secrets
+	lookForECRSecret bool
+	ecrSecretName    string
 
-//Global Privileged container flag
-var allowPrivilegedContainers bool
+	//Privileged container flag
+	allowPrivilegedContainers bool
+
+	//Namespace Isolation
+	isolateNamespace bool
+)
 
 //Init runs once
 func Init(clientConfig restclient.Config) error {
@@ -66,6 +73,12 @@ func Init(clientConfig restclient.Config) error {
 			return err
 		}
 		client = *tempClient
+	}
+
+	if os.Getenv("ISOLATE_NAMESPACE") == "false" {
+		isolateNamespace = false
+	} else {
+		isolateNamespace = true
 	}
 
 	//Several features should be disabled for local testing
@@ -263,6 +276,14 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	//Should create an annotation object and pass it into the object literal
+	nsAnnotations := make(map[string]string)
+	nsAnnotations["hostNames"] = hostsList.String()
+
+	if isolateNamespace {
+		nsAnnotations["net.beta.kubernetes.io/network-policy"] = `{"ingress": {"isolation": "DefaultDeny"}}`
+	}
+
 	//TODO: Probably shouldn't create annotation if there are no hostNames
 	nsObject := &api.Namespace{
 		ObjectMeta: api.ObjectMeta{
@@ -272,9 +293,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 				"Environment":  apigeeEnvName,
 				"Name":         tempJSON.EnvironmentName,
 			},
-			Annotations: map[string]string{
-				"hostNames": hostsList.String(),
-			},
+			Annotations: nsAnnotations,
 		},
 	}
 
