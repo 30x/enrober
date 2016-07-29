@@ -289,6 +289,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		ObjectMeta: api.ObjectMeta{
 			Name: tempJSON.EnvironmentName,
 			Labels: map[string]string{
+				"Runtime":      "shipyard",
 				"Organziation": apigeeOrgName,
 				"Environment":  apigeeEnvName,
 				"Name":         tempJSON.EnvironmentName,
