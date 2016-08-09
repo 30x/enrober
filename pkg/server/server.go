@@ -39,7 +39,7 @@ var (
 	validHostnameRegex  = regexp.MustCompile(`^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$`)
 
 	//Env Name Regex
-	envNameRegex = regexp.MustCompile(`\w+\-\w+`)
+	envNameRegex = regexp.MustCompile(`\w+\:\w+`)
 
 	//ECR Pull Secrets
 	lookForECRSecret bool
@@ -118,14 +118,14 @@ func NewServer() (server *Server) {
 
 	router.Path("/environments").Methods("POST").HandlerFunc(createEnvironment)
 	router.Path("/environments").Methods("GET").HandlerFunc(getEnvironments)
-	router.Path("/environments/{org}-{env}").Methods("GET").HandlerFunc(getEnvironment)
-	router.Path("/environments/{org}-{env}").Methods("PATCH").HandlerFunc(updateEnvironment)
-	router.Path("/environments/{org}-{env}").Methods("DELETE").HandlerFunc(deleteEnvironment)
-	router.Path("/environments/{org}-{env}/deployments").Methods("POST").HandlerFunc(createDeployment)
-	router.Path("/environments/{org}-{env}/deployments").Methods("GET").HandlerFunc(getDeployments)
-	router.Path("/environments/{org}-{env}/deployments/{deployment}").Methods("GET").HandlerFunc(getDeployment)
-	router.Path("/environments/{org}-{env}/deployments/{deployment}").Methods("PATCH").HandlerFunc(updateDeployment)
-	router.Path("/environments/{org}-{env}/deployments/{deployment}").Methods("DELETE").HandlerFunc(deleteDeployment)
+	router.Path("/environments/{org}:{env}").Methods("GET").HandlerFunc(getEnvironment)
+	router.Path("/environments/{org}:{env}").Methods("PATCH").HandlerFunc(updateEnvironment)
+	router.Path("/environments/{org}:{env}").Methods("DELETE").HandlerFunc(deleteEnvironment)
+	router.Path("/environments/{org}:{env}/deployments").Methods("POST").HandlerFunc(createDeployment)
+	router.Path("/environments/{org}:{env}/deployments").Methods("GET").HandlerFunc(getDeployments)
+	router.Path("/environments/{org}:{env}/deployments/{deployment}").Methods("GET").HandlerFunc(getDeployment)
+	router.Path("/environments/{org}:{env}/deployments/{deployment}").Methods("PATCH").HandlerFunc(updateDeployment)
+	router.Path("/environments/{org}:{env}/deployments/{deployment}").Methods("DELETE").HandlerFunc(deleteDeployment)
 
 	loggedRouter := handlers.CombinedLoggingHandler(os.Stdout, router)
 
@@ -219,7 +219,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Parse environment name into 2 parts
-	nameSlice := strings.Split(tempJSON.EnvironmentName, "-")
+	nameSlice := strings.Split(tempJSON.EnvironmentName, ":")
 	apigeeOrgName := nameSlice[0]
 	apigeeEnvName := nameSlice[1]
 
@@ -229,6 +229,9 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	// transform EnvironmentName into acceptable k8s namespace name
+	tempJSON.EnvironmentName = apigeeOrgName + "-" + apigeeEnvName
 
 	//space delimited annotation of valid hostnames
 	var hostsList bytes.Buffer
@@ -368,7 +371,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Create absolute path for Location header
-	url := "/environments/" + tempJSON.EnvironmentName
+	url := "/environments/" + apigeeOrgName + ":" + apigeeEnvName
 	w.Header().Add("Location", url)
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(201)
