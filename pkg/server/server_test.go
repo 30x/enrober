@@ -39,7 +39,7 @@ var _ = Describe("Server Test", func() {
 		It("Create Environment", func() {
 			url := fmt.Sprintf("%s/environments", hostBase)
 
-			jsonStr := []byte(`{"environmentName": "testorg1-testenv1", "hostNames": ["testhost1"]}`)
+			jsonStr := []byte(`{"environmentName": "testorg1:testenv1", "hostNames": ["testhost1"]}`)
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 
 			resp, err := client.Do(req)
@@ -65,7 +65,7 @@ var _ = Describe("Server Test", func() {
 		It("Create Environment with duplicated Host Name", func() {
 			url := fmt.Sprintf("%s/environments", hostBase)
 
-			jsonStr := []byte(`{"environmentName": "testorg2-testenv2", "hostNames": ["testhost1"]}`)
+			jsonStr := []byte(`{"environmentName": "testorg2:testenv2", "hostNames": ["testhost1"]}`)
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 
 			resp, err := client.Do(req)
@@ -76,7 +76,7 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Update Environment", func() {
-			url := fmt.Sprintf("%s/environments/testorg1-testenv1", hostBase)
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
 
 			jsonStr := []byte(`{"hostNames": ["testhost2"]}`)
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
@@ -99,7 +99,7 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Create Deployment from PTS URL", func() {
-			url := fmt.Sprintf("%s/environments/testorg1-testenv1/deployments", hostBase)
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)
 
 			jsonStr := []byte(`{
 				"deploymentName": "testdep1",
@@ -131,7 +131,7 @@ var _ = Describe("Server Test", func() {
 			//Need to wait a little before we run an update
 			//Should look into a better fix
 			time.Sleep(200 * time.Millisecond)
-			url := fmt.Sprintf("%s/environments/testorg1-testenv1/deployments/testdep1", hostBase)
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1", hostBase)
 
 			jsonStr := []byte(`{
 				"replicas": 3,
@@ -157,7 +157,7 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Create Deployment from direct PTS", func() {
-			url := fmt.Sprintf("%s/environments/testorg1-testenv1/deployments", hostBase)
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)
 
 			jsonStr := []byte(`{
 				"deploymentName": "testdep2",
@@ -224,7 +224,7 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Update Deployment from direct PTS", func() {
-			url := fmt.Sprintf("%s/environments/testorg1-testenv1/deployments/testdep2", hostBase)
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep2", hostBase)
 
 			jsonStr := []byte(`{
 				"trafficHosts": "deploy.k8s.local",
@@ -290,7 +290,7 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Get Deployment testdep1", func() {
-			url := fmt.Sprintf("%s/environments/testorg1-testenv1/deployments/testdep1", hostBase)
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
 
@@ -303,7 +303,7 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Get Deployment testdep2", func() {
-			url := fmt.Sprintf("%s/environments/testorg1-testenv1/deployments/testdep2", hostBase)
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep2", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
 
@@ -316,7 +316,7 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Get Environment", func() {
-			url := fmt.Sprintf("%s/environments/testorg1-testenv1", hostBase)
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
 
@@ -328,7 +328,7 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Delete Deployment testdep1", func() {
-			url := fmt.Sprintf("%s/environments/testorg1-testenv1/deployments/testdep1", hostBase)
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1", hostBase)
 
 			req, err := http.NewRequest("DELETE", url, nil)
 
@@ -341,7 +341,7 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Delete Deployment testdep2", func() {
-			url := fmt.Sprintf("%s/environments/testorg1-testenv1/deployments/testdep2", hostBase)
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep2", hostBase)
 
 			req, err := http.NewRequest("DELETE", url, nil)
 
@@ -354,7 +354,7 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Delete Environment", func() {
-			url := fmt.Sprintf("%s/environments/testorg1-testenv1", hostBase)
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
 
 			req, err := http.NewRequest("DELETE", url, nil)
 
