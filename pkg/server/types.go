@@ -23,7 +23,7 @@ type deploymentPost struct {
 	DeploymentName string               `json:"deploymentName"`
 	PublicHosts    *string              `json:"publicHosts,omitempty"`
 	PrivateHosts   *string              `json:"privateHosts,omitempty"`
-	Replicas       int                  `json:"replicas"`
+	Replicas       int32                `json:"replicas"`
 	PtsURL         string               `json:"ptsURL,omitempty"`
 	PTS            *api.PodTemplateSpec `json:"pts,omitempty"`
 	EnvVars        []api.EnvVar         `json:"envVars,omitempty"`
@@ -32,7 +32,7 @@ type deploymentPost struct {
 type deploymentPatch struct {
 	PublicHosts  *string              `json:"publicHosts,omitempty"`
 	PrivateHosts *string              `json:"privateHosts,omitempty"`
-	Replicas     int                  `json:"Replicas"`
+	Replicas     int32                `json:"Replicas"`
 	PtsURL       string               `json:"ptsURL"`
 	PTS          *api.PodTemplateSpec `json:"pts"`
 	EnvVars      []api.EnvVar         `json:"envVars,omitempty"`
@@ -44,7 +44,7 @@ type deploymentResponse struct {
 	PublicPaths     string               `json:"publicPaths,omitempty"`
 	PrivateHosts    string               `json:"privateHosts,omitempty"`
 	PrivatePaths    string               `json:"privatePaths,omitempty"`
-	Replicas        int                  `json:"replicas"`
+	Replicas        int32                `json:"replicas"`
 	Environment     string               `json:"environment"`
 	PodTemplateSpec *api.PodTemplateSpec `json:"podTemplateSpec"`
 }
