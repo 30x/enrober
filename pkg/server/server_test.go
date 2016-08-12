@@ -106,7 +106,7 @@ var _ = Describe("Server Test", func() {
 				"publicHosts": "deploy.k8s.public",
 				"privateHosts": "deploy.k8s.private",
     			"replicas": 1,
-    			"ptsURL": "https://api.myjson.com/bins/3bfpd",
+    			"ptsURL": "https://api.myjson.com/bins/2p9z1",
 				"envVars": [{
 					"name": "test1",
 					"value": "test3"
@@ -130,12 +130,12 @@ var _ = Describe("Server Test", func() {
 		It("Update Deployment from PTS URL", func() {
 			//Need to wait a little before we run an update
 			//Should look into a better fix
-			time.Sleep(200 * time.Millisecond)
+			time.Sleep(500 * time.Millisecond)
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1", hostBase)
 
 			jsonStr := []byte(`{
 				"replicas": 3,
-				"ptsURL": "https://api.myjson.com/bins/3sspd",
+				"ptsURL": "https://api.myjson.com/bins/119h9",
 				"envVars": [{
 					"name": "test1",
 					"value": "test3"
@@ -174,22 +174,12 @@ var _ = Describe("Server Test", func() {
 							"component": "web2"
 						},
 						"annotations": {
-							"publicPaths": "80:/ 90:/2",
-      						"privatePaths": "80:/ 90:/2"
+							"publicPaths": "90:/",
+      						"privatePaths": "90:/"
 						}
 					},
 					"spec": {
 						"containers": [{
-							"name": "nginx",
-							"image": "nginx",
-							"env": [{
-								"name": "PORT",
-								"value": "80"
-							}],
-							"ports": [{
-								"containerPort": 80
-							}]
-						}, {
 							"name": "test",
 							"image": "jbowen/testapp:v0",
 							"env": [{
@@ -239,22 +229,12 @@ var _ = Describe("Server Test", func() {
 							"component": "web2"
 						},
 						"annotations": {
-							"publicPaths": "80:/ 100:/2",
-      						"privatePaths": "80:/ 100:/2"
+							"publicPaths": "100:/",
+      						"privatePaths": "100:/"
 						}
 					},
 					"spec": {
 						"containers": [{
-							"name": "nginx",
-							"image": "nginx",
-							"env": [{
-								"name": "PORT",
-								"value": "80"
-							}],
-							"ports": [{
-								"containerPort": 80
-							}]
-						}, {
 							"name": "test",
 							"image": "jbowen/testapp:v0",
 							"env": [{
@@ -327,6 +307,21 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
 		})
 
+		It("Get Logs for Deployment testdep1", func() {
+			//Need to wait for container to start
+			time.Sleep(5000 * time.Millisecond)
+
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1/logs", hostBase)
+
+			req, err := http.NewRequest("GET", url, nil)
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on GET. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+		})
+
 		It("Delete Deployment testdep1", func() {
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1", hostBase)
 
@@ -349,7 +344,7 @@ var _ = Describe("Server Test", func() {
 
 			Expect(err).Should(BeNil(), "Shouldn't get an error on DELETE. Error: %v", err)
 
-			Expect(resp.StatusCode).Should(Equal(204), "Response should be 200 OK")
+			Expect(resp.StatusCode).Should(Equal(204), "Response should be 204 No Content")
 
 		})
 
@@ -362,7 +357,7 @@ var _ = Describe("Server Test", func() {
 
 			Expect(err).Should(BeNil(), "Shouldn't get an error on DELETE. Error: %v", err)
 
-			Expect(resp.StatusCode).Should(Equal(204), "Response should be 200 OK")
+			Expect(resp.StatusCode).Should(Equal(204), "Response should be 204 No Content")
 		})
 	}
 

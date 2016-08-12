@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/handlers"
@@ -126,6 +128,7 @@ func NewServer() (server *Server) {
 	router.Path("/environments/{org}:{env}/deployments/{deployment}").Methods("GET").HandlerFunc(getDeployment)
 	router.Path("/environments/{org}:{env}/deployments/{deployment}").Methods("PATCH").HandlerFunc(updateDeployment)
 	router.Path("/environments/{org}:{env}/deployments/{deployment}").Methods("DELETE").HandlerFunc(deleteDeployment)
+	router.Path("/environments/{org}:{env}/deployments/{deployment}/logs").Methods("GET").HandlerFunc(getDeploymentLogs)
 
 	loggedRouter := handlers.CombinedLoggingHandler(os.Stdout, router)
 
@@ -1114,4 +1117,101 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 		helper.LogInfo.Printf("Deleted Pod: %v\n", value.GetName())
 	}
 	w.WriteHeader(204)
+}
+
+func getDeploymentLogs(w http.ResponseWriter, r *http.Request) {
+	//Get path variables
+	pathVars := mux.Vars(r)
+
+	//Get query strings
+	queries := r.URL.Query()
+
+	tailString := queries.Get("tail")
+	tail := -1
+	if tailString != "" {
+		tailInt, err := strconv.Atoi(tailString)
+		if err != nil {
+			errorMessage := fmt.Sprintf("Invalid tail value: %s\n", err)
+			http.Error(w, errorMessage, http.StatusInternalServerError)
+			helper.LogError.Printf(errorMessage)
+			return
+		}
+		tail = tailInt
+	}
+
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["org"], w, r) {
+			//Errors should be returned from function
+			return
+		}
+	}
+
+	//Get the deployment
+	dep, err := client.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error retrieving deployment: %s\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+
+	selector := dep.Spec.Selector
+	label, err := labels.Parse("component=" + selector.MatchLabels["component"])
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error parsing label selector: %s\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+
+	podInterface := client.Pods(pathVars["org"] + "-" + pathVars["env"])
+
+	pods, err := podInterface.List(api.ListOptions{
+		LabelSelector: label,
+	})
+
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error retrieving pods: %s\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+
+	logBuffer := bytes.NewBuffer(nil)
+
+	for _, pod := range pods.Items {
+		podLogOpts := &api.PodLogOptions{}
+
+		//TODO: Option for tail length
+		if tail != -1 {
+			convTail := int64(tail)
+			podLogOpts.TailLines = &convTail
+		}
+
+		req := podInterface.GetLogs(pod.Name, podLogOpts)
+		stream, err := req.Stream()
+		if err != nil {
+			errorMessage := fmt.Sprintf("Error getting log stream: %s\n", err)
+			http.Error(w, errorMessage, http.StatusInternalServerError)
+			helper.LogError.Printf(errorMessage)
+			return
+		}
+
+		defer stream.Close()
+		podLogLine := fmt.Sprintf("Logs for pod: %v\n", pod.Name)
+		_, err = logBuffer.WriteString(podLogLine)
+		_, err = io.Copy(logBuffer, stream)
+		if err != nil {
+			errorMessage := fmt.Sprintf("Error copying log stream to var: %s\n", err)
+			http.Error(w, errorMessage, http.StatusInternalServerError)
+			helper.LogError.Printf(errorMessage)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(200)
+	w.Write(logBuffer.Bytes())
+
+	helper.LogInfo.Printf("Got Logs for Deployment: %v\n", dep.GetName())
 }
