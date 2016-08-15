@@ -120,7 +120,7 @@ paths:
         default:
           description: 5xx Errors
       
-  //environments/{org}-{env}/deployments:
+  /environments/{org}-{env}/deployments:
     get:
       description: Returns a list of all deployments in a given environment.
       produces: 
@@ -225,6 +225,30 @@ paths:
         default:
           description: 5xx Errors
   
+  /environments/{org}-{env}/deployments/{deployment}/logs:
+  
+    get:
+      description: Gets logs for a deployment
+      parameters:
+      - $ref: "#/parameters/orgParam"
+      - $ref: "#/parameters/envParam"
+      - $ref: "#/parameters/deploymentParam"
+      produces: 
+      - text/plain
+      responses: 
+        200:
+          description: Successful response
+          schema:
+            type: string
+            description: Logs from deployment
+        403:
+          description: Forbidden
+        404:
+          description: Not Found
+        default:
+          description: 5xx Errors
+
+
 #Top level definitions          
 definitions:
   deployment_post:
