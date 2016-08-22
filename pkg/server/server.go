@@ -57,6 +57,8 @@ var (
 	shipyardHost          string
 	internalRouterHost    string
 	shipyardPrivateSecret string
+
+	apiRoutingKey string
 )
 
 //Init runs once
@@ -85,6 +87,12 @@ func Init(clientConfig restclient.Config) error {
 	shipyardHost = os.Getenv("SHIPYARD_HOST")
 	internalRouterHost = os.Getenv("INTERNAL_ROUTER_HOST")
 	shipyardPrivateSecret = os.Getenv("SHIPYARD_PRIVATE_SECRET")
+
+	//Set default if we aren't given an alternate name
+	apiRoutingKey = os.Getenv("API_ROUTING_KEY")
+	if apiRoutingKey == "" {
+		apiRoutingKey = "X-ROUTING-API-KEY"
+	}
 
 	if os.Getenv("ISOLATE_NAMESPACE") == "false" {
 		isolateNamespace = false
@@ -671,6 +679,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		//Get from URL
+		//TODO: Duplicated code, could be moved to helper function
 
 		httpClient := &http.Client{}
 
@@ -695,7 +704,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		if internalRouterFlag {
 			req.Host = shipyardHost
 			req.Header.Add("Host", shipyardHost)
-			req.Header.Add("X-ROUTING-API-KEY", base64.StdEncoding.EncodeToString([]byte(shipyardPrivateSecret)))
+			req.Header.Add(apiRoutingKey, base64.StdEncoding.EncodeToString([]byte(shipyardPrivateSecret)))
 		}
 		req.Header.Add("Authorization", r.Header.Get("Authorization"))
 		req.Header.Add("Content-Type", "application/json")
@@ -935,7 +944,6 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		} else {
 			//Get from URL
 			//TODO: Duplicated code, could be moved to helper function
-			//Get JSON from url
 			httpClient := &http.Client{}
 
 			ptsURL, err := url.Parse(tempJSON.PtsURL)
@@ -959,7 +967,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 			if internalRouterFlag {
 				req.Host = shipyardHost
 				req.Header.Add("Host", shipyardHost)
-				req.Header.Add("X-ROUTING-API-KEY", base64.StdEncoding.EncodeToString([]byte(shipyardPrivateSecret)))
+				req.Header.Add(apiRoutingKey, base64.StdEncoding.EncodeToString([]byte(shipyardPrivateSecret)))
 			}
 			req.Header.Add("Authorization", r.Header.Get("Authorization"))
 			req.Header.Add("Content-Type", "application/json")
