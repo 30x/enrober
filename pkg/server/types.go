@@ -1,10 +1,23 @@
 package server
 
-import "k8s.io/kubernetes/pkg/api"
+import (
+	"net/http"
+
+	"k8s.io/kubernetes/pkg/api"
+)
+
+//Server struct
+type Server struct {
+	Router http.Handler
+}
 
 type environmentPost struct {
 	EnvironmentName string   `json:"environmentName"`
 	HostNames       []string `json:"hostNames,omitempty"`
+}
+
+type environmentPatch struct {
+	HostNames []string `json:"hostNames"`
 }
 
 type environmentRequest struct {

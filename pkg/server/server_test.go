@@ -130,7 +130,7 @@ var _ = Describe("Server Test", func() {
 		It("Update Deployment from PTS URL", func() {
 			//Need to wait a little before we run an update
 			//Should look into a better fix
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(2000 * time.Millisecond)
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1", hostBase)
 
 			jsonStr := []byte(`{
@@ -214,6 +214,8 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Update Deployment from direct PTS", func() {
+			time.Sleep(2000 * time.Millisecond)
+
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep2", hostBase)
 
 			jsonStr := []byte(`{
