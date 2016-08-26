@@ -4,7 +4,7 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 )
 
-//CacheEnvVars ...
+//CacheEnvVars appends a list of new env vars to a given current list without duplication
 func CacheEnvVars(currentEnvVars []api.EnvVar, newEnvVars []api.EnvVar) []api.EnvVar {
 
 	//Check for envVar conflicts and prioritize ones from passed JSON.
