@@ -7,23 +7,6 @@ info:
 paths:
       
   /environments:
-    get:
-      description: Returns an array of all environments under a specific Environment Group ID 
-      produces: 
-      - application/json
-      responses:
-        200:
-          description: Successful response
-          schema: 
-            type: array
-            items:
-              $ref: '#/definitions/environment_object'
-
-        403:
-          description: Forbidden
-        default:
-          description: 5xx Errors
-
     post:
       description: Creates an environment consisting of a kubernetes namespace and a secret. 
       parameters:

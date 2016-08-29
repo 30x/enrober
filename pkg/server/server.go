@@ -50,7 +50,6 @@ func NewServer() (server *Server) {
 	router := mux.NewRouter()
 
 	router.Path("/environments").Methods("POST").HandlerFunc(createEnvironment)
-	router.Path("/environments").Methods("GET").HandlerFunc(getEnvironments)
 	router.Path("/environments/{org}:{env}").Methods("GET").HandlerFunc(getEnvironment)
 	router.Path("/environments/{org}:{env}").Methods("PATCH").HandlerFunc(updateEnvironment)
 	router.Path("/environments/{org}:{env}").Methods("DELETE").HandlerFunc(deleteEnvironment)
@@ -72,63 +71,6 @@ func NewServer() (server *Server) {
 //Start the server
 func (server *Server) Start() error {
 	return http.ListenAndServe(":9000", server.Router)
-}
-
-//getEnvironments returns a list of all environments
-func getEnvironments(w http.ResponseWriter, r *http.Request) {
-
-	nsList, err := client.Namespaces().List(api.ListOptions{})
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		helper.LogError.Printf("Error in getEnvironments: %v\n", err)
-		return
-	}
-
-	var envList []environmentResponse
-
-	//Loops through all namespaces and returns those that have a "routing" secret present
-	for _, value := range nsList.Items {
-		//Construct a temp object
-		var tempEnv environmentResponse
-
-		//Get []string from the space delimited annotation
-		hostNamesArray := strings.Split(value.Annotations["hostNames"], " ")
-
-		//Need to initialize the tempEnv.HostNames slice
-		tempEnv.HostNames = hostNamesArray
-		tempEnv.Name = value.Name
-
-		//For each namespace we have to do a get on the secrets in it
-		getSecret, err := client.Secrets(value.Name).Get("routing")
-		if err == nil {
-			//Only return namespaces with the relevant secrets present
-			tempEnv.PrivateSecret = getSecret.Data["private-api-key"]
-			tempEnv.PublicSecret = getSecret.Data["public-api-key"]
-
-			//Append the temp object to the slice
-			envList = append(envList, tempEnv)
-		}
-
-	}
-	//If there are no environments then return a blank json
-	if len(envList) == 0 {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		return
-	}
-
-	js, err := json.Marshal(envList)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		helper.LogError.Printf("Error marshalling environment array: %s\n", err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	w.Write(js)
-
-	for _, value := range envList {
-		helper.LogInfo.Printf("Got namespace: %s\n", value.Name)
-	}
 }
 
 //createEnvironment creates a kubernetes namespace and secret
