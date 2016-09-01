@@ -514,12 +514,16 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	//Add routable label
 	tempPTS.Labels["routable"] = "true"
 
+	//Could also use proto package
+	tempInt := int32(5)
+
 	template := extensions.Deployment{
 		ObjectMeta: api.ObjectMeta{
 			Name: tempJSON.DeploymentName,
 		},
 		Spec: extensions.DeploymentSpec{
-			Replicas: tempJSON.Replicas,
+			RevisionHistoryLimit: &tempInt,
+			Replicas:             tempJSON.Replicas,
 			Selector: &unversioned.LabelSelector{
 				MatchLabels: map[string]string{
 					"component": tempPTS.Labels["component"],

@@ -219,7 +219,7 @@ var _ = Describe("Server Test", func() {
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep2", hostBase)
 
 			jsonStr := []byte(`{
-				"trafficHosts": "deploy.k8s.local",
+				"publicHosts": "deploy.k8s.local",
 				"replicas": 3,
 				"pts":     
 				{
