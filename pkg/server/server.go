@@ -41,6 +41,9 @@ var (
 
 	//Namespace Isolation
 	isolateNamespace bool
+
+	//Apigee KVM check
+	apigeeKVM bool
 )
 
 //NOTE: routing secret should probably be a configurable name
@@ -131,7 +134,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error in UniqueHostNames: %v", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage)
+		helper.LogError.Printf(errorMessage + "\n")
 		return
 	}
 	if !uniqueHosts {
@@ -139,6 +142,104 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, errorMessage, http.StatusInternalServerError)
 		helper.LogError.Printf(errorMessage)
 		return
+	}
+
+	//Generate both a public and private key
+	privateKey, err := helper.GenerateRandomString(32)
+	publicKey, err := helper.GenerateRandomString(32)
+	if err != nil {
+		helper.LogError.Printf("Error generating random string: %v\n", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	//Should attempt KVM creation before creating k8s objects
+	if apigeeKVM {
+
+		httpClient := &http.Client{}
+
+		//construct URL
+		apigeeURL := fmt.Sprintf("https://api.enterprise.apigee.com/v1/organizations/%s/environments/%s/keyvaluemaps",
+			apigeeOrgName, apigeeEnvName)
+
+		//create JSON body
+		kvmBody := apigeeKVMBody{
+			Name: "routing",
+			Entry: []apigeeKVMEntry{
+				apigeeKVMEntry{
+					Name:  "public-key",
+					Value: publicKey,
+				},
+			},
+		}
+
+		b := new(bytes.Buffer)
+		json.NewEncoder(b).Encode(kvmBody)
+
+		req, err := http.NewRequest("POST", apigeeURL, b)
+		if err != nil {
+
+		}
+		//Must pass through the authz header
+		req.Header.Add("Authorization", r.Header.Get("Authorization"))
+		req.Header.Add("Content-Type", "application/json")
+
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			errorMessage := fmt.Sprintf("Error creating Apigee KVM: %v", err)
+			http.Error(w, errorMessage, http.StatusInternalServerError)
+			helper.LogError.Printf(errorMessage + "\n")
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != 201 {
+			//Attempt to just create the entry not the KVM map
+			var retryFLag bool
+			if resp.StatusCode == 409 {
+				b2 := new(bytes.Buffer)
+
+				retryReq, err := http.NewRequest("POST", apigeeURL+"/routing/entries", b2)
+				fmt.Printf("retry URL: %v\n", retryReq.URL.String())
+
+				retryReq.Header.Add("Authorization", r.Header.Get("Authorization"))
+				retryReq.Header.Add("Content-Type", "application/json")
+
+				json.NewEncoder(b2).Encode(kvmBody.Entry[0])
+
+				resp2, err := httpClient.Do(retryReq)
+				if err != nil {
+					errorMessage := fmt.Sprintf("Error creating entry in existing Apigee KVM: %v", err)
+					http.Error(w, errorMessage, http.StatusInternalServerError)
+					helper.LogError.Printf(errorMessage + "\n")
+					return
+				}
+				defer resp2.Body.Close()
+
+				var retryResponse retryResponse
+				//Decode response
+				err = json.NewDecoder(resp2.Body).Decode(&retryResponse)
+				if err != nil {
+					fmt.Printf("Failed to decode response: %v\n", err)
+					http.Error(w, "Failed to decode response", http.StatusInternalServerError)
+					return
+				}
+
+				if resp2.StatusCode != 201 && resp2.StatusCode != 409 {
+					errorMessage := fmt.Sprintf("Couldn't create KVM entry, Status Code: %d", resp2.StatusCode)
+					http.Error(w, errorMessage, http.StatusInternalServerError)
+					helper.LogError.Printf(errorMessage + "\n")
+					return
+				}
+				retryFLag = true
+			}
+			if !retryFLag {
+				errorMessage := fmt.Sprintf("Expected 201 or 409, got: %v", resp.StatusCode)
+				http.Error(w, errorMessage, http.StatusInternalServerError)
+				helper.LogError.Printf(errorMessage + "\n")
+				return
+			}
+		}
+
 	}
 
 	//Should create an annotation object and pass it into the object literal
@@ -167,8 +268,9 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Create Namespace
 	createdNs, err := client.Namespaces().Create(nsObject)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		helper.LogError.Printf("Error in createEnvironment: %s\n", err)
+		errorMessage := fmt.Sprintf("Error creating namespace: %v", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage + "\n")
 		return
 	}
 	//Print to console for logging
@@ -182,15 +284,9 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		Type: "Opaque",
 	}
 
-	//NOTE: How should we fail if we generate a namespace but fail to generate a secret?
+	//TODO: How should we fail if we generate a namespace but fail to generate a secret?
+	//Clean up namespace on secret creation failure
 
-	//Generate both a public and private key
-	privateKey, err := helper.GenerateRandomString(32)
-	publicKey, err := helper.GenerateRandomString(32)
-	if err != nil {
-		helper.LogError.Printf("Error generating random string: %v\n", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
 	tempSecret.Data["public-api-key"] = []byte(publicKey)
 	tempSecret.Data["private-api-key"] = []byte(privateKey)
 
@@ -199,6 +295,13 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		helper.LogError.Printf("Error creating secret: %s\n", err)
+
+		err = client.Namespaces().Delete(createdNs.GetName())
+		if err != nil {
+			helper.LogError.Printf("Failed to cleanup namespace\n")
+		} else {
+			helper.LogError.Printf("Deleted namespace due to secret creation error\n")
+		}
 	}
 	//Print to console for logging
 	helper.LogInfo.Printf("Created Secret: %s\n", secret.GetName())

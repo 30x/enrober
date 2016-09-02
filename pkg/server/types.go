@@ -61,3 +61,18 @@ type deploymentResponse struct {
 	Environment     string               `json:"environment"`
 	PodTemplateSpec *api.PodTemplateSpec `json:"podTemplateSpec"`
 }
+
+type apigeeKVMEntry struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+type apigeeKVMBody struct {
+	Name  string           `json:"name"`
+	Entry []apigeeKVMEntry `json:"entry"`
+}
+
+type retryResponse struct {
+	Code     string   `json:"code"`
+	Message  string   `json:"message"`
+	Contexts []string `json:"contexts"`
+}

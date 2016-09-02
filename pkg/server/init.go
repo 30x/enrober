@@ -31,24 +31,22 @@ func Init(clientConfig restclient.Config) error {
 		client = *tempClient
 	}
 
-	if os.Getenv("ISOLATE_NAMESPACE") == "false" {
-		isolateNamespace = false
-	} else {
-		isolateNamespace = true
-	}
-
 	//Several features should be disabled for local testing
 	if os.Getenv("DEPLOY_STATE") == "PROD" {
+
+		if os.Getenv("ISOLATE_NAMESPACE") == "true" {
+			isolateNamespace = true
+		}
 
 		//Set privileged container flag
 		if os.Getenv("ALLOW_PRIV_CONTAINERS") == "true" {
 			allowPrivilegedContainers = true
-		} else {
-			allowPrivilegedContainers = false
 		}
 
-	} else {
-		allowPrivilegedContainers = false
+		//Set apigeeKVM flag
+		if os.Getenv("APIGEE_KVM") == "true" {
+			apigeeKVM = true
+		}
 	}
 
 	return nil
