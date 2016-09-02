@@ -284,9 +284,6 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		Type: "Opaque",
 	}
 
-	//TODO: How should we fail if we generate a namespace but fail to generate a secret?
-	//Clean up namespace on secret creation failure
-
 	tempSecret.Data["public-api-key"] = []byte(publicKey)
 	tempSecret.Data["private-api-key"] = []byte(privateKey)
 
@@ -299,9 +296,10 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		err = client.Namespaces().Delete(createdNs.GetName())
 		if err != nil {
 			helper.LogError.Printf("Failed to cleanup namespace\n")
-		} else {
-			helper.LogError.Printf("Deleted namespace due to secret creation error\n")
+			return
 		}
+		helper.LogError.Printf("Deleted namespace due to secret creation error\n")
+		return
 	}
 	//Print to console for logging
 	helper.LogInfo.Printf("Created Secret: %s\n", secret.GetName())
