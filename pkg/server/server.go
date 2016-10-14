@@ -311,10 +311,10 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		ObjectMeta: api.ObjectMeta{
 			Name: tempJSON.EnvironmentName,
 			Labels: map[string]string{
-				"Runtime":      "shipyard",
-				"Organziation": apigeeOrgName,
-				"Environment":  apigeeEnvName,
-				"Name":         tempJSON.EnvironmentName,
+				"runtime":      "shipyard",
+				"organization": apigeeOrgName,
+				"environment":  apigeeEnvName,
+				"name":         tempJSON.EnvironmentName,
 			},
 			Annotations: nsAnnotations,
 		},
@@ -669,6 +669,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 
 	//Add routable label
 	tempPTS.Labels["routable"] = "true"
+	tempPTS.Labels["runtime"] = "shipyard"
 
 	//Could also use proto package
 	tempInt := int32(5)
@@ -689,7 +690,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	labelSelector, err := labels.Parse("app=" + tempPTS.Labels["app"])
+	labelSelector, err := labels.Parse("component=" + tempPTS.Labels["component"])
 	//Get list of all deployments in namespace with MatchLabels["app"] = tempPTS.Labels["app"]
 	depList, err := client.Deployments(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
 		LabelSelector: labelSelector,
