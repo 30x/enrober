@@ -58,15 +58,31 @@ var (
 func NewServer() (server *Server) {
 	router := mux.NewRouter()
 
+	// Top Level
 	router.Path("/environments").Methods("POST").HandlerFunc(createEnvironment)
+
+	// Org:Env Level
 	router.Path("/environments/{org}:{env}").Methods("GET").HandlerFunc(getEnvironment)
 	router.Path("/environments/{org}:{env}").Methods("PATCH").HandlerFunc(updateEnvironment)
 	router.Path("/environments/{org}:{env}").Methods("DELETE").HandlerFunc(deleteEnvironment)
 	router.Path("/environments/{org}:{env}/deployments").Methods("POST").HandlerFunc(createDeployment)
 	router.Path("/environments/{org}:{env}/deployments").Methods("GET").HandlerFunc(getDeployments)
+
+	//TODO
+	router.Path("/environments/{org}:{env}/config").Methods("GET").HandlerFunc(getConfigs)
+	router.Path("/environments/{org}:{env}/config").Methods("POST").HandlerFunc(createConfig)
+
+	// Deployment Level
 	router.Path("/environments/{org}:{env}/deployments/{deployment}").Methods("GET").HandlerFunc(getDeployment)
 	router.Path("/environments/{org}:{env}/deployments/{deployment}").Methods("PATCH").HandlerFunc(updateDeployment)
 	router.Path("/environments/{org}:{env}/deployments/{deployment}").Methods("DELETE").HandlerFunc(deleteDeployment)
+
+	// Config Level
+	//TODO
+	router.Path("/environments/{org}:{env}/deployments/{config}").Methods("GET").HandlerFunc(getConfig)
+	router.Path("/environments/{org}:{env}/deployments/{config}").Methods("PATCH").HandlerFunc(updateConfig)
+	router.Path("/environments/{org}:{env}/deployments/{config}").Methods("DELETE").HandlerFunc(deleteConfig)
+
 	router.Path("/environments/{org}:{env}/deployments/{deployment}/logs").Methods("GET").HandlerFunc(getDeploymentLogs)
 
 	//health check
@@ -84,15 +100,15 @@ func NewServer() (server *Server) {
 // Copied from https://github.com/30x/authsdk/blob/master/apigee.go#L19
 //
 // TODO: Turn this into some Go-based Apigee client/SDK to replace authsdk
-var apigeeApiHost string
+var apigeeAPIHost string
 
 func init() {
 	envVar := os.Getenv("AUTH_API_HOST")
 
 	if envVar == "" {
-		apigeeApiHost = "api.enterprise.apigee.com"
+		apigeeAPIHost = "api.enterprise.apigee.com"
 	} else {
-		apigeeApiHost = envVar
+		apigeeAPIHost = envVar
 	}
 }
 
@@ -183,7 +199,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		httpClient := &http.Client{}
 
 		//construct URL
-		apigeeKVMURL := fmt.Sprintf("https://%s/v1/organizations/%s/environments/%s/keyvaluemaps", apigeeApiHost, apigeeOrgName, apigeeEnvName)
+		apigeeKVMURL := fmt.Sprintf("https://%s/v1/organizations/%s/environments/%s/keyvaluemaps", apigeeAPIHost, apigeeOrgName, apigeeEnvName)
 
 		//create JSON body
 		kvmBody := apigeeKVMBody{
@@ -727,6 +743,88 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	helper.LogInfo.Printf("Created Deployment: %s\n", dep.GetName())
 }
 
+func getConfigs(w http.ResponseWriter, r *http.Request) {
+	pathVars := mux.Vars(r)
+
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["org"], w, r) {
+			return
+		}
+	}
+
+	mapList, err := client.ConfigMaps(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
+		LabelSelector: labels.Everything(),
+	})
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error retrieving configMap list: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+
+	//Marshall to JSON
+	js, err := json.Marshal(mapList)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error marshalling configMap list: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	w.Write(js)
+	for _, value := range mapList.Items {
+		helper.LogInfo.Printf("Got Deployment: %s\n", value.GetName())
+	}
+}
+
+func createConfig(w http.ResponseWriter, r *http.Request) {
+	pathVars := mux.Vars(r)
+
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["org"], w, r) {
+			return
+		}
+	}
+
+	var tempJSON configPost
+	err := json.NewDecoder(r.Body).Decode(&tempJSON)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error decoding JSON Body: %s\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+
+	tempMap := api.ConfigMap{}
+
+	tempMap.Name = tempJSON.Name
+	tempMap.Data = tempJSON.Vars
+
+	//Create Deployment
+	config, err := client.ConfigMaps(pathVars["org"] + "-" + pathVars["env"]).Create(&tempMap)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error creating configMap: %s\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+	js, err := json.Marshal(config)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error marshalling configMap: %s\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+	}
+
+	//Create absolute path for Location header
+	url := "/environments/" + pathVars["org"] + "-" + pathVars["env"] + "/deployments/" + tempJSON.Name
+	w.Header().Add("Location", url)
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(201)
+	w.Write(js)
+
+	helper.LogInfo.Printf("Created ConfigMap: %s\n", config.GetName())
+}
+
 //getDeployment returns a deployment matching the given environmentGroupID, environmentName, and deploymentName
 func getDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
@@ -951,6 +1049,15 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(204)
 }
 
+func getConfig(w http.ResponseWriter, r *http.Request) {
+}
+
+func updateConfig(w http.ResponseWriter, r *http.Request) {
+}
+
+func deleteConfig(w http.ResponseWriter, r *http.Request) {
+}
+
 func getDeploymentLogs(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
@@ -1070,7 +1177,7 @@ func isCPSEnabledForOrg(orgName, authzHeader string) bool {
 	cpsEnabled := false
 	httpClient := &http.Client{}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/v1/organizations/%s", apigeeApiHost, orgName), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/v1/organizations/%s", apigeeAPIHost, orgName), nil)
 
 	if err != nil {
 		fmt.Printf("Error checking for CPS: %v", err)
