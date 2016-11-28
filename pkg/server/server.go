@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	apigeeKVMName   = "routing"
-	apigeeKVMPKName = "public-key"
+	apigeeKVMName   = "shipyard-routing"
+	apigeeKVMPKName = "x-routing-api-key"
 )
 
 //Global Vars
