@@ -68,7 +68,6 @@ func NewServer() (server *Server) {
 	router.Path("/environments/{org}:{env}/deployments").Methods("POST").HandlerFunc(createDeployment)
 	router.Path("/environments/{org}:{env}/deployments").Methods("GET").HandlerFunc(getDeployments)
 
-	//TODO
 	router.Path("/environments/{org}:{env}/config").Methods("GET").HandlerFunc(getConfigs)
 	router.Path("/environments/{org}:{env}/config").Methods("POST").HandlerFunc(createConfig)
 
@@ -78,10 +77,10 @@ func NewServer() (server *Server) {
 	router.Path("/environments/{org}:{env}/deployments/{deployment}").Methods("DELETE").HandlerFunc(deleteDeployment)
 
 	// Config Level
+	router.Path("/environments/{org}:{env}/config/{map}").Methods("GET").HandlerFunc(getConfig)
 	//TODO
-	router.Path("/environments/{org}:{env}/deployments/{config}").Methods("GET").HandlerFunc(getConfig)
-	router.Path("/environments/{org}:{env}/deployments/{config}").Methods("PATCH").HandlerFunc(updateConfig)
-	router.Path("/environments/{org}:{env}/deployments/{config}").Methods("DELETE").HandlerFunc(deleteConfig)
+	router.Path("/environments/{org}:{env}/config/{map}").Methods("PATCH").HandlerFunc(updateConfig)
+	router.Path("/environments/{org}:{env}/config/{map}").Methods("DELETE").HandlerFunc(deleteConfig)
 
 	router.Path("/environments/{org}:{env}/deployments/{deployment}/logs").Methods("GET").HandlerFunc(getDeploymentLogs)
 
@@ -1050,12 +1049,110 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 }
 
 func getConfig(w http.ResponseWriter, r *http.Request) {
+	pathVars := mux.Vars(r)
+
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["org"], w, r) {
+			//Errors should be returned from function
+			return
+		}
+	}
+
+	getMap, err := client.ConfigMaps(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["map"])
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error retrieving configMap: %s\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+	js, err := json.Marshal(getMap)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error marshalling configMap: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	w.Write(js)
+
+	helper.LogInfo.Printf("Got Config Map: %v\n", getMap.GetName())
 }
 
+//TODO
 func updateConfig(w http.ResponseWriter, r *http.Request) {
+	pathVars := mux.Vars(r)
+
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["org"], w, r) {
+			//Errors should be returned from function
+			return
+		}
+	}
+
+	getMap, err := client.ConfigMaps(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["map"])
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error getting existing configMap: %s\n", err)
+		http.Error(w, errorMessage, http.StatusNotFound)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+	//Decode passed JSON body
+	var tempJSON map[string]string
+	err = json.NewDecoder(r.Body).Decode(&tempJSON)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error decoding JSON Body: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+
+	for newKey, newVal := range tempJSON {
+		getMap.Data[newKey] = newVal
+	}
+
+	config, err := client.ConfigMaps(pathVars["org"] + "-" + pathVars["env"]).Update(getMap)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error updating configMap: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+
+	js, err := json.Marshal(config)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error marshalling configMap: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	w.Write(js)
+	helper.LogInfo.Printf("Updated Deployment: %s\n", config.GetName())
+
 }
 
+//TODO
 func deleteConfig(w http.ResponseWriter, r *http.Request) {
+	pathVars := mux.Vars(r)
+
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["org"], w, r) {
+			return
+		}
+	}
+
+	//Delete Deployment
+	err := client.ConfigMaps(pathVars["org"] + "-" + pathVars["env"]).Delete(pathVars["map"])
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error deleting deployment: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+	helper.LogInfo.Printf("Deleted configMap: %v\n", pathVars["map"])
+
+	w.WriteHeader(204)
+
 }
 
 func getDeploymentLogs(w http.ResponseWriter, r *http.Request) {
