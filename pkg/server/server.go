@@ -634,7 +634,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	//Check if we got a URL
 	if tempJSON.PtsURL == "" {
 		//No URL so error
-		errorMessage := fmt.Sprintf("No ptsURL or PTS given\n")
+		errorMessage := fmt.Sprintf("No ptsURL given\n")
 		http.Error(w, errorMessage, http.StatusInternalServerError)
 		helper.LogError.Printf(errorMessage)
 		return
