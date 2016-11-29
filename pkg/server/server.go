@@ -83,7 +83,7 @@ func NewServer() (server *Server) {
 
 	router.Path("/environments/{org}:{env}/deployments/{deployment}/logs").Methods("GET").HandlerFunc(getDeploymentLogs)
 
-	//health check
+	// Health Check
 	router.Path("/environments/status/").Methods("GET").HandlerFunc(getStatus)
 	router.Path("/environments/status").Methods("GET").HandlerFunc(getStatus)
 
@@ -631,26 +631,19 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 
 	tempPTS := api.PodTemplateSpec{}
 
-	//Check if we got a URL or a direct PTS
-	if tempJSON.PTS == nil {
-		//No PTS so check ptsURL
-		if tempJSON.PtsURL == "" {
-			//No URL either so error
-			errorMessage := fmt.Sprintf("No ptsURL or PTS given\n")
-			http.Error(w, errorMessage, http.StatusInternalServerError)
-			helper.LogError.Printf(errorMessage)
-			return
-		}
+	//Check if we got a URL
+	if tempJSON.PtsURL == "" {
+		//No URL so error
+		errorMessage := fmt.Sprintf("No ptsURL or PTS given\n")
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
 
-		tempPTS, err = helper.GetPTSFromURL(tempJSON.PtsURL, r)
-		if err != nil {
-			helper.LogError.Printf(err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-
-	} else {
-		//We got a direct PTS so just copy it
-		tempPTS = *tempJSON.PTS
+	tempPTS, err = helper.GetPTSFromURL(tempJSON.PtsURL, r)
+	if err != nil {
+		helper.LogError.Printf(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
 	if allowPrivilegedContainers == false {
@@ -885,30 +878,19 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 
 	tempPTS := api.PodTemplateSpec{}
 
-	//Check if we got a URL or a direct PTS
-	if tempJSON.PTS == nil {
-		//No PTS so check ptsURL
-		if tempJSON.PtsURL == "" {
-			//No URL either
-			prevDep, err := client.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
-			if err != nil {
-				errorMessage := fmt.Sprintf("No ptsURL or PTS given and failed to retrieve previous PTS: %v\n", err)
-				http.Error(w, errorMessage, http.StatusInternalServerError)
-				helper.LogError.Printf(errorMessage)
-				return
-			}
-			tempPTS = prevDep.Spec.Template
-		} else {
+	//Check if we got a URL
+	if tempJSON.PtsURL == "" {
+		//No URL so error
+		errorMessage := fmt.Sprintf("No ptsURL or PTS given\n")
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
 
-			tempPTS, err = helper.GetPTSFromURL(tempJSON.PtsURL, r)
-			if err != nil {
-				helper.LogError.Printf(err.Error())
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-		}
-	} else {
-		//We got a direct PTS so just copy it
-		tempPTS = *tempJSON.PTS
+	tempPTS, err = helper.GetPTSFromURL(tempJSON.PtsURL, r)
+	if err != nil {
+		helper.LogError.Printf(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
 	//If annotations map is empty then we need to make it
@@ -1077,7 +1059,6 @@ func getConfig(w http.ResponseWriter, r *http.Request) {
 	helper.LogInfo.Printf("Got Config Map: %v\n", getMap.GetName())
 }
 
-//TODO
 func updateConfig(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
@@ -1130,7 +1111,6 @@ func updateConfig(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//TODO
 func deleteConfig(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
