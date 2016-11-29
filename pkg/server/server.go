@@ -78,7 +78,6 @@ func NewServer() (server *Server) {
 
 	// Config Level
 	router.Path("/environments/{org}:{env}/config/{map}").Methods("GET").HandlerFunc(getConfig)
-	//TODO
 	router.Path("/environments/{org}:{env}/config/{map}").Methods("PATCH").HandlerFunc(updateConfig)
 	router.Path("/environments/{org}:{env}/config/{map}").Methods("DELETE").HandlerFunc(deleteConfig)
 

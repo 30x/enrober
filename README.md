@@ -2,12 +2,6 @@
 
 This project consists of a an API server that functions as a wrapper around the kubernetes client library. The server can be deployed both locally and as a docker container within a kubernetes cluster.
 
-This project is closely related to other 30x projects:
-
-- [dev-setup](https://github.com/30x/Dev_Setup)
-- [k8s-pods-ingress](https://github.com/30x/k8s-router)
-- [shipyard](https://github.com/30x/shipyard)
-
 ###Local Deployment
 
 ```sh
@@ -23,23 +17,21 @@ For the server to be able to communicate with your kubernetes cluster you must r
 kubectl proxy --port=8080 &
 ```
 
-Please note that this allows for insecure communication with your kubernetes cluster and shuold only be used for testing.
+Please note that this allows for insecure communication with your kubernetes cluster and should only be used for testing.
 
 ###Kubernetes Deployment
 
 A prebuilt docker image is available with:
  
 ```sh
-docker pull thirtyx/enrober:v0.2.3
+docker pull thirtyx/enrober:v0.5.0
 ```
 
 To deploy the server as a docker container on a kubernetes cluster you should use the provided `deploy-base.yaml` file. Running `kubectl create -f deploy-base.yaml` will pull the image from dockerhub and deploy it to the default namespace.
 
 The server will be accesible at `<pod-ip>/`
 
-You can choose to expose the pod using the [k8s-pods-ingress](https://github.com/30x/k8s-router). Make sure to modify the `deploy.yaml` file to match your ingress configuration. 
-
-Alternatively you can expose the server using a kubernetes service. Refer to the docs [here](http://kubernetes.io/docs/user-guide/services/).
+Additionally you can expose the server using a kubernetes service. Refer to the docs [here](http://kubernetes.io/docs/user-guide/services/).
 
 ###Privileged Containers
 
@@ -55,20 +47,16 @@ A swagger.yaml file is provided that documents the API per the OpenAPI specifica
 
 An environment consists of a kubernetes namespace and our specific secrets associated with it. Each environment comes with a `routing` secret that contains two key-value pairs, a `public-api-key` and a `private-api-key`. These are for use with the [k8s-pods-ingress](https://github.com/30x/k8s-router) to allow for secure communication with pods from inside and outside of the kubernetes cluster.  
 
-
-##Apigee Specific Annotations
-
-####Environments
-
-When created environments can accept an array of valid host names to accept traffic from. This array is represented on the namespace object as a space delimited annotation. The individual values must be either a valid IP address or valid host name. 
-
 ####Deployments
 
-When created deployments can accept a `publicHosts` value, a `privateHosts` value or both. These values are for use with the [k8s-pods-ingress](https://github.com/30x/k8s-router) and are the host name where the deployment can be reached. These values are stored as annotations on the deployed pods. 
+When created deployments can accept a `publicHosts` value, a `privateHosts` value or both. These values are for use with the [k8s-pods-ingress](https://github.com/30x/k8s-router) and are the host name where the deployment can be reached. These values are stored as annotations on the deployed pods.
 
 ####Pod Template Specs
 
 When they are provided to the deployments endpoint pod template specs must have several Apigee specific labels and annotations.  
+
+##Apigee Specific Annotations
+
 
 **Labels:**
 For pods to be recognized by the [k8s-pods-ingress](https://github.com/30x/k8s-router) they must have a label named `"routable"` with a value of `"true"`.
