@@ -38,22 +38,20 @@ type configPost struct {
 }
 
 type deploymentPost struct {
-	DeploymentName string               `json:"deploymentName"`
-	PublicHosts    *string              `json:"publicHosts,omitempty"`
-	PrivateHosts   *string              `json:"privateHosts,omitempty"`
-	Replicas       *int32               `json:"replicas"`
-	PtsURL         string               `json:"ptsURL,omitempty"`
-	PTS            *api.PodTemplateSpec `json:"pts,omitempty"`
-	EnvVars        []api.EnvVar         `json:"envVars,omitempty"`
+	DeploymentName string       `json:"deploymentName"`
+	PublicHosts    *string      `json:"publicHosts,omitempty"`
+	PrivateHosts   *string      `json:"privateHosts,omitempty"`
+	Replicas       *int32       `json:"replicas"`
+	PtsURL         string       `json:"ptsURL,omitempty"`
+	EnvVars        []api.EnvVar `json:"envVars,omitempty"`
 }
 
 type deploymentPatch struct {
-	PublicHosts  *string              `json:"publicHosts,omitempty"`
-	PrivateHosts *string              `json:"privateHosts,omitempty"`
-	Replicas     *int32               `json:"replicas,omitempty"`
-	PtsURL       string               `json:"ptsURL"`
-	PTS          *api.PodTemplateSpec `json:"pts"`
-	EnvVars      []api.EnvVar         `json:"envVars,omitempty"`
+	PublicHosts  *string      `json:"publicHosts,omitempty"`
+	PrivateHosts *string      `json:"privateHosts,omitempty"`
+	Replicas     *int32       `json:"replicas,omitempty"`
+	PtsURL       string       `json:"ptsURL"`
+	EnvVars      []api.EnvVar `json:"envVars,omitempty"`
 }
 
 type deploymentResponse struct {
