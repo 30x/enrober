@@ -13,14 +13,10 @@ spec:
     metadata:
       labels:
         component: enrober
-        routable: "true"
-      annotations:
-        publicHosts: "test.k8s.local"
-        publicPaths: "9000:/environments"
     spec:
       containers:
       - name: enrober
-        image: jbowen/enrober:v0.2.3
+        image: jbowen/enrober:v0.5.0
         env:
           - name: DEPLOY_STATE
             value: "PROD"
