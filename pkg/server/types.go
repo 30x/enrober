@@ -32,11 +32,6 @@ type environmentResponse struct {
 	PrivateSecret []byte   `json:"privateSecret"`
 }
 
-type configPost struct {
-	Name string            `json:"configName"`
-	Vars map[string]string `json:"vars,omitempty"`
-}
-
 type deploymentPost struct {
 	DeploymentName string       `json:"deploymentName"`
 	PublicHosts    *string      `json:"publicHosts,omitempty"`

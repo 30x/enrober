@@ -1,6 +1,8 @@
 package helper
 
-import "k8s.io/kubernetes/pkg/api"
+import (
+	"k8s.io/kubernetes/pkg/api"
+)
 
 //CacheEnvVars appends a list of new env vars to a given current list without duplication
 func CacheEnvVars(currentEnvVars []api.EnvVar, newEnvVars []api.EnvVar) []api.EnvVar {
