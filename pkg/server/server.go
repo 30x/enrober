@@ -406,18 +406,13 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 func createDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	// TODO:
-	// Check if there is an existing namespace with the name {org}-{env}
-	// If there is then proceed as usual (massive if else for now)
-	// If there isn't then create that environment
-	// Implement this using existing logic in the createEnvironment function
-
 	if os.Getenv("DEPLOY_STATE") == "PROD" {
 		if !helper.ValidAdmin(pathVars["org"], w, r) {
 			return
 		}
 	}
 
+	// TODO:
 	// Check if there is an existing namespace with name {org}-{env}
 	_, err := client.Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
 	if err != nil {
@@ -430,7 +425,8 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 
 			// TODO: Need to pass through some hostName information here
 			// Is this going to come from an API call to Edge?
-			err := createEnvironment(pathVars["org"]+":"+pathVars["env"], []string{}, r)
+			hostNames := []string{}
+			err := createEnvironment(pathVars["org"]+":"+pathVars["env"], hostNames, r)
 			if err != nil {
 				errorMessage := fmt.Sprintf("Broke at createEnvironment: %v", err)
 				helper.LogError.Printf(errorMessage)
