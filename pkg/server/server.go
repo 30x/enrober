@@ -21,6 +21,8 @@ import (
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/labels"
 
+	k8sErrors "k8s.io/kubernetes/pkg/api/errors"
+
 	k8sClient "k8s.io/kubernetes/pkg/client/unversioned"
 
 	"github.com/30x/enrober/pkg/helper"
@@ -104,8 +106,6 @@ func (server *Server) Start() error {
 }
 
 // Lets start by just making a new function
-// TODO:
-// Since this is Apigee specific it's likely fine to require a JWT on this call
 func createEnvironment(environmentName string, hostNames []string, token string) error {
 
 	//Make sure they passed a valid environment name of form {org}:{env}
@@ -197,9 +197,6 @@ func createEnvironment(environmentName string, hostNames []string, token string)
 			return errors.New(errorMessage)
 		}
 
-		// TODO:
-		// Spot where we are utilizing passed request
-
 		//Must pass through the authz header
 		req.Header.Add("Authorization", token)
 		req.Header.Add("Content-Type", "application/json")
@@ -221,9 +218,6 @@ func createEnvironment(environmentName string, hostNames []string, token string)
 				b2 := new(bytes.Buffer)
 				updateKVMURL := fmt.Sprintf("%s/%s", apigeeKVMURL, apigeeKVMName) // Use non-CPS endpoint by default
 
-				// TODO:
-				// Spot where are utilizing passed request
-
 				if isCPSEnabledForOrg(apigeeOrgName, token) {
 					// When using CPS, the API endpoint is different and instead of sending the whole KVM body, we can only send
 					// the KVM entry to update.  (This will work for now since we are only persisting one key but in the future
@@ -244,9 +238,6 @@ func createEnvironment(environmentName string, hostNames []string, token string)
 				}
 
 				fmt.Printf("The update KVM URL: %v\n", updateKVMReq.URL.String())
-
-				// TODO:
-				// Spot where are utilizing passed request
 
 				updateKVMReq.Header.Add("Authorization", token)
 				updateKVMReq.Header.Add("Content-Type", "application/json")
@@ -431,15 +422,9 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// TODO:
-	// Check if there is an existing namespace with name {org}-{env}
 	_, err := client.Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
 	if err != nil {
-		// Lazy as hell fix for testing
-		// FIXME: For gods sake do not put this in prod Josh
-		// Look at getting proper error types like an adult
-		if strings.Contains(err.Error(), "not found") {
-			//DEBUG
+		if k8sErrors.IsAlreadyExists(err) == false {
 			fmt.Print("CREATING ENVIRONMENT\n")
 
 			// TODO: Need to pass through some hostName information here
