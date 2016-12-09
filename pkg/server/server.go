@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,10 +21,16 @@ import (
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/labels"
 
+	k8sErrors "k8s.io/kubernetes/pkg/api/errors"
+
 	k8sClient "k8s.io/kubernetes/pkg/client/unversioned"
 
 	"github.com/30x/enrober/pkg/helper"
 )
+
+// TODO:
+// Need to rename these vars to highlight that they are for
+// routing and not for environment variable storage
 
 const (
 	apigeeKVMName   = "shipyard-routing"
@@ -58,10 +65,7 @@ var (
 func NewServer() (server *Server) {
 	router := mux.NewRouter()
 
-	router.Path("/environments").Methods("POST").HandlerFunc(createEnvironment)
 	router.Path("/environments/{org}:{env}").Methods("GET").HandlerFunc(getEnvironment)
-	router.Path("/environments/{org}:{env}").Methods("PATCH").HandlerFunc(updateEnvironment)
-	router.Path("/environments/{org}:{env}").Methods("DELETE").HandlerFunc(deleteEnvironment)
 	router.Path("/environments/{org}:{env}/deployments").Methods("POST").HandlerFunc(createDeployment)
 	router.Path("/environments/{org}:{env}/deployments").Methods("GET").HandlerFunc(getDeployments)
 	router.Path("/environments/{org}:{env}/deployments/{deployment}").Methods("GET").HandlerFunc(getDeployment)
@@ -101,52 +105,35 @@ func (server *Server) Start() error {
 	return http.ListenAndServe(":9000", server.Router)
 }
 
-//createEnvironment creates a kubernetes namespace and secret
-func createEnvironment(w http.ResponseWriter, r *http.Request) {
-
-	//Decode passed JSON body
-	var tempJSON environmentPost
-	err := json.NewDecoder(r.Body).Decode(&tempJSON)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		helper.LogError.Printf("Error decoding JSON Body: %s\n", err)
-		return
-	}
+// Lets start by just making a new function
+func createEnvironment(environmentName string, hostNames []string, token string) error {
 
 	//Make sure they passed a valid environment name of form {org}:{env}
-	if !envNameRegex.MatchString(tempJSON.EnvironmentName) {
-		http.Error(w, "Invalid environment name", http.StatusInternalServerError)
-		helper.LogError.Printf("Not a valid environment name: %s\n", tempJSON.EnvironmentName)
-		return
+	if !envNameRegex.MatchString(environmentName) {
+		errorMessage := fmt.Sprintf("Not a valid environment name: %s\n", environmentName)
+		return errors.New(errorMessage)
 	}
 
 	//Parse environment name into 2 parts
-	nameSlice := strings.Split(tempJSON.EnvironmentName, ":")
+	nameSlice := strings.Split(environmentName, ":")
 	apigeeOrgName := nameSlice[0]
 	apigeeEnvName := nameSlice[1]
 
-	if os.Getenv("DEPLOY_STATE") == "PROD" {
-		if !helper.ValidAdmin(apigeeOrgName, w, r) {
-			return
-		}
-	}
-
 	// transform EnvironmentName into acceptable k8s namespace name
-	tempJSON.EnvironmentName = apigeeOrgName + "-" + apigeeEnvName
+	environmentName = apigeeOrgName + "-" + apigeeEnvName
 
 	//space delimited annotation of valid hostnames
 	var hostsList bytes.Buffer
 
-	for index, value := range tempJSON.HostNames {
+	for index, value := range hostNames {
 		//Verify each Hostname matches regex
 		validIP := validIPAddressRegex.MatchString(value)
 		validHost := validHostnameRegex.MatchString(value)
 
 		if !(validIP || validHost) {
 			//Regex didn't match
-			http.Error(w, "Invalid Hostname", http.StatusInternalServerError)
-			helper.LogError.Printf("Not a valid hostname: %s\n", value)
-			return
+			errorMessage := fmt.Sprintf("Not a valid hostname: %s\n", value)
+			return errors.New(errorMessage)
 		}
 		if index == 0 {
 			hostsList.WriteString(value)
@@ -155,27 +142,32 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	uniqueHosts, err := helper.UniqueHostNames(tempJSON.HostNames, client)
+	uniqueHosts, err := helper.UniqueHostNames(hostNames, client)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error in UniqueHostNames: %v", err)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage + "\n")
-		return
+		return errors.New(errorMessage)
 	}
 	if !uniqueHosts {
 		errorMessage := "Duplicate HostNames"
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage)
-		return
+		return errors.New(errorMessage)
 	}
 
 	//Generate both a public and private key
 	privateKey, err := helper.GenerateRandomString(32)
 	publicKey, err := helper.GenerateRandomString(32)
 	if err != nil {
-		helper.LogError.Printf("Error generating random string: %v\n", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorMessage := fmt.Sprintf("Error generating random string: %v\n", err)
+		return errors.New(errorMessage)
 	}
+
+	// TODO:
+	// On Environment Creation we also need to create the "shipyard" Apigee KVM
+	// This KVM will be used to store environment variables
+	// Break this out into a separate helper function, it will require a JWT
+
+	// TODO:
+	// This may need to be broken out into something more general
+	// Should use the general KVM creation function
 
 	//Should attempt KVM creation before creating k8s objects
 	if apigeeKVM {
@@ -202,21 +194,17 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 		req, err := http.NewRequest("POST", apigeeKVMURL, b)
 		if err != nil {
 			errorMessage := fmt.Sprintf("Unable to create request (Create KVM): %v", err)
-			http.Error(w, errorMessage, http.StatusInternalServerError)
-			helper.LogError.Printf(errorMessage + "\n")
-			return
+			return errors.New(errorMessage)
 		}
 
 		//Must pass through the authz header
-		req.Header.Add("Authorization", r.Header.Get("Authorization"))
+		req.Header.Add("Authorization", token)
 		req.Header.Add("Content-Type", "application/json")
 
 		resp, err := httpClient.Do(req)
 		if err != nil {
 			errorMessage := fmt.Sprintf("Error creating Apigee KVM: %v", err)
-			http.Error(w, errorMessage, http.StatusInternalServerError)
-			helper.LogError.Printf(errorMessage + "\n")
-			return
+			return errors.New(errorMessage)
 		}
 		defer resp.Body.Close()
 
@@ -230,7 +218,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 				b2 := new(bytes.Buffer)
 				updateKVMURL := fmt.Sprintf("%s/%s", apigeeKVMURL, apigeeKVMName) // Use non-CPS endpoint by default
 
-				if isCPSEnabledForOrg(apigeeOrgName, r.Header.Get("Authorization")) {
+				if isCPSEnabledForOrg(apigeeOrgName, token) {
 					// When using CPS, the API endpoint is different and instead of sending the whole KVM body, we can only send
 					// the KVM entry to update.  (This will work for now since we are only persisting one key but in the future
 					// we might need to update this to make N calls, one per key.)
@@ -246,22 +234,18 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 
 				if err != nil {
 					errorMessage := fmt.Sprintf("Unable to create request (Update KVM): %v", err)
-					http.Error(w, errorMessage, http.StatusInternalServerError)
-					helper.LogError.Printf(errorMessage + "\n")
-					return
+					return errors.New(errorMessage)
 				}
 
 				fmt.Printf("The update KVM URL: %v\n", updateKVMReq.URL.String())
 
-				updateKVMReq.Header.Add("Authorization", r.Header.Get("Authorization"))
+				updateKVMReq.Header.Add("Authorization", token)
 				updateKVMReq.Header.Add("Content-Type", "application/json")
 
 				resp2, err := httpClient.Do(updateKVMReq)
 				if err != nil {
 					errorMessage := fmt.Sprintf("Error creating entry in existing Apigee KVM: %v", err)
-					http.Error(w, errorMessage, http.StatusInternalServerError)
-					helper.LogError.Printf(errorMessage + "\n")
-					return
+					return errors.New(errorMessage)
 				}
 				defer resp2.Body.Close()
 
@@ -271,17 +255,14 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 				err = json.NewDecoder(resp2.Body).Decode(&updateKVMRes)
 
 				if err != nil {
-					fmt.Printf("Failed to decode response: %v\n", err)
-					http.Error(w, "Failed to decode response", http.StatusInternalServerError)
-					return
+					errorMessage := fmt.Sprintf("Failed to decode response: %v\n", err)
+					return errors.New(errorMessage)
 				}
 
 				// Updating a KVM returns a 200 on success so if it's not a 200, it's a failure
 				if resp2.StatusCode != 200 {
 					errorMessage := fmt.Sprintf("Couldn't create KVM entry (Status Code: %d): %v", resp2.StatusCode, updateKVMRes.Message)
-					http.Error(w, errorMessage, http.StatusInternalServerError)
-					helper.LogError.Printf(errorMessage + "\n")
-					return
+					return errors.New(errorMessage)
 				}
 
 				retryFlag = true
@@ -289,9 +270,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 
 			if !retryFlag {
 				errorMessage := fmt.Sprintf("Expected 201 or 409, got: %v", resp.StatusCode)
-				http.Error(w, errorMessage, http.StatusInternalServerError)
-				helper.LogError.Printf(errorMessage + "\n")
-				return
+				return errors.New(errorMessage)
 			}
 		}
 
@@ -309,12 +288,12 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	//NOTE: Probably shouldn't create annotation if there are no hostNames
 	nsObject := &api.Namespace{
 		ObjectMeta: api.ObjectMeta{
-			Name: tempJSON.EnvironmentName,
+			Name: environmentName,
 			Labels: map[string]string{
 				"runtime":      "shipyard",
 				"organization": apigeeOrgName,
 				"environment":  apigeeEnvName,
-				"name":         tempJSON.EnvironmentName,
+				"name":         environmentName,
 			},
 			Annotations: nsAnnotations,
 		},
@@ -324,9 +303,7 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	createdNs, err := client.Namespaces().Create(nsObject)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error creating namespace: %v", err)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage + "\n")
-		return
+		return errors.New(errorMessage)
 	}
 	//Print to console for logging
 	helper.LogInfo.Printf("Created Namespace: %s\n", createdNs.GetName())
@@ -343,41 +320,19 @@ func createEnvironment(w http.ResponseWriter, r *http.Request) {
 	tempSecret.Data["private-api-key"] = []byte(privateKey)
 
 	//Create Secret
-	secret, err := client.Secrets(tempJSON.EnvironmentName).Create(&tempSecret)
+	_, err = client.Secrets(environmentName).Create(&tempSecret)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		helper.LogError.Printf("Error creating secret: %s\n", err)
 
 		err = client.Namespaces().Delete(createdNs.GetName())
 		if err != nil {
-			helper.LogError.Printf("Failed to cleanup namespace\n")
-			return
+			errorMessage := fmt.Sprintf("Failed to cleanup namespace\n")
+			return errors.New(errorMessage)
 		}
-		helper.LogError.Printf("Deleted namespace due to secret creation error\n")
-		return
+		errorMessage := fmt.Sprintf("Deleted namespace due to secret creation error\n")
+		return errors.New(errorMessage)
 	}
-	//Print to console for logging
-	helper.LogInfo.Printf("Created Secret: %s\n", secret.GetName())
-
-	var jsResponse environmentResponse
-	jsResponse.Name = tempJSON.EnvironmentName
-	jsResponse.PrivateSecret = secret.Data["private-api-key"]
-	jsResponse.PublicSecret = secret.Data["public-api-key"]
-	jsResponse.HostNames = tempJSON.HostNames
-
-	js, err := json.Marshal(jsResponse)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		helper.LogError.Printf("Error marshalling response JSON: %s\n", err)
-		return
-	}
-
-	//Create absolute path for Location header
-	locationURL := "/environments/" + apigeeOrgName + ":" + apigeeEnvName
-	w.Header().Add("Location", locationURL)
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(201)
-	w.Write(js)
+	return nil
 }
 
 //getEnvironment returns a kubernetes namespace matching the given environmentGroupID and environmentName
@@ -424,137 +379,6 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 	helper.LogInfo.Printf("Got Namespace: %s\n", getNs.GetName())
 }
 
-//updateEnvironment modifies the hostNames array on an existing environment
-func updateEnvironment(w http.ResponseWriter, r *http.Request) {
-	pathVars := mux.Vars(r)
-
-	if os.Getenv("DEPLOY_STATE") == "PROD" {
-		if !helper.ValidAdmin(pathVars["org"], w, r) {
-			return
-		}
-	}
-
-	//Get the existing namespace
-	getNs, err := client.Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
-	if err != nil {
-		errorMessage := fmt.Sprintf("Namespace %s doesn't exist\n", pathVars["org"]+"-"+pathVars["env"])
-		helper.LogError.Printf(errorMessage)
-		http.Error(w, errorMessage, http.StatusNotFound)
-		return
-	}
-
-	//Get the existing routing secret
-	getSecret, err := client.Secrets(pathVars["org"] + "-" + pathVars["env"]).Get("routing")
-	if err != nil {
-		errorMessage := fmt.Sprintf("Failed to get existing routing secret on %s namespace\n", pathVars["org"]+"-"+pathVars["env"])
-		helper.LogError.Printf(errorMessage)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		return
-	}
-
-	//Decode passed JSON body
-	var tempJSON environmentPatch
-	err = json.NewDecoder(r.Body).Decode(&tempJSON)
-	if err != nil {
-		errorMessage := fmt.Sprintf("Error decoding JSON Body: %s\n", err)
-		helper.LogError.Printf(errorMessage)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		return
-	}
-
-	//space delimited annotation of valid hostnames
-	var hostsList bytes.Buffer
-
-	//Take new json and put it into the space delimited string
-	for index, value := range tempJSON.HostNames {
-		//Verify each Hostname matches regex
-		validIP := validIPAddressRegex.MatchString(value)
-		validHost := validHostnameRegex.MatchString(value)
-
-		if !(validIP || validHost) {
-			//Regex didn't match
-			http.Error(w, "Invalid Hostname", http.StatusInternalServerError)
-			helper.LogError.Printf("Not a valid hostname: %s\n", value)
-			return
-		}
-		if index == 0 {
-			hostsList.WriteString(value)
-		} else {
-			hostsList.WriteString(" " + value)
-		}
-	}
-
-	//If hostNames are same as old then just give 200 back
-	if bytes.Equal(hostsList.Bytes(), []byte(getNs.Annotations["hostNames"])) {
-		helper.LogInfo.Printf("Nothing to be updated\n")
-		return
-	}
-
-	uniqueHosts, err := helper.UniqueHostNames(tempJSON.HostNames, client)
-	if err != nil {
-		errorMessage := fmt.Sprintf("Error in UniqueHostNames: %v", err)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage)
-		return
-	}
-	if !uniqueHosts {
-		errorMessage := "Duplicate HostNames"
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage)
-		return
-	}
-
-	getNs.Annotations["hostNames"] = hostsList.String()
-
-	updateNS, err := client.Namespaces().Update(getNs)
-	if err != nil {
-		errorMessage := fmt.Sprintf("Failed to update existing namespace '%s'\n", getNs)
-		helper.LogError.Printf(errorMessage)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		return
-	}
-	helper.LogInfo.Printf("Updated hostNames: %s\n", updateNS.Annotations["hostNames"])
-
-	var jsResponse environmentResponse
-	jsResponse.Name = pathVars["environment"]
-	jsResponse.PrivateSecret = getSecret.Data["private-api-key"]
-	jsResponse.PublicSecret = getSecret.Data["public-api-key"]
-	jsResponse.HostNames = tempJSON.HostNames
-
-	js, err := json.Marshal(jsResponse)
-	if err != nil {
-		errorMessage := fmt.Sprintf("Couldn't marshall namespace: %s\n", err)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	w.Write(js)
-
-}
-
-//deleteEnvironment deletes a kubernetes namespace matching the given org and env name
-func deleteEnvironment(w http.ResponseWriter, r *http.Request) {
-	pathVars := mux.Vars(r)
-
-	if os.Getenv("DEPLOY_STATE") == "PROD" {
-		if !helper.ValidAdmin(pathVars["org"], w, r) {
-			return
-		}
-	}
-
-	err := client.Namespaces().Delete(pathVars["org"] + "-" + pathVars["env"])
-	if err != nil {
-		errorMessage := fmt.Sprintf("Error in deleteEnvironment: %v\n", err)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage)
-		return
-	}
-	w.WriteHeader(204)
-
-	helper.LogInfo.Printf("Deleted Namespace: %s\n", pathVars["org"]+"-"+pathVars["env"])
-}
-
 //getDeployments returns a list of all deployments matching the given org and env name
 func getDeployments(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
@@ -598,9 +422,30 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	_, err := client.Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
+	if err != nil {
+		if k8sErrors.IsAlreadyExists(err) == false {
+			fmt.Print("CREATING ENVIRONMENT\n")
+
+			// TODO: Need to pass through some hostName information here
+			// Is this going to come from an API call to Edge?
+			hostNames := []string{}
+			err := createEnvironment(pathVars["org"]+":"+pathVars["env"], hostNames, r.Header.Get("Authorization"))
+			if err != nil {
+				errorMessage := fmt.Sprintf("Broke at createEnvironment: %v", err)
+				helper.LogError.Printf(errorMessage)
+				return
+			}
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			helper.LogError.Printf("Error getting existing Environment: %v\n", err)
+			return
+		}
+	}
+
 	//Decode passed JSON body
 	var tempJSON deploymentPost
-	err := json.NewDecoder(r.Body).Decode(&tempJSON)
+	err = json.NewDecoder(r.Body).Decode(&tempJSON)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error decoding JSON Body: %s\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
