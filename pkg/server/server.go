@@ -26,6 +26,10 @@ import (
 	"github.com/30x/enrober/pkg/helper"
 )
 
+// TODO:
+// Need to rename these vars to highlight that they are for
+// routing and not for environment variable storage
+
 const (
 	apigeeKVMName   = "shipyard-routing"
 	apigeeKVMPKName = "x-routing-api-key"
@@ -101,8 +105,8 @@ func (server *Server) Start() error {
 
 // Lets start by just making a new function
 // TODO:
-// Don't know if we want to be passing the request through here.
-func createEnvironment(environmentName string, hostNames []string, r *http.Request) error {
+// Since this is Apigee specific it's likely fine to require a JWT on this call
+func createEnvironment(environmentName string, hostNames []string, token string) error {
 
 	//Make sure they passed a valid environment name of form {org}:{env}
 	if !envNameRegex.MatchString(environmentName) {
@@ -157,7 +161,13 @@ func createEnvironment(environmentName string, hostNames []string, r *http.Reque
 	}
 
 	// TODO:
+	// On Environment Creation we also need to create the "shipyard" Apigee KVM
+	// This KVM will be used to store environment variables
+	// Break this out into a separate helper function, it will require a JWT
+
+	// TODO:
 	// This may need to be broken out into something more general
+	// Should use the general KVM creation function
 
 	//Should attempt KVM creation before creating k8s objects
 	if apigeeKVM {
@@ -187,8 +197,11 @@ func createEnvironment(environmentName string, hostNames []string, r *http.Reque
 			return errors.New(errorMessage)
 		}
 
+		// TODO:
+		// Spot where we are utilizing passed request
+
 		//Must pass through the authz header
-		req.Header.Add("Authorization", r.Header.Get("Authorization"))
+		req.Header.Add("Authorization", token)
 		req.Header.Add("Content-Type", "application/json")
 
 		resp, err := httpClient.Do(req)
@@ -208,7 +221,10 @@ func createEnvironment(environmentName string, hostNames []string, r *http.Reque
 				b2 := new(bytes.Buffer)
 				updateKVMURL := fmt.Sprintf("%s/%s", apigeeKVMURL, apigeeKVMName) // Use non-CPS endpoint by default
 
-				if isCPSEnabledForOrg(apigeeOrgName, r.Header.Get("Authorization")) {
+				// TODO:
+				// Spot where are utilizing passed request
+
+				if isCPSEnabledForOrg(apigeeOrgName, token) {
 					// When using CPS, the API endpoint is different and instead of sending the whole KVM body, we can only send
 					// the KVM entry to update.  (This will work for now since we are only persisting one key but in the future
 					// we might need to update this to make N calls, one per key.)
@@ -229,7 +245,10 @@ func createEnvironment(environmentName string, hostNames []string, r *http.Reque
 
 				fmt.Printf("The update KVM URL: %v\n", updateKVMReq.URL.String())
 
-				updateKVMReq.Header.Add("Authorization", r.Header.Get("Authorization"))
+				// TODO:
+				// Spot where are utilizing passed request
+
+				updateKVMReq.Header.Add("Authorization", token)
 				updateKVMReq.Header.Add("Content-Type", "application/json")
 
 				resp2, err := httpClient.Do(updateKVMReq)
@@ -426,7 +445,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 			// TODO: Need to pass through some hostName information here
 			// Is this going to come from an API call to Edge?
 			hostNames := []string{}
-			err := createEnvironment(pathVars["org"]+":"+pathVars["env"], hostNames, r)
+			err := createEnvironment(pathVars["org"]+":"+pathVars["env"], hostNames, r.Header.Get("Authorization"))
 			if err != nil {
 				errorMessage := fmt.Sprintf("Broke at createEnvironment: %v", err)
 				helper.LogError.Printf(errorMessage)
