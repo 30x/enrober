@@ -15,7 +15,7 @@ func TestClientHosts(t *testing.T) {
 	ts := startMockServer()
 	defer ts.Close()
 
-	client := Client{ token: "<token>", apigeeApiHost: ts.URL }
+	client := Client{ token: "<token>", apigeeApiHost: ts.URL + "/" }
 	hosts, err := client.Hosts("org", "env")
 	if err != nil {
 		t.Fatalf("Error when calling Hosts: %v.", err)
@@ -44,7 +44,7 @@ func TestClienthostAliases(t *testing.T) {
 	ts := startMockServer()
 	defer ts.Close()
 
-	client := Client{ token: "<token>", apigeeApiHost: ts.URL }
+	client := Client{ token: "<token>", apigeeApiHost: ts.URL + "/" }
 	aliases, err := client.hostAliases("org", "env", "default")
 	if err != nil {
 		t.Fatalf("Error when calling hostAliases: %v.", err)
@@ -66,10 +66,10 @@ func TestClienthostAliases(t *testing.T) {
 // Ensure the apigee api host usees the ENV variable if set.
 func TestClientEnvApiHost(t *testing.T) {
 	resetEnv(t)
-	os.Setenv(EnvVarApigeeHost, "http://some.api.host")
+	os.Setenv(EnvVarApigeeHost, "http://some.api.host/")
 	client := Client{}
 	client.initDefaults()
-	if client.apigeeApiHost != "http://some.api.host" {
+	if client.apigeeApiHost != "http://some.api.host/" {
 		t.Fatalf("client.apigeeApiHost did not match expected was %s", client.apigeeApiHost)
 	}
 }
@@ -77,10 +77,10 @@ func TestClientEnvApiHost(t *testing.T) {
 // When apigeeApiHost is supplied when creating the client object it must override the Env variable
 func TestClientParamApiHost(t *testing.T) {
 	resetEnv(t)
-	os.Setenv(EnvVarApigeeHost, "http://some.api.host")
-	client := Client{ apigeeApiHost: "https://some.other.host"}
+	os.Setenv(EnvVarApigeeHost, "http://some.api.host/")
+	client := Client{ apigeeApiHost: "https://some.other.host/"}
 	client.initDefaults()
-	if client.apigeeApiHost != "https://some.other.host" {
+	if client.apigeeApiHost != "https://some.other.host/" {
 		t.Fatalf("client.apigeeApiHost did not match expected was %s", client.apigeeApiHost)
 	}
 }

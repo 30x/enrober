@@ -12,7 +12,7 @@ import (
 
 const (
 	// Default Apigee's api endpoint host
-	DefaultApigeeHost = "https://api.enterprise.apigee.com"
+	DefaultApigeeHost = "https://api.enterprise.apigee.com/"
 
 	// Env Var to set overide default apigee api host
 	EnvVarApigeeHost = "AUTH_API_HOST"
@@ -38,7 +38,7 @@ func (c *Client) Hosts(org, env string) ([]string, error) {
 	hosts := []string{}
 
 	//construct URL
-	virtualHostsUrl := fmt.Sprintf("%s/v1/organizations/%s/environments/%s/virtualhosts", c.apigeeApiHost, org, env)
+	virtualHostsUrl := fmt.Sprintf("%sv1/organizations/%s/environments/%s/virtualhosts", c.apigeeApiHost, org, env)
 	resp, err := c.Get(virtualHostsUrl)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed to make request for VirtualHosts: %v", err)
@@ -118,7 +118,7 @@ func (c *Client) hostAliases(org, env, virtualHost string) ([]string, error) {
 	hosts := []string{}
 
 	//construct URL
-	virtualHostsUrl := fmt.Sprintf("%s/v1/organizations/%s/environments/%s/virtualhosts/%s", c.apigeeApiHost, org, env, virtualHost)
+	virtualHostsUrl := fmt.Sprintf("%sv1/organizations/%s/environments/%s/virtualhosts/%s", c.apigeeApiHost, org, env, virtualHost)
 	resp, err := c.Get(virtualHostsUrl)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed to make request for VirtualHost: %v", err)
