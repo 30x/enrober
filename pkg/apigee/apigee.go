@@ -12,7 +12,7 @@ import (
 
 const (
 	// Default Apigee's api endpoint host
-	DefaultApigeeHost = "api.enterprise.apigee.com"
+	DefaultApigeeHost = "https://api.enterprise.apigee.com"
 
 	// Env Var to set overide default apigee api host
 	EnvVarApigeeHost = "AUTH_API_HOST"
@@ -38,7 +38,7 @@ func (c *Client) Hosts(org, env string) ([]string, error) {
 	hosts := []string{}
 
 	//construct URL
-	virtualHostsUrl := fmt.Sprintf("https://%s/v1/organizations/%s/environments/%s/virtualhosts", c.apigeeApiHost, org, env)
+	virtualHostsUrl := fmt.Sprintf("%s/v1/organizations/%s/environments/%s/virtualhosts", c.apigeeApiHost, org, env)
 	resp, err := c.Get(virtualHostsUrl)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed to make request for VirtualHosts: %v", err)
@@ -52,6 +52,10 @@ func (c *Client) Hosts(org, env string) ([]string, error) {
 		return nil, errors.New(errorMessage)
 	}
 
+	// Response should look like
+	// GET https://api.enterprise.apigee.com/v1/organizations/<org>/environments/test/virtualhosts
+	// > [ "default", "secure" ]
+	
 	virtualHosts := []string{}
 	dec := json.NewDecoder(resp.Body)
 	err = dec.Decode(&virtualHosts)
@@ -114,7 +118,7 @@ func (c *Client) hostAliases(org, env, virtualHost string) ([]string, error) {
 	hosts := []string{}
 
 	//construct URL
-	virtualHostsUrl := fmt.Sprintf("https://%s/v1/organizations/%s/environments/%s/virtualhosts/%s", c.apigeeApiHost, org, env, virtualHost)
+	virtualHostsUrl := fmt.Sprintf("%s/v1/organizations/%s/environments/%s/virtualhosts/%s", c.apigeeApiHost, org, env, virtualHost)
 	resp, err := c.Get(virtualHostsUrl)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed to make request for VirtualHost: %v", err)
@@ -127,6 +131,16 @@ func (c *Client) hostAliases(org, env, virtualHost string) ([]string, error) {
 		errorMessage := fmt.Sprintf("Invalid response status code when getting VirtualHost: Code %d", resp.StatusCode)
 		return nil, errors.New(errorMessage)
 	}
+
+	// Response should look like:
+	// GET https://api.enterprise.apigee.com/v1/organizations/<org>/environments/test/virtualhosts/default
+	// > {
+	//     "hostAliases" : [ "<org>-test.apigee.net" ],
+	//     "interfaces" : [ ],
+	//     "listenOptions" : [ ],
+	//     "name" : "default",
+	//     "port" : "80"
+	//   }
 
 	data := map[string]interface{}{}
 	dec := json.NewDecoder(resp.Body)
@@ -181,27 +195,3 @@ func (c *Client) Get(url string) (*http.Response, error) {
 	
 	return resp, nil
 }
-
-
-//func (c Client) getVirtualHost(org, env, virtualhost string) ([]string, error) {
-//}
-
-
-/*
-
-
- client =: apigee.Client{}
- client.GetHosts(org, env)
-
-GET https://api.enterprise.apigee.com/v1/organizations/adammagaluk1/environments/test/virtualhosts
-> [ "default", "secure" ]
-
-GET https://api.enterprise.apigee.com/v1/organizations/adammagaluk1/environments/test/virtualhosts/default
-> {
-    "hostAliases" : [ "adammagaluk1-test.apigee.net" ],
-    "interfaces" : [ ],
-    "listenOptions" : [ ],
-    "name" : "default",
-    "port" : "80"
-  }
-*/
