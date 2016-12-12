@@ -15,7 +15,7 @@ func TestClientHosts(t *testing.T) {
 	ts := startMockServer()
 	defer ts.Close()
 
-	client := Client{ token: "<token>", apigeeApiHost: ts.URL + "/" }
+	client := Client{ Token: "<token>", ApigeeApiHost: ts.URL + "/" }
 	hosts, err := client.Hosts("org", "env")
 	if err != nil {
 		t.Fatalf("Error when calling Hosts: %v.", err)
@@ -44,7 +44,7 @@ func TestClienthostAliases(t *testing.T) {
 	ts := startMockServer()
 	defer ts.Close()
 
-	client := Client{ token: "<token>", apigeeApiHost: ts.URL + "/" }
+	client := Client{ Token: "<token>", ApigeeApiHost: ts.URL + "/" }
 	aliases, err := client.hostAliases("org", "env", "default")
 	if err != nil {
 		t.Fatalf("Error when calling hostAliases: %v.", err)
@@ -69,8 +69,8 @@ func TestClientEnvApiHost(t *testing.T) {
 	os.Setenv(EnvVarApigeeHost, "http://some.api.host/")
 	client := Client{}
 	client.initDefaults()
-	if client.apigeeApiHost != "http://some.api.host/" {
-		t.Fatalf("client.apigeeApiHost did not match expected was %s", client.apigeeApiHost)
+	if client.ApigeeApiHost != "http://some.api.host/" {
+		t.Fatalf("client.apigeeApiHost did not match expected was %s", client.ApigeeApiHost)
 	}
 }
 
@@ -78,10 +78,10 @@ func TestClientEnvApiHost(t *testing.T) {
 func TestClientParamApiHost(t *testing.T) {
 	resetEnv(t)
 	os.Setenv(EnvVarApigeeHost, "http://some.api.host/")
-	client := Client{ apigeeApiHost: "https://some.other.host/"}
+	client := Client{ ApigeeApiHost: "https://some.other.host/"}
 	client.initDefaults()
-	if client.apigeeApiHost != "https://some.other.host/" {
-		t.Fatalf("client.apigeeApiHost did not match expected was %s", client.apigeeApiHost)
+	if client.ApigeeApiHost != "https://some.other.host/" {
+		t.Fatalf("client.apigeeApiHost did not match expected was %s", client.ApigeeApiHost)
 	}
 }
 
@@ -90,7 +90,7 @@ func TestClientHostError(t *testing.T) {
 	ts := startMockServer()
 	defer ts.Close()
 
-	client := Client{ token: "<token>", apigeeApiHost: ts.URL }
+	client := Client{ Token: "<token>", ApigeeApiHost: ts.URL }
 	hosts, err := client.Hosts("not-an-org", "env")
 	if err == nil {
 		t.Fatalf("Error should be returned when org does not exist.")
@@ -106,8 +106,8 @@ func TestClientDefaultApiHost(t *testing.T) {
 	resetEnv(t)
 	client := Client{}
 	client.initDefaults()
-	if client.apigeeApiHost != DefaultApigeeHost {
-		t.Fatalf("client.apigeeApiHost did not match expected was %s", client.apigeeApiHost)
+	if client.ApigeeApiHost != DefaultApigeeHost {
+		t.Fatalf("client.apigeeApiHost did not match expected was %s", client.ApigeeApiHost)
 	}
 }
 

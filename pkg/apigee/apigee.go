@@ -20,13 +20,13 @@ const (
 
 type Client struct {
 	// Authorization token used in the Authorization header on each request
-	token   string
+	Token   string
 	
 	// Apigee api host
-	apigeeApiHost  string
+	ApigeeApiHost  string
 	
 	// Shared httpClient for efficiency
-	httpClient *http.Client
+	HttpClient *http.Client
 }
 
 
@@ -38,7 +38,7 @@ func (c *Client) Hosts(org, env string) ([]string, error) {
 	hosts := []string{}
 
 	//construct URL
-	virtualHostsUrl := fmt.Sprintf("%sv1/organizations/%s/environments/%s/virtualhosts", c.apigeeApiHost, org, env)
+	virtualHostsUrl := fmt.Sprintf("%sv1/organizations/%s/environments/%s/virtualhosts", c.ApigeeApiHost, org, env)
 	resp, err := c.Get(virtualHostsUrl)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed to make request for VirtualHosts: %v", err)
@@ -118,7 +118,7 @@ func (c *Client) hostAliases(org, env, virtualHost string) ([]string, error) {
 	hosts := []string{}
 
 	//construct URL
-	virtualHostsUrl := fmt.Sprintf("%sv1/organizations/%s/environments/%s/virtualhosts/%s", c.apigeeApiHost, org, env, virtualHost)
+	virtualHostsUrl := fmt.Sprintf("%sv1/organizations/%s/environments/%s/virtualhosts/%s", c.ApigeeApiHost, org, env, virtualHost)
 	resp, err := c.Get(virtualHostsUrl)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed to make request for VirtualHost: %v", err)
@@ -163,17 +163,17 @@ func (c *Client) hostAliases(org, env, virtualHost string) ([]string, error) {
 
 func (c *Client) initDefaults() {
 	// Init httpClient used by all reqs for efficiency, can be used concurrently
-	if c.httpClient == nil {
-		c.httpClient = &http.Client{}
+	if c.HttpClient == nil {
+		c.HttpClient = &http.Client{}
 	}
 	
 	// If apigee api host is not set configure to defult from env
-	if c.apigeeApiHost == "" {
+	if c.ApigeeApiHost == "" {
 		envVar := os.Getenv(EnvVarApigeeHost)
 		if envVar == "" {
-			c.apigeeApiHost = DefaultApigeeHost
+			c.ApigeeApiHost = DefaultApigeeHost
 		} else {
-			c.apigeeApiHost = envVar
+			c.ApigeeApiHost = envVar
 		}
 	}
 }
@@ -186,9 +186,9 @@ func (c *Client) Get(url string) (*http.Response, error) {
 	}
 
 	//Must pass through the authz header
-	req.Header.Add("Authorization", c.token)
+	req.Header.Add("Authorization", c.Token)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.HttpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
