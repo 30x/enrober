@@ -105,8 +105,175 @@ func (server *Server) Start() error {
 	return http.ListenAndServe(":9000", server.Router)
 }
 
+func createRoutingKeyKVM(token, host, apigeeOrg, apigeeEnv, routingKey string) error {
+	httpClient := &http.Client{}
+
+	//construct URL
+	apigeeKVMURL := fmt.Sprintf("https://%s/v1/organizations/%s/environments/%s/keyvaluemaps", host, apigeeOrg, apigeeEnv)
+
+	//create JSON body
+	kvmBody := apigeeKVMBody{
+		Name: apigeeKVMName,
+		Entry: []apigeeKVMEntry{
+			apigeeKVMEntry{
+				Name:  apigeeKVMPKName,
+				Value: base64.StdEncoding.EncodeToString([]byte(routingKey)),
+			},
+		},
+	}
+
+	b := new(bytes.Buffer)
+	json.NewEncoder(b).Encode(kvmBody)
+
+	req, err := http.NewRequest("POST", apigeeKVMURL, b)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Unable to create request (Create KVM): %v", err)
+		return errors.New(errorMessage)
+	}
+
+	//Must pass through the authz header
+	req.Header.Add("Authorization", token)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error creating Apigee KVM: %v", err)
+		return errors.New(errorMessage)
+	}
+	defer resp.Body.Close()
+
+	// If the response was not a 201, we need to check if the response was a 409 because this means the KVM exists
+	// already and we'll need to update the KVM value(s).
+	if resp.StatusCode != 201 {
+		var retryFlag bool
+
+		// If the KVM already exists, we need to update its value(s).
+		if resp.StatusCode == 409 {
+			b2 := new(bytes.Buffer)
+			updateKVMURL := fmt.Sprintf("%s/%s", apigeeKVMURL, apigeeKVMName) // Use non-CPS endpoint by default
+
+			if isCPSEnabledForOrg(apigeeOrg, token) {
+				// When using CPS, the API endpoint is different and instead of sending the whole KVM body, we can only send
+				// the KVM entry to update.  (This will work for now since we are only persisting one key but in the future
+				// we might need to update this to make N calls, one per key.)
+				updateKVMURL = fmt.Sprintf("%s/entries/%s", updateKVMURL, apigeeKVMPKName)
+
+				json.NewEncoder(b2).Encode(kvmBody.Entry[0])
+			} else {
+				// When not using CPS, send the whole KVM body to update all keys in the KVM.
+				json.NewEncoder(b2).Encode(kvmBody) // Non-CPS takes the whole payload
+			}
+
+			updateKVMReq, err := http.NewRequest("POST", updateKVMURL, b2)
+
+			if err != nil {
+				errorMessage := fmt.Sprintf("Unable to create request (Update KVM): %v", err)
+				return errors.New(errorMessage)
+			}
+
+			fmt.Printf("The update KVM URL: %v\n", updateKVMReq.URL.String())
+
+			updateKVMReq.Header.Add("Authorization", token)
+			updateKVMReq.Header.Add("Content-Type", "application/json")
+
+			resp2, err := httpClient.Do(updateKVMReq)
+			if err != nil {
+				errorMessage := fmt.Sprintf("Error creating entry in existing Apigee KVM: %v", err)
+				return errors.New(errorMessage)
+			}
+			defer resp2.Body.Close()
+
+			var updateKVMRes retryResponse
+
+			//Decode response
+			err = json.NewDecoder(resp2.Body).Decode(&updateKVMRes)
+
+			if err != nil {
+				errorMessage := fmt.Sprintf("Failed to decode response: %v\n", err)
+				return errors.New(errorMessage)
+			}
+
+			// Updating a KVM returns a 200 on success so if it's not a 200, it's a failure
+			if resp2.StatusCode != 200 {
+				errorMessage := fmt.Sprintf("Couldn't create KVM entry (Status Code: %d): %v", resp2.StatusCode, updateKVMRes.Message)
+				return errors.New(errorMessage)
+			}
+
+			retryFlag = true
+		}
+
+		if !retryFlag {
+			errorMessage := fmt.Sprintf("Expected 201 or 409, got: %v", resp.StatusCode)
+			return errors.New(errorMessage)
+		}
+	}
+	return nil
+}
+
+// TODO: Creating general interaction with Apigee KVM
+// This will be moved into the apigee pkg later
+// Should refactor to be a method on Apigee client struct
+// Function signature
+// func (c *Client) createKVM(org, env string) error
+
+// Should take in a map[string]string
+
+func createShipyardKVM(token, host, apigeeOrg, apigeeEnv string, envVars []api.EnvVar) error {
+
+	//Should attempt KVM creation before creating k8s objects
+	httpClient := &http.Client{}
+
+	//construct URL
+	apigeeKVMURL := fmt.Sprintf("https://%s/v1/organizations/%s/environments/%s/keyvaluemaps", host, apigeeOrg, apigeeEnv)
+
+	tempEntry := []apigeeKVMEntry{}
+	for _, val := range envVars {
+		tempEntry = append(tempEntry, apigeeKVMEntry{
+			Name:  val.Name,
+			Value: val.Value,
+		})
+	}
+	fmt.Printf("Test Map: %v\n", tempEntry)
+
+	//create JSON body
+	kvmBody := apigeeKVMBody{
+		Name:  "GoTest2",
+		Entry: tempEntry,
+	}
+
+	fmt.Printf("KVM Body: %v\n", kvmBody)
+
+	b := new(bytes.Buffer)
+	json.NewEncoder(b).Encode(kvmBody)
+
+	req, err := http.NewRequest("POST", apigeeKVMURL, b)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Unable to create request (Create KVM): %v", err)
+		return errors.New(errorMessage)
+	}
+
+	//Must pass through the authz header
+	req.Header.Add("Authorization", token)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error creating Apigee KVM: %v", err)
+		return errors.New(errorMessage)
+	}
+
+	if resp.StatusCode != 201 {
+		errorMessage := fmt.Sprintf("Expected 201 got: %d", resp.StatusCode)
+		return errors.New(errorMessage)
+	}
+
+	defer resp.Body.Close()
+
+	return nil
+}
+
 // Lets start by just making a new function
-func createEnvironment(environmentName string, hostNames []string, token string) error {
+func createEnvironment(environmentName string, hostNames []string, token string, envVars []api.EnvVar) error {
 
 	//Make sure they passed a valid environment name of form {org}:{env}
 	if !envNameRegex.MatchString(environmentName) {
@@ -165,115 +332,19 @@ func createEnvironment(environmentName string, hostNames []string, token string)
 	// This KVM will be used to store environment variables
 	// Break this out into a separate helper function, it will require a JWT
 
-	// TODO:
-	// This may need to be broken out into something more general
-	// Should use the general KVM creation function
-
 	//Should attempt KVM creation before creating k8s objects
 	if apigeeKVM {
-
-		httpClient := &http.Client{}
-
-		//construct URL
-		apigeeKVMURL := fmt.Sprintf("https://%s/v1/organizations/%s/environments/%s/keyvaluemaps", apigeeApiHost, apigeeOrgName, apigeeEnvName)
-
-		//create JSON body
-		kvmBody := apigeeKVMBody{
-			Name: apigeeKVMName,
-			Entry: []apigeeKVMEntry{
-				apigeeKVMEntry{
-					Name:  apigeeKVMPKName,
-					Value: base64.StdEncoding.EncodeToString([]byte(publicKey)),
-				},
-			},
-		}
-
-		b := new(bytes.Buffer)
-		json.NewEncoder(b).Encode(kvmBody)
-
-		req, err := http.NewRequest("POST", apigeeKVMURL, b)
+		err = createRoutingKeyKVM(token, apigeeApiHost, apigeeOrgName, apigeeEnvName, publicKey)
 		if err != nil {
-			errorMessage := fmt.Sprintf("Unable to create request (Create KVM): %v", err)
-			return errors.New(errorMessage)
+			return err
 		}
+	}
 
-		//Must pass through the authz header
-		req.Header.Add("Authorization", token)
-		req.Header.Add("Content-Type", "application/json")
-
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			errorMessage := fmt.Sprintf("Error creating Apigee KVM: %v", err)
-			return errors.New(errorMessage)
-		}
-		defer resp.Body.Close()
-
-		// If the response was not a 201, we need to check if the response was a 409 because this means the KVM exists
-		// already and we'll need to update the KVM value(s).
-		if resp.StatusCode != 201 {
-			var retryFlag bool
-
-			// If the KVM already exists, we need to update its value(s).
-			if resp.StatusCode == 409 {
-				b2 := new(bytes.Buffer)
-				updateKVMURL := fmt.Sprintf("%s/%s", apigeeKVMURL, apigeeKVMName) // Use non-CPS endpoint by default
-
-				if isCPSEnabledForOrg(apigeeOrgName, token) {
-					// When using CPS, the API endpoint is different and instead of sending the whole KVM body, we can only send
-					// the KVM entry to update.  (This will work for now since we are only persisting one key but in the future
-					// we might need to update this to make N calls, one per key.)
-					updateKVMURL = fmt.Sprintf("%s/entries/%s", updateKVMURL, apigeeKVMPKName)
-
-					json.NewEncoder(b2).Encode(kvmBody.Entry[0])
-				} else {
-					// When not using CPS, send the whole KVM body to update all keys in the KVM.
-					json.NewEncoder(b2).Encode(kvmBody) // Non-CPS takes the whole payload
-				}
-
-				updateKVMReq, err := http.NewRequest("POST", updateKVMURL, b2)
-
-				if err != nil {
-					errorMessage := fmt.Sprintf("Unable to create request (Update KVM): %v", err)
-					return errors.New(errorMessage)
-				}
-
-				fmt.Printf("The update KVM URL: %v\n", updateKVMReq.URL.String())
-
-				updateKVMReq.Header.Add("Authorization", token)
-				updateKVMReq.Header.Add("Content-Type", "application/json")
-
-				resp2, err := httpClient.Do(updateKVMReq)
-				if err != nil {
-					errorMessage := fmt.Sprintf("Error creating entry in existing Apigee KVM: %v", err)
-					return errors.New(errorMessage)
-				}
-				defer resp2.Body.Close()
-
-				var updateKVMRes retryResponse
-
-				//Decode response
-				err = json.NewDecoder(resp2.Body).Decode(&updateKVMRes)
-
-				if err != nil {
-					errorMessage := fmt.Sprintf("Failed to decode response: %v\n", err)
-					return errors.New(errorMessage)
-				}
-
-				// Updating a KVM returns a 200 on success so if it's not a 200, it's a failure
-				if resp2.StatusCode != 200 {
-					errorMessage := fmt.Sprintf("Couldn't create KVM entry (Status Code: %d): %v", resp2.StatusCode, updateKVMRes.Message)
-					return errors.New(errorMessage)
-				}
-
-				retryFlag = true
-			}
-
-			if !retryFlag {
-				errorMessage := fmt.Sprintf("Expected 201 or 409, got: %v", resp.StatusCode)
-				return errors.New(errorMessage)
-			}
-		}
-
+	//TESTING
+	fmt.Printf("TESTING\n")
+	err = createShipyardKVM(token, apigeeApiHost, apigeeOrgName, apigeeEnvName, envVars)
+	if err != nil {
+		return err
 	}
 
 	//Should create an annotation object and pass it into the object literal
@@ -422,30 +493,9 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	_, err := client.Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
-	if err != nil {
-		if k8sErrors.IsAlreadyExists(err) == false {
-			fmt.Print("CREATING ENVIRONMENT\n")
-
-			// TODO: Need to pass through some hostName information here
-			// Is this going to come from an API call to Edge?
-			hostNames := []string{}
-			err := createEnvironment(pathVars["org"]+":"+pathVars["env"], hostNames, r.Header.Get("Authorization"))
-			if err != nil {
-				errorMessage := fmt.Sprintf("Broke at createEnvironment: %v", err)
-				helper.LogError.Printf(errorMessage)
-				return
-			}
-		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			helper.LogError.Printf("Error getting existing Environment: %v\n", err)
-			return
-		}
-	}
-
 	//Decode passed JSON body
 	var tempJSON deploymentPost
-	err = json.NewDecoder(r.Body).Decode(&tempJSON)
+	err := json.NewDecoder(r.Body).Decode(&tempJSON)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error decoding JSON Body: %s\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -475,6 +525,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		helper.LogError.Printf(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	if allowPrivilegedContainers == false {
@@ -538,6 +589,30 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		helper.LogError.Printf(errorMessage)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
 		return
+	}
+
+	// Check for existence of namespace
+	_, err = client.Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
+	if err != nil {
+		if k8sErrors.IsAlreadyExists(err) == false {
+			fmt.Print("CREATING ENVIRONMENT\n")
+
+			// TODO: Need to pass through some hostName information here
+			// Is this going to come from an API call to Edge?
+			envVars := tempPTS.Spec.Containers[0].Env
+
+			hostNames := []string{}
+			err := createEnvironment(pathVars["org"]+":"+pathVars["env"], hostNames, r.Header.Get("Authorization"), envVars)
+			if err != nil {
+				errorMessage := fmt.Sprintf("Broke at createEnvironment: %v", err)
+				helper.LogError.Printf(errorMessage)
+				return
+			}
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			helper.LogError.Printf("Error getting existing Environment: %v\n", err)
+			return
+		}
 	}
 
 	//Create Deployment
