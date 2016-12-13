@@ -26,6 +26,7 @@ import (
 	k8sClient "k8s.io/kubernetes/pkg/client/unversioned"
 
 	"github.com/30x/enrober/pkg/helper"
+	"github.com/30x/enrober/pkg/apigee"
 )
 
 // TODO:
@@ -66,6 +67,7 @@ func NewServer() (server *Server) {
 	router := mux.NewRouter()
 
 	router.Path("/environments/{org}:{env}").Methods("GET").HandlerFunc(getEnvironment)
+	router.Path("/environments/{org}:{env}").Methods("PATCH").HandlerFunc(patchEnvironment)
 	router.Path("/environments/{org}:{env}/deployments").Methods("POST").HandlerFunc(createDeployment)
 	router.Path("/environments/{org}:{env}/deployments").Methods("GET").HandlerFunc(getDeployments)
 	router.Path("/environments/{org}:{env}/deployments/{deployment}").Methods("GET").HandlerFunc(getDeployment)
@@ -94,7 +96,7 @@ func init() {
 	envVar := os.Getenv("AUTH_API_HOST")
 
 	if envVar == "" {
-		apigeeApiHost = "api.enterprise.apigee.com"
+		apigeeApiHost = "https://api.enterprise.apigee.com/"
 	} else {
 		apigeeApiHost = envVar
 	}
@@ -106,7 +108,7 @@ func (server *Server) Start() error {
 }
 
 // Lets start by just making a new function
-func createEnvironment(environmentName string, hostNames []string, token string) error {
+func createEnvironment(environmentName, token string) error {
 
 	//Make sure they passed a valid environment name of form {org}:{env}
 	if !envNameRegex.MatchString(environmentName) {
@@ -121,36 +123,6 @@ func createEnvironment(environmentName string, hostNames []string, token string)
 
 	// transform EnvironmentName into acceptable k8s namespace name
 	environmentName = apigeeOrgName + "-" + apigeeEnvName
-
-	//space delimited annotation of valid hostnames
-	var hostsList bytes.Buffer
-
-	for index, value := range hostNames {
-		//Verify each Hostname matches regex
-		validIP := validIPAddressRegex.MatchString(value)
-		validHost := validHostnameRegex.MatchString(value)
-
-		if !(validIP || validHost) {
-			//Regex didn't match
-			errorMessage := fmt.Sprintf("Not a valid hostname: %s\n", value)
-			return errors.New(errorMessage)
-		}
-		if index == 0 {
-			hostsList.WriteString(value)
-		} else {
-			hostsList.WriteString(" " + value)
-		}
-	}
-
-	uniqueHosts, err := helper.UniqueHostNames(hostNames, client)
-	if err != nil {
-		errorMessage := fmt.Sprintf("Error in UniqueHostNames: %v", err)
-		return errors.New(errorMessage)
-	}
-	if !uniqueHosts {
-		errorMessage := "Duplicate HostNames"
-		return errors.New(errorMessage)
-	}
 
 	//Generate both a public and private key
 	privateKey, err := helper.GenerateRandomString(32)
@@ -175,7 +147,7 @@ func createEnvironment(environmentName string, hostNames []string, token string)
 		httpClient := &http.Client{}
 
 		//construct URL
-		apigeeKVMURL := fmt.Sprintf("https://%s/v1/organizations/%s/environments/%s/keyvaluemaps", apigeeApiHost, apigeeOrgName, apigeeEnvName)
+		apigeeKVMURL := fmt.Sprintf("%sv1/organizations/%s/environments/%s/keyvaluemaps", apigeeApiHost, apigeeOrgName, apigeeEnvName)
 
 		//create JSON body
 		kvmBody := apigeeKVMBody{
@@ -276,9 +248,19 @@ func createEnvironment(environmentName string, hostNames []string, token string)
 
 	}
 
+
+	// Retrieve hostnames from Apigee api
+	apigeeClient := apigee.Client{ Token: token }
+	hosts, err := apigeeClient.Hosts(apigeeOrgName, apigeeEnvName)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error retrieving hostnames from Apigee : %v", err)
+		return errors.New(errorMessage)
+		return err
+	}
+
 	//Should create an annotation object and pass it into the object literal
 	nsAnnotations := make(map[string]string)
-	nsAnnotations["hostNames"] = hostsList.String()
+	nsAnnotations["hostNames"] = strings.Join(hosts, " ")
 
 	//Add network policy annotation if we are isolating namespaces
 	if isolateNamespace {
@@ -335,6 +317,27 @@ func createEnvironment(environmentName string, hostNames []string, token string)
 	return nil
 }
 
+func updateEnvironmentHosts(org, env, token string) error {
+	ns, err := client.Namespaces().Get(org + "-" + env)
+	if err != nil {
+		return err
+	}
+	
+	apigeeClient := apigee.Client{ Token: token }
+	hosts, err := apigeeClient.Hosts(org, env)
+	if err != nil {
+		return err
+	}
+
+	ns.ObjectMeta.Annotations["hostNames"] = strings.Join(hosts, " ")
+	_, err = client.Namespaces().Update(ns)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 //getEnvironment returns a kubernetes namespace matching the given environmentGroupID and environmentName
 func getEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
@@ -378,6 +381,28 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	helper.LogInfo.Printf("Got Namespace: %s\n", getNs.GetName())
 }
+
+//patchEnvironment - Patches environment if supplied with nothing hosts are synced from apigee to kubernetes
+func patchEnvironment(w http.ResponseWriter, r *http.Request) {
+	pathVars := mux.Vars(r)
+
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		if !helper.ValidAdmin(pathVars["org"], w, r) {
+			return
+		}
+	}
+
+	err := updateEnvironmentHosts(pathVars["org"], pathVars["env"], r.Header.Get("Authorization"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		helper.LogError.Printf("Error syncing Hosts to the Environment: %v\n", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	helper.LogInfo.Printf("Patched environment: %s\n", pathVars["org"] + "-" + pathVars["env"])
+}
+
 
 //getDeployments returns a list of all deployments matching the given org and env name
 func getDeployments(w http.ResponseWriter, r *http.Request) {
@@ -427,10 +452,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		if k8sErrors.IsAlreadyExists(err) == false {
 			fmt.Print("CREATING ENVIRONMENT\n")
 
-			// TODO: Need to pass through some hostName information here
-			// Is this going to come from an API call to Edge?
-			hostNames := []string{}
-			err := createEnvironment(pathVars["org"]+":"+pathVars["env"], hostNames, r.Header.Get("Authorization"))
+			err := createEnvironment(pathVars["org"]+":"+pathVars["env"], r.Header.Get("Authorization"))
 			if err != nil {
 				errorMessage := fmt.Sprintf("Broke at createEnvironment: %v", err)
 				helper.LogError.Printf(errorMessage)
@@ -897,7 +919,7 @@ func isCPSEnabledForOrg(orgName, authzHeader string) bool {
 	cpsEnabled := false
 	httpClient := &http.Client{}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/v1/organizations/%s", apigeeApiHost, orgName), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%sv1/organizations/%s", apigeeApiHost, orgName), nil)
 
 	if err != nil {
 		fmt.Printf("Error checking for CPS: %v", err)
