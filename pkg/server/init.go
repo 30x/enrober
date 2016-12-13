@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"k8s.io/kubernetes/pkg/client/restclient"
-
+	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 	k8sClient "k8s.io/kubernetes/pkg/client/unversioned"
 )
 
@@ -24,7 +24,16 @@ func Init(clientConfig restclient.Config) error {
 
 		//Local Config
 	} else {
-		tempClient, err := k8sClient.New(&clientConfig)
+
+		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+		configOverrides := &clientcmd.ConfigOverrides{}
+		config := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+		tmpKubeConfig, err := config.ClientConfig()
+		if err != nil {
+			return err
+		}
+
+		tempClient, err := k8sClient.New(tmpKubeConfig)
 		if err != nil {
 			return err
 		}
