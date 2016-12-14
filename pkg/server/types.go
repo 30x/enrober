@@ -3,6 +3,8 @@ package server
 import (
 	"net/http"
 
+	"github.com/30x/enrober/pkg/apigee"
+
 	"k8s.io/kubernetes/pkg/api"
 )
 
@@ -33,20 +35,20 @@ type environmentResponse struct {
 }
 
 type deploymentPost struct {
-	DeploymentName string       `json:"deploymentName"`
-	PublicHosts    *string      `json:"publicHosts,omitempty"`
-	PrivateHosts   *string      `json:"privateHosts,omitempty"`
-	Replicas       *int32       `json:"replicas"`
-	PtsURL         string       `json:"ptsURL,omitempty"`
-	EnvVars        []api.EnvVar `json:"envVars,omitempty"`
+	DeploymentName string                `json:"deploymentName"`
+	PublicHosts    *string               `json:"publicHosts,omitempty"`
+	PrivateHosts   *string               `json:"privateHosts,omitempty"`
+	Replicas       *int32                `json:"replicas"`
+	PtsURL         string                `json:"ptsURL,omitempty"`
+	EnvVars        []apigee.ApigeeEnvVar `json:"envVars,omitempty"`
 }
 
 type deploymentPatch struct {
-	PublicHosts  *string      `json:"publicHosts,omitempty"`
-	PrivateHosts *string      `json:"privateHosts,omitempty"`
-	Replicas     *int32       `json:"replicas,omitempty"`
-	PtsURL       string       `json:"ptsURL"`
-	EnvVars      []api.EnvVar `json:"envVars,omitempty"`
+	PublicHosts  *string               `json:"publicHosts,omitempty"`
+	PrivateHosts *string               `json:"privateHosts,omitempty"`
+	Replicas     *int32                `json:"replicas,omitempty"`
+	PtsURL       string                `json:"ptsURL"`
+	EnvVars      []apigee.ApigeeEnvVar `json:"envVars,omitempty"`
 }
 
 type deploymentResponse struct {

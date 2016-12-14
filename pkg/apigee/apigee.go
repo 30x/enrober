@@ -11,13 +11,14 @@ import (
 )
 
 const (
-	// Default Apigee's api endpoint host
+	// DefaultApigeeHost is Apigees defai;t api endpoint host
 	DefaultApigeeHost = "https://api.enterprise.apigee.com/"
 
-	// Env Var to set overide default apigee api host
+	// EnvVarApigeeHost is the Env Var to set overide default apigee api host
 	EnvVarApigeeHost = "AUTH_API_HOST"
 )
 
+// Client is the client struct for interacting with external Apigee APIs
 type Client struct {
 	// Authorization token used in the Authorization header on each request
 	Token string
@@ -29,11 +30,11 @@ type Client struct {
 	HTTPClient *http.Client
 }
 
-// Return a map that corresponds to the key:value of a named LVM
-func (c *Client) GetKVM(org, env, kvm string) (map[string]string, error) {
+// GetKVM returns a map that corresponds to the key:value of a named LVM
+func (c *Client) GetKVM(org, env, kvmName string) (map[string]string, error) {
 	c.initDefaults()
 
-	kvmURL := fmt.Sprintf("%sv1/organizations/%s/environments/%s/keyvaluemaps/%s", c.ApigeeAPIHost, org, env, kvm)
+	kvmURL := fmt.Sprintf("%sv1/organizations/%s/environments/%s/keyvaluemaps/%s", c.ApigeeAPIHost, org, env, kvmName)
 	resp, err := c.Get(kvmURL)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed to make request for KVM: %v", err)
@@ -62,7 +63,7 @@ func (c *Client) GetKVM(org, env, kvm string) (map[string]string, error) {
 
 }
 
-// Return an array of host strings for the apigee environment
+// Hosts returns an array of host strings for the apigee environment
 // - Must first gather VirtualHosts from env and then GET on each VirtualHost
 func (c *Client) Hosts(org, env string) ([]string, error) {
 	c.initDefaults()
@@ -210,7 +211,7 @@ func (c *Client) initDefaults() {
 	}
 }
 
-// Make HTTP GET to api server with supplied url, return http.Response
+// Get makes HTTP GET to api server with supplied url, return http.Response
 func (c *Client) Get(url string) (*http.Response, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

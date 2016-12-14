@@ -447,6 +447,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				errorMessage := fmt.Sprintf("Broke at createEnvironment: %v", err)
 				helper.LogError.Printf(errorMessage)
+				http.Error(w, errorMessage, http.StatusInternalServerError)
 				return
 			}
 		} else {
@@ -455,6 +456,8 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	//TODO: If the environment already exists should we patch it?
 
 	//Decode passed JSON body
 	var tempJSON deploymentPost
@@ -488,6 +491,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		helper.LogError.Printf(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	if allowPrivilegedContainers == false {
@@ -498,7 +502,28 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tempPTS.Spec.Containers[0].Env = helper.CacheEnvVars(tempPTS.Spec.Containers[0].Env, tempJSON.EnvVars)
+	for index, val := range tempJSON.EnvVars {
+		if val.ValueFrom != (&apigee.ApigeeEnvVarSource{}) {
+			// Gotta go retrieve the value from apigee KVM
+			// In the future we may support other ref types
+			apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
+			tempJSON.EnvVars[index], err = apigee.EnvReftoEnv(val.ValueFrom, apigeeClient, pathVars["org"], pathVars["env"])
+			if err != nil {
+				errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
+				http.Error(w, errorMessage, http.StatusInternalServerError)
+				helper.LogError.Printf(errorMessage)
+				return
+			}
+		}
+	}
+	tempK8sEnv, err := apigee.ApigeeEnvtoK8s(tempJSON.EnvVars)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Failed at ApigeeEnvtoK8s: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+	tempPTS.Spec.Containers[0].Env = apigee.CacheK8sEnvVars(tempPTS.Spec.Containers[0].Env, tempK8sEnv)
 
 	//If map is empty then we need to make it
 	if len(tempPTS.Annotations) == 0 {
@@ -686,7 +711,28 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		getDep.Spec.Template.Annotations["publicHosts"] = *tempJSON.PublicHosts
 	}
 
-	getDep.Spec.Template.Spec.Containers[0].Env = helper.CacheEnvVars(getDep.Spec.Template.Spec.Containers[0].Env, tempJSON.EnvVars)
+	for index, val := range tempJSON.EnvVars {
+		if val.ValueFrom != (&apigee.ApigeeEnvVarSource{}) {
+			// Gotta go retrieve the value from apigee KVM
+			// In the future we may support other ref types
+			apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
+			tempJSON.EnvVars[index], err = apigee.EnvReftoEnv(val.ValueFrom, apigeeClient, pathVars["org"], pathVars["env"])
+			if err != nil {
+				errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
+				http.Error(w, errorMessage, http.StatusInternalServerError)
+				helper.LogError.Printf(errorMessage)
+				return
+			}
+		}
+	}
+	tempK8sEnv, err := apigee.ApigeeEnvtoK8s(tempJSON.EnvVars)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Failed at ApigeeEnvtoK8s: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+	getDep.Spec.Template.Spec.Containers[0].Env = apigee.CacheK8sEnvVars(getDep.Spec.Template.Spec.Containers[0].Env, tempK8sEnv)
 
 	//Add routable label
 	getDep.Spec.Template.Labels["routable"] = "true"

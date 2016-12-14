@@ -10,6 +10,27 @@ import (
 	"reflect"
 )
 
+func TestEnvReftoEnv(t *testing.T) {
+	ts := startMockServer()
+	defer ts.Close()
+
+	mockSource := &ApigeeEnvVarSource{
+		KVMRef: &ApigeeKVMSelector{
+			KvmName: "kvm",
+			Key:     "key1",
+		},
+	}
+	client := Client{Token: "<token>", ApigeeAPIHost: ts.URL + "/"}
+	env, err := EnvReftoEnv(mockSource, client, "org", "env")
+	if err != nil {
+		t.Fatalf("Error when calling EnvReftoEnv: %v.", err)
+	}
+	if env.Value != "value1" {
+		t.Fatalf("Expected %s, got %s", "value1", env.Value)
+	}
+
+}
+
 func TestClientGetKVM(t *testing.T) {
 	ts := startMockServer()
 	defer ts.Close()
