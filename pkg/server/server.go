@@ -457,8 +457,6 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	//TODO: If the environment already exists should we patch it?
-
 	//Decode passed JSON body
 	var tempJSON deploymentPost
 	err = json.NewDecoder(r.Body).Decode(&tempJSON)
