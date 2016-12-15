@@ -4,14 +4,14 @@ import "k8s.io/kubernetes/pkg/api"
 
 // EnvReftoEnv converts an ApigeeEnvVarSource to an ApigeeEnvVar
 func EnvReftoEnv(source *ApigeeEnvVarSource, client Client, org, env string) (ApigeeEnvVar, error) {
-	kvm, err := client.GetKVM(org, env, source.KVMRef.KvmName)
+	val, err := client.GetKVMValue(org, env, source.KVMRef.KvmName, source.KVMRef.Key)
 	if err != nil {
 		return ApigeeEnvVar{}, err
 	}
 
 	return ApigeeEnvVar{
 		Name:  source.KVMRef.Key,
-		Value: kvm[source.KVMRef.Key],
+		Value: val,
 	}, nil
 }
 

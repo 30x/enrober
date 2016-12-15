@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	// DefaultApigeeHost is Apigees defai;t api endpoint host
+	// DefaultApigeeHost is Apigee's default api endpoint host
 	DefaultApigeeHost = "https://api.enterprise.apigee.com/"
 
 	// EnvVarApigeeHost is the Env Var to set overide default apigee api host
@@ -30,36 +30,31 @@ type Client struct {
 	HTTPClient *http.Client
 }
 
-// GetKVM returns a map that corresponds to the key:value of a named LVM
-func (c *Client) GetKVM(org, env, kvmName string) (map[string]string, error) {
+// GetKVMValue returns a string that corresponds to the value of a named KVM and Key
+func (c *Client) GetKVMValue(org, env, kvmName, key string) (string, error) {
 	c.initDefaults()
 
-	kvmURL := fmt.Sprintf("%sv1/organizations/%s/environments/%s/keyvaluemaps/%s", c.ApigeeAPIHost, org, env, kvmName)
+	kvmURL := fmt.Sprintf("%sv1/organizations/%s/environments/%s/keyvaluemaps/%s/entries/%s", c.ApigeeAPIHost, org, env, kvmName, key)
 	resp, err := c.Get(kvmURL)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed to make request for KVM: %v", err)
-		return nil, errors.New(errorMessage)
+		return "", errors.New(errorMessage)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		errorMessage := fmt.Sprintf("Invalid response status code when getting KVM: Code %d", resp.StatusCode)
-		return nil, errors.New(errorMessage)
+		return "", errors.New(errorMessage)
 	}
-	kvmBody := apigeeKVMBody{}
+	kvmEntry := apigeeKVMEntry{}
 	dec := json.NewDecoder(resp.Body)
-	err = dec.Decode(&kvmBody)
+	err = dec.Decode(&kvmEntry)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error decoding json response from KVM: %v", err)
-		return nil, errors.New(errorMessage)
+		return "", errors.New(errorMessage)
 	}
 
-	kvmValues := make(map[string]string)
-	for i := range kvmBody.Entry {
-		kvmValues[kvmBody.Entry[i].Name] = kvmBody.Entry[i].Value
-	}
-
-	return kvmValues, nil
+	return kvmEntry.Value, nil
 
 }
 

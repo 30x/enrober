@@ -7,7 +7,6 @@ import (
 
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 )
 
 func TestEnvReftoEnv(t *testing.T) {
@@ -36,16 +35,13 @@ func TestClientGetKVM(t *testing.T) {
 	defer ts.Close()
 
 	client := Client{Token: "<token>", ApigeeAPIHost: ts.URL + "/"}
-	kvm, err := client.GetKVM("org", "env", "kvm")
+	key, err := client.GetKVMValue("org", "env", "kvm", "key1")
 	if err != nil {
 		t.Fatalf("Error when calling GetKVM: %v.", err)
 	}
-	expectedKvm := map[string]string{
-		"key1": "value1",
-		"key2": "value2",
-	}
-	if !reflect.DeepEqual(kvm, expectedKvm) {
-		t.Fatalf("Expected %v, got %v", expectedKvm, kvm)
+	expectedValue := "value1"
+	if key != expectedValue {
+		t.Fatalf("Expected %s, got %s", expectedValue, key)
 	}
 
 }
@@ -154,19 +150,9 @@ func TestClientDefaultApiHost(t *testing.T) {
 
 // Starts mock httptest server thar returns the used apigee resources, all other resources return 404
 func startMockServer() *httptest.Server {
-	var jsonKvmResp = `{
-		"encrypted": false,
-		"entry": [
-			{
-				"name": "key1",
-				"value": "value1"
-			},
-			{
-				"name": "key2",
-				"value": "value2"
-			}
-		],
-		"name": "kvm"
+	var jsonKvmEntryResp = `{
+		"name": "key1",
+		"value": "value1"
 	}`
 
 	var jsonHostAliasesResp = `{
@@ -192,8 +178,8 @@ func startMockServer() *httptest.Server {
 			fmt.Fprintln(w, jsonSecureHostAliasesResp)
 		} else if r.URL.Path == "/v1/organizations/org/environments/env/virtualhosts" {
 			fmt.Fprintln(w, "[\"default\",\"secure\"]")
-		} else if r.URL.Path == "/v1/organizations/org/environments/env/keyvaluemaps/kvm" {
-			fmt.Fprintln(w, jsonKvmResp)
+		} else if r.URL.Path == "/v1/organizations/org/environments/env/keyvaluemaps/kvm/entries/key1" {
+			fmt.Fprintln(w, jsonKvmEntryResp)
 		} else {
 			w.WriteHeader(404)
 		}
