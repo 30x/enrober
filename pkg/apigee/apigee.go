@@ -1,36 +1,64 @@
 package apigee
 
 import (
-	"os"
-	"fmt"
 	"errors"
+	"fmt"
+	"os"
 	"sync"
 
-	"net/http"
 	"encoding/json"
+	"net/http"
 )
 
 const (
-	// Default Apigee's api endpoint host
+	// DefaultApigeeHost is Apigee's default api endpoint host
 	DefaultApigeeHost = "https://api.enterprise.apigee.com/"
 
-	// Env Var to set overide default apigee api host
+	// EnvVarApigeeHost is the Env Var to set overide default apigee api host
 	EnvVarApigeeHost = "AUTH_API_HOST"
 )
 
+// Client is the client struct for interacting with external Apigee APIs
 type Client struct {
 	// Authorization token used in the Authorization header on each request
-	Token   string
-	
+	Token string
+
 	// Apigee api host
-	ApigeeApiHost  string
-	
-	// Shared httpClient for efficiency
-	HttpClient *http.Client
+	ApigeeAPIHost string
+
+	// Shared HTTPClient for efficiency
+	HTTPClient *http.Client
 }
 
+// GetKVMValue returns a string that corresponds to the value of a named KVM and Key
+func (c *Client) GetKVMValue(org, env, kvmName, key string) (string, error) {
+	c.initDefaults()
 
-// Return an array of host strings for the apigee environment
+	kvmURL := fmt.Sprintf("%sv1/organizations/%s/environments/%s/keyvaluemaps/%s/entries/%s", c.ApigeeAPIHost, org, env, kvmName, key)
+	resp, err := c.Get(kvmURL)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Failed to make request for KVM: %v", err)
+		return "", errors.New(errorMessage)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		errorMessage := fmt.Sprintf("Invalid response status code when getting KVM: Code %d", resp.StatusCode)
+		return "", errors.New(errorMessage)
+	}
+	kvmEntry := apigeeKVMEntry{}
+	dec := json.NewDecoder(resp.Body)
+	err = dec.Decode(&kvmEntry)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error decoding json response from KVM: %v", err)
+		return "", errors.New(errorMessage)
+	}
+
+	return kvmEntry.Value, nil
+
+}
+
+// Hosts returns an array of host strings for the apigee environment
 // - Must first gather VirtualHosts from env and then GET on each VirtualHost
 func (c *Client) Hosts(org, env string) ([]string, error) {
 	c.initDefaults()
@@ -38,8 +66,8 @@ func (c *Client) Hosts(org, env string) ([]string, error) {
 	hosts := []string{}
 
 	//construct URL
-	virtualHostsUrl := fmt.Sprintf("%sv1/organizations/%s/environments/%s/virtualhosts", c.ApigeeApiHost, org, env)
-	resp, err := c.Get(virtualHostsUrl)
+	virtualHostsURL := fmt.Sprintf("%sv1/organizations/%s/environments/%s/virtualhosts", c.ApigeeAPIHost, org, env)
+	resp, err := c.Get(virtualHostsURL)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed to make request for VirtualHosts: %v", err)
 		return nil, errors.New(errorMessage)
@@ -55,7 +83,7 @@ func (c *Client) Hosts(org, env string) ([]string, error) {
 	// Response should look like
 	// GET https://api.enterprise.apigee.com/v1/organizations/<org>/environments/test/virtualhosts
 	// > [ "default", "secure" ]
-	
+
 	virtualHosts := []string{}
 	dec := json.NewDecoder(resp.Body)
 	err = dec.Decode(&virtualHosts)
@@ -66,7 +94,7 @@ func (c *Client) Hosts(org, env string) ([]string, error) {
 
 	// Create a map[string] to store hosts to filter duplicate hosts out
 	tmpHosts := make(map[string]struct{})
-	
+
 	var wg sync.WaitGroup
 	errChannel := make(chan error, 1)
 	finishedChannel := make(chan bool, 1)
@@ -86,7 +114,7 @@ func (c *Client) Hosts(org, env string) ([]string, error) {
 			}
 		}(virtualHost)
 	}
-	
+
 	// Waiting forever is okay because of the blocking select below.
 	// Once gorutine finishes close the finishedChannel
 	go func() {
@@ -102,12 +130,12 @@ func (c *Client) Hosts(org, env string) ([]string, error) {
 			return nil, err
 		}
 	}
-	
+
 	// Convert map to array strings for return
-	for alias, _ := range tmpHosts {
+	for alias := range tmpHosts {
 		hosts = append(hosts, alias)
 	}
-	
+
 	return hosts, nil
 }
 
@@ -118,8 +146,8 @@ func (c *Client) hostAliases(org, env, virtualHost string) ([]string, error) {
 	hosts := []string{}
 
 	//construct URL
-	virtualHostsUrl := fmt.Sprintf("%sv1/organizations/%s/environments/%s/virtualhosts/%s", c.ApigeeApiHost, org, env, virtualHost)
-	resp, err := c.Get(virtualHostsUrl)
+	virtualHostsURL := fmt.Sprintf("%sv1/organizations/%s/environments/%s/virtualhosts/%s", c.ApigeeAPIHost, org, env, virtualHost)
+	resp, err := c.Get(virtualHostsURL)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed to make request for VirtualHost: %v", err)
 		return nil, errors.New(errorMessage)
@@ -162,23 +190,23 @@ func (c *Client) hostAliases(org, env, virtualHost string) ([]string, error) {
 }
 
 func (c *Client) initDefaults() {
-	// Init httpClient used by all reqs for efficiency, can be used concurrently
-	if c.HttpClient == nil {
-		c.HttpClient = &http.Client{}
+	// Init HTTPClient used by all reqs for efficiency, can be used concurrently
+	if c.HTTPClient == nil {
+		c.HTTPClient = &http.Client{}
 	}
-	
+
 	// If apigee api host is not set configure to defult from env
-	if c.ApigeeApiHost == "" {
+	if c.ApigeeAPIHost == "" {
 		envVar := os.Getenv(EnvVarApigeeHost)
 		if envVar == "" {
-			c.ApigeeApiHost = DefaultApigeeHost
+			c.ApigeeAPIHost = DefaultApigeeHost
 		} else {
-			c.ApigeeApiHost = envVar
+			c.ApigeeAPIHost = envVar
 		}
 	}
 }
 
-// Make HTTP GET to api server with supplied url, return http.Response
+// Get makes HTTP GET to api server with supplied url, return http.Response
 func (c *Client) Get(url string) (*http.Response, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -188,10 +216,10 @@ func (c *Client) Get(url string) (*http.Response, error) {
 	//Must pass through the authz header
 	req.Header.Add("Authorization", c.Token)
 
-	resp, err := c.HttpClient.Do(req)
+	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return resp, nil
 }

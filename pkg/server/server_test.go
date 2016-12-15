@@ -1,4 +1,4 @@
-package server_test
+package server
 
 import (
 	"bytes"
@@ -157,136 +157,8 @@ var _ = Describe("Server Test", func() {
 
 		})
 
-		It("Create Deployment from direct PTS", func() {
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)
-
-			jsonStr := []byte(`{
-				"deploymentName": "testdep2",
- 				"publicHosts": "deploy.k8s.public",
-				"privateHosts": "deploy.k8s.private",
-    			"replicas": 1,
-				"pts":     
-				{
-					"apiVersion": "v1",
-					"kind": "Pod",
-					"metadata": {
-						"name": "testpod2",
-						"labels": {
-							"component": "web2"
-						},
-						"annotations": {
-							"publicPaths": "90:/",
-      						"privatePaths": "90:/"
-						}
-					},
-					"spec": {
-						"containers": [{
-							"name": "test",
-							"image": "jbowen/testapp:v0",
-							"env": [{
-								"name": "PORT",
-								"value": "90"
-							}],
-							"ports": [{
-								"containerPort": 90
-							}]
-						}]
-					}
-				},
-				"envVars": [{
-					"name": "test1",
-					"value": "test3"
-				},
-				{
-					"name": "test2",
-					"value": "test4"
-				}] 
-			}`)
-
-			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-
-			resp, err := client.Do(req)
-
-			Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
-
-			Expect(resp.StatusCode).Should(Equal(201), "Response should be 200 OK")
-
-			//TODO: Maybe more thorough checking of response
-		})
-
-		It("Update Deployment from direct PTS", func() {
-			time.Sleep(2000 * time.Millisecond)
-
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep2", hostBase)
-
-			jsonStr := []byte(`{
-				"publicHosts": "deploy.k8s.local",
-				"replicas": 3,
-				"pts":     
-				{
-					"apiVersion": "v1",
-					"kind": "Pod",
-					"metadata": {
-						"name": "testpod2",
-						"labels": {
-							"component": "web2"
-						},
-						"annotations": {
-							"publicPaths": "100:/",
-      						"privatePaths": "100:/"
-						}
-					},
-					"spec": {
-						"containers": [{
-							"name": "test",
-							"image": "jbowen/testapp:v0",
-							"env": [{
-								"name": "PORT",
-								"value": "100"
-							}],
-							"ports": [{
-								"containerPort": 100
-							}]
-						}]
-					}
-				},
-				"envVars": [{
-					"name": "test1",
-					"value": "test3"
-				},
-				{
-					"name": "test2",
-					"value": "test4"
-				}] 
-			}`)
-
-			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
-
-			resp, err := client.Do(req)
-
-			Expect(err).Should(BeNil(), "Shouldn't get an error on PATCH. Error: %v", err)
-
-			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
-
-			//TODO: Maybe more thorough checking of response
-
-		})
-
 		It("Get Deployment testdep1", func() {
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1", hostBase)
-
-			req, err := http.NewRequest("GET", url, nil)
-
-			resp, err := client.Do(req)
-
-			Expect(err).Should(BeNil(), "Shouldn't get an error on GET. Error: %v", err)
-
-			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
-
-		})
-
-		It("Get Deployment testdep2", func() {
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep2", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
 
@@ -335,19 +207,6 @@ var _ = Describe("Server Test", func() {
 			Expect(err).Should(BeNil(), "Shouldn't get an error on DELETE. Error: %v", err)
 
 			Expect(resp.StatusCode).Should(Equal(204), "Response should be 200 OK")
-
-		})
-
-		It("Delete Deployment testdep2", func() {
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep2", hostBase)
-
-			req, err := http.NewRequest("DELETE", url, nil)
-
-			resp, err := client.Do(req)
-
-			Expect(err).Should(BeNil(), "Shouldn't get an error on DELETE. Error: %v", err)
-
-			Expect(resp.StatusCode).Should(Equal(204), "Response should be 204 No Content")
 
 		})
 

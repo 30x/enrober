@@ -25,8 +25,8 @@ import (
 
 	k8sClient "k8s.io/kubernetes/pkg/client/unversioned"
 
-	"github.com/30x/enrober/pkg/helper"
 	"github.com/30x/enrober/pkg/apigee"
+	"github.com/30x/enrober/pkg/helper"
 )
 
 // TODO:
@@ -90,15 +90,15 @@ func NewServer() (server *Server) {
 // Copied from https://github.com/30x/authsdk/blob/master/apigee.go#L19
 //
 // TODO: Turn this into some Go-based Apigee client/SDK to replace authsdk
-var apigeeApiHost string
+var apigeeAPIHost string
 
 func init() {
 	envVar := os.Getenv("AUTH_API_HOST")
 
 	if envVar == "" {
-		apigeeApiHost = "https://api.enterprise.apigee.com/"
+		apigeeAPIHost = "https://api.enterprise.apigee.com/"
 	} else {
-		apigeeApiHost = envVar
+		apigeeAPIHost = envVar
 	}
 }
 
@@ -132,22 +132,13 @@ func createEnvironment(environmentName, token string) error {
 		return errors.New(errorMessage)
 	}
 
-	// TODO:
-	// On Environment Creation we also need to create the "shipyard" Apigee KVM
-	// This KVM will be used to store environment variables
-	// Break this out into a separate helper function, it will require a JWT
-
-	// TODO:
-	// This may need to be broken out into something more general
-	// Should use the general KVM creation function
-
 	//Should attempt KVM creation before creating k8s objects
 	if apigeeKVM {
 
 		httpClient := &http.Client{}
 
 		//construct URL
-		apigeeKVMURL := fmt.Sprintf("%sv1/organizations/%s/environments/%s/keyvaluemaps", apigeeApiHost, apigeeOrgName, apigeeEnvName)
+		apigeeKVMURL := fmt.Sprintf("%sv1/organizations/%s/environments/%s/keyvaluemaps", apigeeAPIHost, apigeeOrgName, apigeeEnvName)
 
 		//create JSON body
 		kvmBody := apigeeKVMBody{
@@ -179,6 +170,8 @@ func createEnvironment(environmentName, token string) error {
 			return errors.New(errorMessage)
 		}
 		defer resp.Body.Close()
+
+		//TODO: Probably want to generalize this logic
 
 		// If the response was not a 201, we need to check if the response was a 409 because this means the KVM exists
 		// already and we'll need to update the KVM value(s).
@@ -248,14 +241,12 @@ func createEnvironment(environmentName, token string) error {
 
 	}
 
-
 	// Retrieve hostnames from Apigee api
-	apigeeClient := apigee.Client{ Token: token }
+	apigeeClient := apigee.Client{Token: token}
 	hosts, err := apigeeClient.Hosts(apigeeOrgName, apigeeEnvName)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error retrieving hostnames from Apigee : %v", err)
 		return errors.New(errorMessage)
-		return err
 	}
 
 	//Should create an annotation object and pass it into the object literal
@@ -322,8 +313,8 @@ func updateEnvironmentHosts(org, env, token string) error {
 	if err != nil {
 		return err
 	}
-	
-	apigeeClient := apigee.Client{ Token: token }
+
+	apigeeClient := apigee.Client{Token: token}
 	hosts, err := apigeeClient.Hosts(org, env)
 	if err != nil {
 		return err
@@ -400,9 +391,8 @@ func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-	helper.LogInfo.Printf("Patched environment: %s\n", pathVars["org"] + "-" + pathVars["env"])
+	helper.LogInfo.Printf("Patched environment: %s\n", pathVars["org"]+"-"+pathVars["env"])
 }
-
 
 //getDeployments returns a list of all deployments matching the given org and env name
 func getDeployments(w http.ResponseWriter, r *http.Request) {
@@ -447,15 +437,17 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Check if the environment already exists
 	_, err := client.Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
 	if err != nil {
 		if k8sErrors.IsAlreadyExists(err) == false {
-			fmt.Print("CREATING ENVIRONMENT\n")
 
+			// Create environment if it doesn't exist
 			err := createEnvironment(pathVars["org"]+":"+pathVars["env"], r.Header.Get("Authorization"))
 			if err != nil {
 				errorMessage := fmt.Sprintf("Broke at createEnvironment: %v", err)
 				helper.LogError.Printf(errorMessage)
+				http.Error(w, errorMessage, http.StatusInternalServerError)
 				return
 			}
 		} else {
@@ -497,6 +489,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		helper.LogError.Printf(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	if allowPrivilegedContainers == false {
@@ -507,7 +500,28 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tempPTS.Spec.Containers[0].Env = helper.CacheEnvVars(tempPTS.Spec.Containers[0].Env, tempJSON.EnvVars)
+	for index, val := range tempJSON.EnvVars {
+		if val.ValueFrom != (&apigee.ApigeeEnvVarSource{}) {
+			// Gotta go retrieve the value from apigee KVM
+			// In the future we may support other ref types
+			apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
+			tempJSON.EnvVars[index], err = apigee.EnvReftoEnv(val.ValueFrom, apigeeClient, pathVars["org"], pathVars["env"])
+			if err != nil {
+				errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
+				http.Error(w, errorMessage, http.StatusInternalServerError)
+				helper.LogError.Printf(errorMessage)
+				return
+			}
+		}
+	}
+	tempK8sEnv, err := apigee.ApigeeEnvtoK8s(tempJSON.EnvVars)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Failed at ApigeeEnvtoK8s: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+	tempPTS.Spec.Containers[0].Env = apigee.CacheK8sEnvVars(tempPTS.Spec.Containers[0].Env, tempK8sEnv)
 
 	//If map is empty then we need to make it
 	if len(tempPTS.Annotations) == 0 {
@@ -695,7 +709,28 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		getDep.Spec.Template.Annotations["publicHosts"] = *tempJSON.PublicHosts
 	}
 
-	getDep.Spec.Template.Spec.Containers[0].Env = helper.CacheEnvVars(getDep.Spec.Template.Spec.Containers[0].Env, tempJSON.EnvVars)
+	for index, val := range tempJSON.EnvVars {
+		if val.ValueFrom != (&apigee.ApigeeEnvVarSource{}) {
+			// Gotta go retrieve the value from apigee KVM
+			// In the future we may support other ref types
+			apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
+			tempJSON.EnvVars[index], err = apigee.EnvReftoEnv(val.ValueFrom, apigeeClient, pathVars["org"], pathVars["env"])
+			if err != nil {
+				errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
+				http.Error(w, errorMessage, http.StatusInternalServerError)
+				helper.LogError.Printf(errorMessage)
+				return
+			}
+		}
+	}
+	tempK8sEnv, err := apigee.ApigeeEnvtoK8s(tempJSON.EnvVars)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Failed at ApigeeEnvtoK8s: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+	getDep.Spec.Template.Spec.Containers[0].Env = apigee.CacheK8sEnvVars(getDep.Spec.Template.Spec.Containers[0].Env, tempK8sEnv)
 
 	//Add routable label
 	getDep.Spec.Template.Labels["routable"] = "true"
@@ -919,7 +954,7 @@ func isCPSEnabledForOrg(orgName, authzHeader string) bool {
 	cpsEnabled := false
 	httpClient := &http.Client{}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("%sv1/organizations/%s", apigeeApiHost, orgName), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%sv1/organizations/%s", apigeeAPIHost, orgName), nil)
 
 	if err != nil {
 		fmt.Printf("Error checking for CPS: %v", err)
