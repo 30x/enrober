@@ -8,6 +8,17 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 )
 
+// State is an enum to select between local and in cluster state
+type State string
+
+const (
+	// StateLocal is for local dev/testing
+	StateLocal State = "local"
+
+	// StateCluster is for when app is deployed in a cluster
+	StateCluster State = "cluster"
+)
+
 //Server struct
 type Server struct {
 	Router http.Handler

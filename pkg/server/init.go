@@ -3,41 +3,49 @@ package server
 import (
 	"os"
 
-	"k8s.io/kubernetes/pkg/client/restclient"
-	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
-	k8sClient "k8s.io/kubernetes/pkg/client/unversioned"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+)
+
+var (
+	//Top level clientset for server package
+	clientset kubernetes.Clientset
 )
 
 //Init runs once
-func Init(clientConfig restclient.Config) error {
-	var tempClient *k8sClient.Client
+func Init(env State) error {
 
 	//In Cluster Config
-	if clientConfig.Host == "" {
-		tempConfig, err := restclient.InClusterConfig()
+	//TODO: Use an enum here
+	if env == "cluster" {
+		tmpConfig, err := rest.InClusterConfig()
 		if err != nil {
 			return err
 		}
-		tempClient, err = k8sClient.New(tempConfig)
-
-		client = *tempClient
+		//Create the clientset
+		tempClientset, err := kubernetes.NewForConfig(tmpConfig)
+		if err != nil {
+			return err
+		}
+		clientset = *tempClientset
 
 		//Local Config
 	} else {
-
 		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 		configOverrides := &clientcmd.ConfigOverrides{}
 		config := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-		tmpKubeConfig, err := config.ClientConfig()
+		tmpConfig, err := config.ClientConfig()
 		if err != nil {
 			return err
 		}
+		//Create the clientset
+		tempClientset, err := kubernetes.NewForConfig(tmpConfig)
+		if err != nil {
+			return err
+		}
+		clientset = *tempClientset
 
-		tempClient, err := k8sClient.New(tmpKubeConfig)
-		if err != nil {
-			return err
-		}
-		client = *tempClient
 	}
 
 	//Several features should be disabled for local testing
