@@ -28,7 +28,7 @@ func main() {
 
 	}
 
-	err := server.Init(state)
+	err := server.SetState(state)
 	if err != nil {
 		fmt.Printf("Error initializing server: %v\n", err)
 		return

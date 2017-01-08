@@ -13,12 +13,12 @@ var (
 	clientset kubernetes.Clientset
 )
 
-//Init runs once
-func Init(env State) error {
+//SetState determines whether the server is running locally or in a cluster
+func SetState(env State) error {
 
 	//In Cluster Config
 	//TODO: Use an enum here
-	if env == "cluster" {
+	if env == StateCluster {
 		tmpConfig, err := rest.InClusterConfig()
 		if err != nil {
 			return err
