@@ -1,7 +1,7 @@
 package: github.com/30x/enrober
 import:
 - package: k8s.io/kubernetes
-  version: 1.3.0
+  version: 1.4.*
   subpackages:
   - pkg/client/unversioned
   - pkg/client/api
@@ -17,3 +17,6 @@ import:
 - package: github.com/onsi/gomega
 - package: github.com/30x/authsdk
 - package: github.com/gorilla/handlers
+- package: k8s.io/client-go
+  subpackages:
+  - 1.5/

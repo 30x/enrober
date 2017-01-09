@@ -8,28 +8,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/30x/enrober/pkg/server"
-
-	"k8s.io/kubernetes/pkg/client/restclient"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-type environmentRequest struct {
-	Name      string   `json:"name"`
-	HostNames []string `json:"hostNames"`
-}
-
-type environmentResponse struct {
-	Name          string   `json:"name"`
-	HostNames     []string `json:"hostNames,omitempty"`
-	PublicSecret  []byte   `json:"publicSecret"`
-	PrivateSecret []byte   `json:"privateSecret"`
-}
-
 var _ = Describe("Server Test", func() {
-	ServerTests := func(testServer *server.Server, hostBase string) {
+	ServerTests := func(testServer *Server, hostBase string) {
 
 		client := &http.Client{}
 
@@ -234,17 +218,15 @@ var _ = Describe("Server Test", func() {
 })
 
 //Initialize a server for testing
-func setup() (*server.Server, string, error) {
+func setup() (*Server, string, error) {
 	kubeHost := os.Getenv("KUBE_HOST")
-	testServer := server.NewServer()
+	testServer := NewServer()
 
 	if kubeHost == "" {
 		kubeHost = "127.0.0.1:8080"
 	}
-	clientConfig := restclient.Config{
-		Host: kubeHost,
-	}
-	err := server.Init(clientConfig)
+
+	err := SetState(StateLocal)
 	if err != nil {
 		fmt.Printf("Error on init: %v\n", err)
 	}

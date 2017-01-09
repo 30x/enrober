@@ -3,9 +3,9 @@ package server
 import (
 	"os"
 
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/1.5/kubernetes"
+	"k8s.io/client-go/1.5/rest"
+	"k8s.io/client-go/1.5/tools/clientcmd"
 )
 
 var (
@@ -17,7 +17,6 @@ var (
 func SetState(env State) error {
 
 	//In Cluster Config
-	//TODO: Use an enum here
 	if env == StateCluster {
 		tmpConfig, err := rest.InClusterConfig()
 		if err != nil {
