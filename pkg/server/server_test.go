@@ -2,10 +2,8 @@ package server
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -21,67 +19,67 @@ var _ = Describe("Server Test", func() {
 		var globalPrivate string
 		var globalPublic string
 
-		It("Create Environment", func() {
-			url := fmt.Sprintf("%s/environments", hostBase)
+		// It("Create Environment", func() {
+		// 	url := fmt.Sprintf("%s/environments", hostBase)
 
-			jsonStr := []byte(`{"environmentName": "testorg1:testenv1", "hostNames": ["testhost1"]}`)
-			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+		// 	jsonStr := []byte(`{"environmentName": "testorg1:testenv1", "hostNames": ["testhost1"]}`)
+		// 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 
-			resp, err := client.Do(req)
-			Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
+		// 	resp, err := client.Do(req)
+		// 	Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
 
-			respStore := environmentResponse{}
+		// 	respStore := environmentResponse{}
 
-			err = json.NewDecoder(resp.Body).Decode(&respStore)
-			Expect(err).Should(BeNil(), "Error decoding response: %v", err)
+		// 	err = json.NewDecoder(resp.Body).Decode(&respStore)
+		// 	Expect(err).Should(BeNil(), "Error decoding response: %v", err)
 
-			//Store the private-api-key in higher scope
-			globalPrivate = string(respStore.PrivateSecret)
+		// 	//Store the private-api-key in higher scope
+		// 	globalPrivate = string(respStore.PrivateSecret)
 
-			//Store the public-api-key in higher scope
-			globalPublic = string(respStore.PublicSecret)
+		// 	//Store the public-api-key in higher scope
+		// 	globalPublic = string(respStore.PublicSecret)
 
-			Expect(respStore.PrivateSecret).ShouldNot(BeNil())
-			Expect(respStore.PublicSecret).ShouldNot(BeNil())
+		// 	Expect(respStore.PrivateSecret).ShouldNot(BeNil())
+		// 	Expect(respStore.PublicSecret).ShouldNot(BeNil())
 
-			Expect(resp.StatusCode).Should(Equal(201), "Response should be 201 Created")
-		})
+		// 	Expect(resp.StatusCode).Should(Equal(201), "Response should be 201 Created")
+		// })
 
-		It("Create Environment with duplicated Host Name", func() {
-			url := fmt.Sprintf("%s/environments", hostBase)
+		// It("Create Environment with duplicated Host Name", func() {
+		// 	url := fmt.Sprintf("%s/environments", hostBase)
 
-			jsonStr := []byte(`{"environmentName": "testorg2:testenv2", "hostNames": ["testhost1"]}`)
-			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+		// 	jsonStr := []byte(`{"environmentName": "testorg2:testenv2", "hostNames": ["testhost1"]}`)
+		// 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 
-			resp, err := client.Do(req)
+		// 	resp, err := client.Do(req)
 
-			Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
+		// 	Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
 
-			Expect(resp.StatusCode).Should(Equal(500), "Response should be 500 Internal Server Error")
-		})
+		// 	Expect(resp.StatusCode).Should(Equal(500), "Response should be 500 Internal Server Error")
+		// })
 
-		It("Update Environment", func() {
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
+		// It("Update Environment", func() {
+		// 	url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
 
-			jsonStr := []byte(`{"hostNames": ["testhost2"]}`)
-			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
+		// 	jsonStr := []byte(`{"hostNames": ["testhost2"]}`)
+		// 	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
 
-			resp, err := client.Do(req)
-			Expect(err).Should(BeNil(), "Shouldn't get an error on PATCH. Error: %v", err)
+		// 	resp, err := client.Do(req)
+		// 	Expect(err).Should(BeNil(), "Shouldn't get an error on PATCH. Error: %v", err)
 
-			respStore := environmentResponse{}
+		// 	respStore := environmentResponse{}
 
-			err = json.NewDecoder(resp.Body).Decode(&respStore)
-			Expect(err).Should(BeNil(), "Error decoding response: %v", err)
+		// 	err = json.NewDecoder(resp.Body).Decode(&respStore)
+		// 	Expect(err).Should(BeNil(), "Error decoding response: %v", err)
 
-			//Make sure that private-api-key wasn't changed
-			Expect(string(respStore.PrivateSecret)).Should(Equal(globalPrivate))
+		// 	//Make sure that private-api-key wasn't changed
+		// 	Expect(string(respStore.PrivateSecret)).Should(Equal(globalPrivate))
 
-			//Make sure that public-api-key wasn't changed
-			Expect(string(respStore.PublicSecret)).Should(Equal(globalPublic))
+		// 	//Make sure that public-api-key wasn't changed
+		// 	Expect(string(respStore.PublicSecret)).Should(Equal(globalPublic))
 
-			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
-		})
+		// 	Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+		// })
 
 		It("Create Deployment from PTS URL", func() {
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)
@@ -219,17 +217,12 @@ var _ = Describe("Server Test", func() {
 
 //Initialize a server for testing
 func setup() (*Server, string, error) {
-	kubeHost := os.Getenv("KUBE_HOST")
-	testServer := NewServer()
-
-	if kubeHost == "" {
-		kubeHost = "127.0.0.1:8080"
-	}
-
 	err := SetState(StateLocal)
 	if err != nil {
-		fmt.Printf("Error on init: %v\n", err)
+		fmt.Printf("Error on SetState: %v\n", err)
 	}
+
+	testServer := NewServer()
 
 	//Start in background
 	go func() {

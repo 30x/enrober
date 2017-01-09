@@ -217,7 +217,7 @@ func createEnvironment(environmentName, token string) error {
 }
 
 func updateEnvironmentHosts(org, env, token string) error {
-	ns, err := client.Namespaces().Get(org + "-" + env)
+	ns, err := clientset.Core().Namespaces().Get(org + "-" + env)
 	if err != nil {
 		return err
 	}
@@ -229,13 +229,14 @@ func updateEnvironmentHosts(org, env, token string) error {
 	}
 
 	ns.ObjectMeta.Annotations["hostNames"] = strings.Join(hosts, " ")
-	_, err = client.Namespaces().Update(ns)
+	_, err = clientset.Core().Namespaces().Update(ns)
 	if err != nil {
 		return err
 	}
 
 	return nil
 }
+
 func isCPSEnabledForOrg(orgName, authzHeader string) bool {
 	cpsEnabled := false
 	httpClient := &http.Client{}

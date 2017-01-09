@@ -12,10 +12,10 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
-	"k8s.io/kubernetes/pkg/apis/extensions"
-	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/client-go/1.5/pkg/api"
+	"k8s.io/client-go/1.5/pkg/api/v1"
+	"k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1"
+	"k8s.io/client-go/1.5/pkg/labels"
 
 	k8sErrors "k8s.io/kubernetes/pkg/api/errors"
 
@@ -33,7 +33,9 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	getNs, err := client.Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
+	//TODO: Move to using clientset
+
+	getNs, err := clientset.Core().Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		helper.LogError.Printf("Error getting existing Environment: %v\n", err)
@@ -98,7 +100,7 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	depList, err := client.Deployments(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
+	depList, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
 		LabelSelector: labels.Everything(),
 	})
 	if err != nil {
@@ -242,14 +244,14 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	//Could also use proto package
 	tempInt := int32(5)
 
-	template := extensions.Deployment{
-		ObjectMeta: api.ObjectMeta{
+	template := v1beta1.Deployment{
+		ObjectMeta: v1.ObjectMeta{
 			Name: tempJSON.DeploymentName,
 		},
-		Spec: extensions.DeploymentSpec{
+		Spec: v1beta1.DeploymentSpec{
 			RevisionHistoryLimit: &tempInt,
-			Replicas:             *tempJSON.Replicas,
-			Selector: &unversioned.LabelSelector{
+			Replicas:             tempJSON.Replicas,
+			Selector: &v1beta1.LabelSelector{
 				MatchLabels: map[string]string{
 					"component": tempPTS.Labels["component"],
 				},

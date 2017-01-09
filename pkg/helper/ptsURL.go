@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"os"
 
-	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/client-go/1.5/pkg/api"
 )
 
 var (
