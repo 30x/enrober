@@ -144,10 +144,6 @@ var _ = Describe("Server Test", func() {
 
 //Initialize a server for testing
 func setup() (*Server, string, error) {
-	err := SetState(StateLocal)
-	if err != nil {
-		fmt.Printf("Error on SetState: %v\n", err)
-	}
 
 	testServer := NewServer()
 

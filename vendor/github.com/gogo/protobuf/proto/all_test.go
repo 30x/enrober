@@ -1034,7 +1034,7 @@ func TestSubmessageUnrecognizedFields(t *testing.T) {
 
 	// Unmarshal into an OldMessage.
 	om := new(OldMessage)
-	if err := Unmarshal(b, om); err != nil {
+	if err = Unmarshal(b, om); err != nil {
 		t.Fatalf("Unmarshal to OldMessage: %v", err)
 	}
 	exp := &OldMessage{
@@ -1329,9 +1329,18 @@ func TestRequiredFieldEnforcement(t *testing.T) {
 
 func TestTypedNilMarshal(t *testing.T) {
 	// A typed nil should return ErrNil and not crash.
-	_, err := Marshal((*GoEnum)(nil))
-	if err != ErrNil {
-		t.Errorf("Marshal: got err %v, want ErrNil", err)
+	{
+		var m *GoEnum
+		if _, err := Marshal(m); err != ErrNil {
+			t.Errorf("Marshal(%#v): got %v, want ErrNil", m, err)
+		}
+	}
+
+	{
+		m := &Communique{Union: &Communique_Msg{nil}}
+		if _, err := Marshal(m); err == nil || err == ErrNil {
+			t.Errorf("Marshal(%#v): got %v, want errOneofHasNil", m, err)
+		}
 	}
 }
 
@@ -1711,7 +1720,7 @@ func TestMessageSetMarshalOrder(t *testing.T) {
 		}
 
 		m2 := &MyMessageSet{}
-		if err := Unmarshal(buf, m2); err != nil {
+		if err = Unmarshal(buf, m2); err != nil {
 			t.Errorf("Unmarshal: %v", err)
 		}
 		b2, err := Marshal(m2)
@@ -1958,6 +1967,40 @@ func TestMapFieldWithNil(t *testing.T) {
 	}
 }
 
+func TestDecodeMapFieldMissingKey(t *testing.T) {
+	b := []byte{
+		0x0A, 0x03, // message, tag 1 (name_mapping), of length 3 bytes
+		// no key
+		0x12, 0x01, 0x6D, // string value of length 1 byte, value "m"
+	}
+	got := &MessageWithMap{}
+	err := Unmarshal(b, got)
+	if err != nil {
+		t.Fatalf("failed to marshal map with missing key: %v", err)
+	}
+	want := &MessageWithMap{NameMapping: map[int32]string{0: "m"}}
+	if !Equal(got, want) {
+		t.Errorf("Unmarshaled map with no key was not as expected. got: %v, want %v", got, want)
+	}
+}
+
+func TestDecodeMapFieldMissingValue(t *testing.T) {
+	b := []byte{
+		0x0A, 0x02, // message, tag 1 (name_mapping), of length 2 bytes
+		0x08, 0x01, // varint key, value 1
+		// no value
+	}
+	got := &MessageWithMap{}
+	err := Unmarshal(b, got)
+	if err != nil {
+		t.Fatalf("failed to marshal map with missing value: %v", err)
+	}
+	want := &MessageWithMap{NameMapping: map[int32]string{1: ""}}
+	if !Equal(got, want) {
+		t.Errorf("Unmarshaled map with no value was not as expected. got: %v, want %v", got, want)
+	}
+}
+
 func TestOneof(t *testing.T) {
 	m := &Communique{}
 	b, err := Marshal(m)
@@ -1981,7 +2024,7 @@ func TestOneof(t *testing.T) {
 		t.Errorf("Incorrect marshal of message with oneof: %v", b)
 	}
 	m.Reset()
-	if err := Unmarshal(b, m); err != nil {
+	if err = Unmarshal(b, m); err != nil {
 		t.Fatalf("Unmarshal of message with oneof: %v", err)
 	}
 	if x, ok := m.Union.(*Communique_Name); !ok || x.Name != "Barry" {

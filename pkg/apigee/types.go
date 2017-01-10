@@ -1,6 +1,6 @@
 package apigee
 
-import "k8s.io/client-go/1.5/pkg/api/v1"
+import "k8s.io/client-go/pkg/api/v1"
 
 type apigeeKVMEntry struct {
 	Name  string `json:"name"`

@@ -6,9 +6,9 @@ import (
 	"os"
 	"regexp"
 
-	"k8s.io/client-go/1.5/kubernetes"
-	"k8s.io/client-go/1.5/rest"
-	"k8s.io/client-go/1.5/tools/clientcmd"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/30x/enrober/pkg/helper"
 	"github.com/gorilla/handlers"

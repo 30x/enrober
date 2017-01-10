@@ -30,12 +30,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*
-Package jsonpb provides marshaling/unmarshaling functionality between
-protocol buffer and JSON objects.
+Package jsonpb provides marshaling and unmarshaling between protocol buffers and JSON.
+It follows the specification at https://developers.google.com/protocol-buffers/docs/proto3#json.
 
-Compared to encoding/json, this library:
- - encodes int64, uint64 as strings
- - optionally encodes enums as integers
+This package produces a different output than the standard "encoding/json" package,
+which does not operate correctly on protocol buffers.
 */
 package jsonpb
 
@@ -52,21 +51,23 @@ import (
 	"github.com/gogo/protobuf/proto"
 )
 
-var (
-	byteArrayType = reflect.TypeOf([]byte{})
-)
-
 // Marshaler is a configurable object for converting between
-// protocol buffer objects and a JSON representation for them
+// protocol buffer objects and a JSON representation for them.
 type Marshaler struct {
 	// Whether to render enum values as integers, as opposed to string values.
 	EnumsAsInts bool
+
+	// Whether to render fields with zero values.
+	EmitDefaults bool
 
 	// A string to indent each level by. The presence of this field will
 	// also cause a space to appear between the field separator and
 	// value, and for newlines to be appear between fields and array
 	// elements.
 	Indent string
+
+	// Whether to use the original (.proto) name for fields.
+	OrigName bool
 }
 
 // Marshal marshals a protocol buffer into JSON.
@@ -107,13 +108,36 @@ func (m *Marshaler) marshalObject(out *errWriter, v proto.Message, indent string
 			continue
 		}
 
-		// TODO: proto3 objects should have default values omitted.
-
 		// IsNil will panic on most value kinds.
 		switch value.Kind() {
 		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
 			if value.IsNil() {
 				continue
+			}
+		}
+
+		if !m.EmitDefaults {
+			switch value.Kind() {
+			case reflect.Bool:
+				if !value.Bool() {
+					continue
+				}
+			case reflect.Int32, reflect.Int64:
+				if value.Int() == 0 {
+					continue
+				}
+			case reflect.Uint32, reflect.Uint64:
+				if value.Uint() == 0 {
+					continue
+				}
+			case reflect.Float32, reflect.Float64:
+				if value.Float() == 0 {
+					continue
+				}
+			case reflect.String:
+				if value.Len() == 0 {
+					continue
+				}
 			}
 		}
 
@@ -124,7 +148,7 @@ func (m *Marshaler) marshalObject(out *errWriter, v proto.Message, indent string
 			value = sv.Field(0)
 			valueField = sv.Type().Field(0)
 		}
-		prop := jsonProperties(valueField)
+		prop := jsonProperties(valueField, m.OrigName)
 		if !firstField {
 			m.writeSep(out)
 		}
@@ -173,7 +197,7 @@ func (m *Marshaler) marshalObject(out *errWriter, v proto.Message, indent string
 			value := reflect.ValueOf(ext)
 			var prop proto.Properties
 			prop.Parse(desc.Tag)
-			prop.OrigName = fmt.Sprintf("[%s]", desc.Name)
+			prop.JSONName = fmt.Sprintf("[%s]", desc.Name)
 			if !firstField {
 				m.writeSep(out)
 			}
@@ -208,7 +232,7 @@ func (m *Marshaler) marshalField(out *errWriter, prop *proto.Properties, v refle
 		out.write(m.Indent)
 	}
 	out.write(`"`)
-	out.write(prop.OrigName)
+	out.write(prop.JSONName)
 	out.write(`":`)
 	if m.Indent != "" {
 		out.write(" ")
@@ -225,7 +249,7 @@ func (m *Marshaler) marshalValue(out *errWriter, prop *proto.Properties, v refle
 	v = reflect.Indirect(v)
 
 	// Handle repeated elements.
-	if v.Type() != byteArrayType && v.Kind() == reflect.Slice {
+	if v.Kind() == reflect.Slice && v.Type().Elem().Kind() != reflect.Uint8 {
 		out.write("[")
 		comma := ""
 		for i := 0; i < v.Len(); i++ {
@@ -383,15 +407,23 @@ func (m *Marshaler) marshalValue(out *errWriter, prop *proto.Properties, v refle
 	return out.err
 }
 
+// UnmarshalNext unmarshals the next protocol buffer from a JSON object stream.
+// This function is lenient and will decode any options permutations of the
+// related Marshaler.
+func UnmarshalNext(dec *json.Decoder, pb proto.Message) error {
+	inputValue := json.RawMessage{}
+	if err := dec.Decode(&inputValue); err != nil {
+		return err
+	}
+	return unmarshalValue(reflect.ValueOf(pb).Elem(), inputValue)
+}
+
 // Unmarshal unmarshals a JSON object stream into a protocol
 // buffer. This function is lenient and will decode any options
 // permutations of the related Marshaler.
 func Unmarshal(r io.Reader, pb proto.Message) error {
-	inputValue := json.RawMessage{}
-	if err := json.NewDecoder(r).Decode(&inputValue); err != nil {
-		return err
-	}
-	return unmarshalValue(reflect.ValueOf(pb).Elem(), inputValue)
+	dec := json.NewDecoder(r)
+	return UnmarshalNext(dec, pb)
 }
 
 // UnmarshalString will populate the fields of a protocol buffer based
@@ -418,19 +450,38 @@ func unmarshalValue(target reflect.Value, inputValue json.RawMessage) error {
 			return err
 		}
 
+		consumeField := func(prop *proto.Properties) (json.RawMessage, bool) {
+			// Be liberal in what names we accept; both orig_name and camelName are okay.
+			fieldNames := acceptedJSONFieldNames(prop)
+
+			vOrig, okOrig := jsonFields[fieldNames.orig]
+			vCamel, okCamel := jsonFields[fieldNames.camel]
+			if !okOrig && !okCamel {
+				return nil, false
+			}
+			// If, for some reason, both are present in the data, favour the camelName.
+			var raw json.RawMessage
+			if okOrig {
+				raw = vOrig
+				delete(jsonFields, fieldNames.orig)
+			}
+			if okCamel {
+				raw = vCamel
+				delete(jsonFields, fieldNames.camel)
+			}
+			return raw, true
+		}
+
 		sprops := proto.GetProperties(targetType)
 		for i := 0; i < target.NumField(); i++ {
 			ft := target.Type().Field(i)
 			if strings.HasPrefix(ft.Name, "XXX_") {
 				continue
 			}
-			fieldName := jsonProperties(ft).OrigName
-
-			valueForField, ok := jsonFields[fieldName]
+			valueForField, ok := consumeField(sprops.Prop[i])
 			if !ok {
 				continue
 			}
-			delete(jsonFields, fieldName)
 
 			// Handle enums, which have an underlying type of int32,
 			// and may appear as strings. We do this while handling
@@ -454,20 +505,22 @@ func unmarshalValue(target reflect.Value, inputValue json.RawMessage) error {
 				f.SetInt(int64(n))
 				continue
 			}
-
 			if err := unmarshalValue(target.Field(i), valueForField); err != nil {
 				return err
 			}
 		}
 		// Check for any oneof fields.
-		for fname, raw := range jsonFields {
-			if oop, ok := sprops.OneofTypes[fname]; ok {
+		if len(jsonFields) > 0 {
+			for _, oop := range sprops.OneofTypes {
+				raw, ok := consumeField(oop.Prop)
+				if !ok {
+					continue
+				}
 				nv := reflect.New(oop.Type.Elem())
 				target.Field(oop.Field).Set(nv)
 				if err := unmarshalValue(nv.Elem().Field(0), raw); err != nil {
 					return err
 				}
-				delete(jsonFields, fname)
 			}
 		}
 		if len(jsonFields) > 0 {
@@ -482,8 +535,21 @@ func unmarshalValue(target reflect.Value, inputValue json.RawMessage) error {
 		return nil
 	}
 
-	// Handle arrays (which aren't encoded bytes)
-	if targetType != byteArrayType && targetType.Kind() == reflect.Slice {
+	// Handle arrays
+	if targetType.Kind() == reflect.Slice {
+		// Special case for encoded bytes. Pre-go1.5 doesn't support unmarshalling
+		// strings into aliased []byte types.
+		// https://github.com/golang/go/commit/4302fd0409da5e4f1d71471a6770dacdc3301197
+		// https://github.com/golang/go/commit/c60707b14d6be26bf4213114d13070bff00d0b0a
+		if targetType.Elem().Kind() == reflect.Uint8 {
+			var out []byte
+			if err := json.Unmarshal(inputValue, &out); err != nil {
+				return err
+			}
+			target.SetBytes(out)
+			return nil
+		}
+
 		var slc []json.RawMessage
 		if err := json.Unmarshal(inputValue, &slc); err != nil {
 			return err
@@ -543,11 +609,26 @@ func unmarshalValue(target reflect.Value, inputValue json.RawMessage) error {
 	return json.Unmarshal(inputValue, target.Addr().Interface())
 }
 
-// jsonProperties returns parsed proto.Properties for the field.
-func jsonProperties(f reflect.StructField) *proto.Properties {
+// jsonProperties returns parsed proto.Properties for the field and corrects JSONName attribute.
+func jsonProperties(f reflect.StructField, origName bool) *proto.Properties {
 	var prop proto.Properties
 	prop.Init(f.Type, f.Name, f.Tag.Get("protobuf"), &f)
+	if origName || prop.JSONName == "" {
+		prop.JSONName = prop.OrigName
+	}
 	return &prop
+}
+
+type fieldNames struct {
+	orig, camel string
+}
+
+func acceptedJSONFieldNames(prop *proto.Properties) fieldNames {
+	opts := fieldNames{orig: prop.OrigName, camel: prop.OrigName}
+	if prop.JSONName != "" {
+		opts.camel = prop.JSONName
+	}
+	return opts
 }
 
 // extendableProto is an interface implemented by any protocol buffer that may be extended.

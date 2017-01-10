@@ -26,7 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-.PHONY: nuke regenerate tests clean install gofmt vet
+.PHONY: nuke regenerate tests clean install gofmt vet contributors
 
 all: clean install regenerate install tests errcheck vet
 
@@ -56,6 +56,7 @@ gofmt:
 regenerate:
 	make -C protoc-gen-gogo/descriptor regenerate
 	make -C protoc-gen-gogo/plugin regenerate
+	make -C protoc-gen-gogo/testdata regenerate
 	make -C gogoproto regenerate
 	make -C proto/testdata regenerate
 	make -C jsonpb/jsonpb_test_proto regenerate
@@ -69,6 +70,7 @@ regenerate:
 	make -C test/moredefaults regenerate
 	make -C test/issue8 regenerate
 	make -C test/enumprefix regenerate
+	make -C test/enumcustomname regenerate
 	make -C test/packed regenerate
 	make -C test/protosize regenerate
 	make -C test/tags regenerate
@@ -91,6 +93,8 @@ regenerate:
 	make -C test/fuzztests regenerate
 	make -C test/oneofembed regenerate
 	make -C test/asymetric-issue125 regenerate
+	make -C test/filedotname regenerate
+	make -C test/nopackage regenerate
 	make gofmt
 
 tests:
@@ -117,4 +121,8 @@ testall:
 bench:
 	(cd test/mixbench && go build .)
 	(cd test/mixbench && ./mixbench)
+
+contributors:
+	git log --format='%aN <%aE>' | sort -fu > CONTRIBUTORS
+
 

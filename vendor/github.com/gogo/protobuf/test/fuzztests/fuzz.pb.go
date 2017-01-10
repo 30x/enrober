@@ -34,34 +34,40 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+const _ = proto.GoGoProtoPackageIsVersion1
+
 type Nil struct {
 	XXX_unrecognized []byte `json:"-"`
 }
 
-func (m *Nil) Reset()         { *m = Nil{} }
-func (m *Nil) String() string { return proto.CompactTextString(m) }
-func (*Nil) ProtoMessage()    {}
+func (m *Nil) Reset()                    { *m = Nil{} }
+func (m *Nil) String() string            { return proto.CompactTextString(m) }
+func (*Nil) ProtoMessage()               {}
+func (*Nil) Descriptor() ([]byte, []int) { return fileDescriptorFuzz, []int{0} }
 
 type NinRepPackedNative struct {
-	Field1           []float64 `protobuf:"fixed64,1,rep,packed,name=Field1" json:"Field1,omitempty"`
-	Field2           []float32 `protobuf:"fixed32,2,rep,packed,name=Field2" json:"Field2,omitempty"`
-	Field3           []int32   `protobuf:"varint,3,rep,packed,name=Field3" json:"Field3,omitempty"`
-	Field4           []int64   `protobuf:"varint,4,rep,packed,name=Field4" json:"Field4,omitempty"`
-	Field5           []uint32  `protobuf:"varint,5,rep,packed,name=Field5" json:"Field5,omitempty"`
-	Field6           []uint64  `protobuf:"varint,6,rep,packed,name=Field6" json:"Field6,omitempty"`
-	Field7           []int32   `protobuf:"zigzag32,7,rep,packed,name=Field7" json:"Field7,omitempty"`
-	Field8           []int64   `protobuf:"zigzag64,8,rep,packed,name=Field8" json:"Field8,omitempty"`
-	Field9           []uint32  `protobuf:"fixed32,9,rep,packed,name=Field9" json:"Field9,omitempty"`
-	Field10          []int32   `protobuf:"fixed32,10,rep,packed,name=Field10" json:"Field10,omitempty"`
-	Field11          []uint64  `protobuf:"fixed64,11,rep,packed,name=Field11" json:"Field11,omitempty"`
-	Field12          []int64   `protobuf:"fixed64,12,rep,packed,name=Field12" json:"Field12,omitempty"`
-	Field13          []bool    `protobuf:"varint,13,rep,packed,name=Field13" json:"Field13,omitempty"`
+	Field1           []float64 `protobuf:"fixed64,1,rep,packed,name=Field1,json=field1" json:"Field1,omitempty"`
+	Field2           []float32 `protobuf:"fixed32,2,rep,packed,name=Field2,json=field2" json:"Field2,omitempty"`
+	Field3           []int32   `protobuf:"varint,3,rep,packed,name=Field3,json=field3" json:"Field3,omitempty"`
+	Field4           []int64   `protobuf:"varint,4,rep,packed,name=Field4,json=field4" json:"Field4,omitempty"`
+	Field5           []uint32  `protobuf:"varint,5,rep,packed,name=Field5,json=field5" json:"Field5,omitempty"`
+	Field6           []uint64  `protobuf:"varint,6,rep,packed,name=Field6,json=field6" json:"Field6,omitempty"`
+	Field7           []int32   `protobuf:"zigzag32,7,rep,packed,name=Field7,json=field7" json:"Field7,omitempty"`
+	Field8           []int64   `protobuf:"zigzag64,8,rep,packed,name=Field8,json=field8" json:"Field8,omitempty"`
+	Field9           []uint32  `protobuf:"fixed32,9,rep,packed,name=Field9,json=field9" json:"Field9,omitempty"`
+	Field10          []int32   `protobuf:"fixed32,10,rep,packed,name=Field10,json=field10" json:"Field10,omitempty"`
+	Field11          []uint64  `protobuf:"fixed64,11,rep,packed,name=Field11,json=field11" json:"Field11,omitempty"`
+	Field12          []int64   `protobuf:"fixed64,12,rep,packed,name=Field12,json=field12" json:"Field12,omitempty"`
+	Field13          []bool    `protobuf:"varint,13,rep,packed,name=Field13,json=field13" json:"Field13,omitempty"`
 	XXX_unrecognized []byte    `json:"-"`
 }
 
-func (m *NinRepPackedNative) Reset()         { *m = NinRepPackedNative{} }
-func (m *NinRepPackedNative) String() string { return proto.CompactTextString(m) }
-func (*NinRepPackedNative) ProtoMessage()    {}
+func (m *NinRepPackedNative) Reset()                    { *m = NinRepPackedNative{} }
+func (m *NinRepPackedNative) String() string            { return proto.CompactTextString(m) }
+func (*NinRepPackedNative) ProtoMessage()               {}
+func (*NinRepPackedNative) Descriptor() ([]byte, []int) { return fileDescriptorFuzz, []int{1} }
 
 func (m *NinRepPackedNative) GetField1() []float64 {
 	if m != nil {
@@ -155,27 +161,28 @@ func (m *NinRepPackedNative) GetField13() []bool {
 }
 
 type NinOptNative struct {
-	Field1           *float64 `protobuf:"fixed64,1,opt,name=Field1" json:"Field1,omitempty"`
-	Field2           *float32 `protobuf:"fixed32,2,opt,name=Field2" json:"Field2,omitempty"`
-	Field3           *int32   `protobuf:"varint,3,opt,name=Field3" json:"Field3,omitempty"`
-	Field4           *int64   `protobuf:"varint,4,opt,name=Field4" json:"Field4,omitempty"`
-	Field5           *uint32  `protobuf:"varint,5,opt,name=Field5" json:"Field5,omitempty"`
-	Field6           *uint64  `protobuf:"varint,6,opt,name=Field6" json:"Field6,omitempty"`
-	Field7           *int32   `protobuf:"zigzag32,7,opt,name=Field7" json:"Field7,omitempty"`
-	Field8           *int64   `protobuf:"zigzag64,8,opt,name=Field8" json:"Field8,omitempty"`
-	Field9           *uint32  `protobuf:"fixed32,9,opt,name=Field9" json:"Field9,omitempty"`
-	Field10          *int32   `protobuf:"fixed32,10,opt,name=Field10" json:"Field10,omitempty"`
-	Field11          *uint64  `protobuf:"fixed64,11,opt,name=Field11" json:"Field11,omitempty"`
-	Field12          *int64   `protobuf:"fixed64,12,opt,name=Field12" json:"Field12,omitempty"`
-	Field13          *bool    `protobuf:"varint,13,opt,name=Field13" json:"Field13,omitempty"`
-	Field14          *string  `protobuf:"bytes,14,opt,name=Field14" json:"Field14,omitempty"`
-	Field15          []byte   `protobuf:"bytes,15,opt,name=Field15" json:"Field15,omitempty"`
+	Field1           *float64 `protobuf:"fixed64,1,opt,name=Field1,json=field1" json:"Field1,omitempty"`
+	Field2           *float32 `protobuf:"fixed32,2,opt,name=Field2,json=field2" json:"Field2,omitempty"`
+	Field3           *int32   `protobuf:"varint,3,opt,name=Field3,json=field3" json:"Field3,omitempty"`
+	Field4           *int64   `protobuf:"varint,4,opt,name=Field4,json=field4" json:"Field4,omitempty"`
+	Field5           *uint32  `protobuf:"varint,5,opt,name=Field5,json=field5" json:"Field5,omitempty"`
+	Field6           *uint64  `protobuf:"varint,6,opt,name=Field6,json=field6" json:"Field6,omitempty"`
+	Field7           *int32   `protobuf:"zigzag32,7,opt,name=Field7,json=field7" json:"Field7,omitempty"`
+	Field8           *int64   `protobuf:"zigzag64,8,opt,name=Field8,json=field8" json:"Field8,omitempty"`
+	Field9           *uint32  `protobuf:"fixed32,9,opt,name=Field9,json=field9" json:"Field9,omitempty"`
+	Field10          *int32   `protobuf:"fixed32,10,opt,name=Field10,json=field10" json:"Field10,omitempty"`
+	Field11          *uint64  `protobuf:"fixed64,11,opt,name=Field11,json=field11" json:"Field11,omitempty"`
+	Field12          *int64   `protobuf:"fixed64,12,opt,name=Field12,json=field12" json:"Field12,omitempty"`
+	Field13          *bool    `protobuf:"varint,13,opt,name=Field13,json=field13" json:"Field13,omitempty"`
+	Field14          *string  `protobuf:"bytes,14,opt,name=Field14,json=field14" json:"Field14,omitempty"`
+	Field15          []byte   `protobuf:"bytes,15,opt,name=Field15,json=field15" json:"Field15,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
-func (m *NinOptNative) Reset()         { *m = NinOptNative{} }
-func (m *NinOptNative) String() string { return proto.CompactTextString(m) }
-func (*NinOptNative) ProtoMessage()    {}
+func (m *NinOptNative) Reset()                    { *m = NinOptNative{} }
+func (m *NinOptNative) String() string            { return proto.CompactTextString(m) }
+func (*NinOptNative) ProtoMessage()               {}
+func (*NinOptNative) Descriptor() ([]byte, []int) { return fileDescriptorFuzz, []int{2} }
 
 func (m *NinOptNative) GetField1() float64 {
 	if m != nil && m.Field1 != nil {
@@ -283,22 +290,23 @@ func (m *NinOptNative) GetField15() []byte {
 }
 
 type NinOptStruct struct {
-	Field1           *float64      `protobuf:"fixed64,1,opt,name=Field1" json:"Field1,omitempty"`
-	Field2           *float32      `protobuf:"fixed32,2,opt,name=Field2" json:"Field2,omitempty"`
-	Field3           *NinOptNative `protobuf:"bytes,3,opt,name=Field3" json:"Field3,omitempty"`
-	Field4           *NinOptNative `protobuf:"bytes,4,opt,name=Field4" json:"Field4,omitempty"`
-	Field6           *uint64       `protobuf:"varint,6,opt,name=Field6" json:"Field6,omitempty"`
-	Field7           *int32        `protobuf:"zigzag32,7,opt,name=Field7" json:"Field7,omitempty"`
-	Field8           *NinOptNative `protobuf:"bytes,8,opt,name=Field8" json:"Field8,omitempty"`
-	Field13          *bool         `protobuf:"varint,13,opt,name=Field13" json:"Field13,omitempty"`
-	Field14          *string       `protobuf:"bytes,14,opt,name=Field14" json:"Field14,omitempty"`
-	Field15          []byte        `protobuf:"bytes,15,opt,name=Field15" json:"Field15,omitempty"`
+	Field1           *float64      `protobuf:"fixed64,1,opt,name=Field1,json=field1" json:"Field1,omitempty"`
+	Field2           *float32      `protobuf:"fixed32,2,opt,name=Field2,json=field2" json:"Field2,omitempty"`
+	Field3           *NinOptNative `protobuf:"bytes,3,opt,name=Field3,json=field3" json:"Field3,omitempty"`
+	Field4           *NinOptNative `protobuf:"bytes,4,opt,name=Field4,json=field4" json:"Field4,omitempty"`
+	Field6           *uint64       `protobuf:"varint,6,opt,name=Field6,json=field6" json:"Field6,omitempty"`
+	Field7           *int32        `protobuf:"zigzag32,7,opt,name=Field7,json=field7" json:"Field7,omitempty"`
+	Field8           *NinOptNative `protobuf:"bytes,8,opt,name=Field8,json=field8" json:"Field8,omitempty"`
+	Field13          *bool         `protobuf:"varint,13,opt,name=Field13,json=field13" json:"Field13,omitempty"`
+	Field14          *string       `protobuf:"bytes,14,opt,name=Field14,json=field14" json:"Field14,omitempty"`
+	Field15          []byte        `protobuf:"bytes,15,opt,name=Field15,json=field15" json:"Field15,omitempty"`
 	XXX_unrecognized []byte        `json:"-"`
 }
 
-func (m *NinOptStruct) Reset()         { *m = NinOptStruct{} }
-func (m *NinOptStruct) String() string { return proto.CompactTextString(m) }
-func (*NinOptStruct) ProtoMessage()    {}
+func (m *NinOptStruct) Reset()                    { *m = NinOptStruct{} }
+func (m *NinOptStruct) String() string            { return proto.CompactTextString(m) }
+func (*NinOptStruct) ProtoMessage()               {}
+func (*NinOptStruct) Descriptor() ([]byte, []int) { return fileDescriptorFuzz, []int{3} }
 
 func (m *NinOptStruct) GetField1() float64 {
 	if m != nil && m.Field1 != nil {
@@ -2890,3 +2898,35 @@ var (
 	ErrInvalidLengthFuzz = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowFuzz   = fmt.Errorf("proto: integer overflow")
 )
+
+var fileDescriptorFuzz = []byte{
+	// 439 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xac, 0xd3, 0xbf, 0x6e, 0xd3, 0x50,
+	0x14, 0xc7, 0x71, 0x1d, 0x3b, 0xb1, 0x93, 0xdb, 0x84, 0xa4, 0x1e, 0x2e, 0x47, 0x15, 0xaa, 0x50,
+	0xa6, 0xbb, 0x60, 0x37, 0xfe, 0xd3, 0xa6, 0x6b, 0x07, 0xc6, 0x80, 0xca, 0x13, 0xb4, 0xa9, 0x13,
+	0x2c, 0x0a, 0x8e, 0xda, 0x6b, 0x86, 0x8e, 0x4c, 0x3c, 0x1a, 0x1b, 0x3c, 0x02, 0xf0, 0x04, 0x3c,
+	0x02, 0x07, 0x87, 0x9c, 0x7b, 0x32, 0x55, 0x91, 0x3a, 0x58, 0xb2, 0xf3, 0x89, 0x15, 0xdd, 0xef,
+	0x4f, 0x51, 0x6a, 0xd9, 0x3c, 0x3c, 0xc4, 0xeb, 0xbb, 0xda, 0xd6, 0x51, 0xff, 0xdf, 0xbd, 0x2d,
+	0xef, 0xed, 0xfd, 0xd1, 0xab, 0x55, 0x65, 0xdf, 0x37, 0xd7, 0xf1, 0xa2, 0xfe, 0x98, 0xac, 0xea,
+	0x55, 0x9d, 0xb4, 0xdf, 0xb8, 0x6e, 0x96, 0xed, 0x53, 0xfb, 0xd0, 0xde, 0x6d, 0xde, 0x9c, 0x74,
+	0x95, 0x3f, 0xaf, 0x6e, 0x27, 0x5f, 0x7d, 0x15, 0xcd, 0xab, 0x4f, 0x97, 0xe5, 0xfa, 0xed, 0xd5,
+	0xe2, 0x43, 0x79, 0x33, 0xbf, 0xb2, 0xd5, 0xe7, 0x32, 0x3a, 0x52, 0xc1, 0xeb, 0xaa, 0xbc, 0xbd,
+	0x99, 0x22, 0xbc, 0xf4, 0x0d, 0x5c, 0x78, 0x63, 0xb8, 0x0c, 0x96, 0xed, 0x27, 0x6c, 0x29, 0x7a,
+	0x64, 0x9e, 0xb0, 0x94, 0x2d, 0x43, 0x9f, 0xac, 0x2b, 0x2c, 0x63, 0xcb, 0xb1, 0x43, 0xe6, 0x0b,
+	0xcb, 0xd9, 0x0a, 0xec, 0x92, 0x0d, 0x85, 0x15, 0x6c, 0xa7, 0x18, 0x90, 0x75, 0x84, 0x9d, 0xb2,
+	0x9d, 0x61, 0x48, 0x76, 0x28, 0xec, 0x8c, 0x6d, 0x86, 0x3d, 0xb2, 0x48, 0xd8, 0x8c, 0xed, 0x1c,
+	0xfb, 0x64, 0xa1, 0xb0, 0xf3, 0xe8, 0x85, 0x0a, 0x37, 0x67, 0x3f, 0x41, 0x45, 0x38, 0x6a, 0x31,
+	0xdc, 0x1c, 0xfe, 0xc4, 0xe9, 0x14, 0x0f, 0x48, 0x03, 0xa9, 0x53, 0xa7, 0x29, 0x0e, 0x48, 0xc7,
+	0x52, 0x53, 0xa7, 0x19, 0x0e, 0x49, 0x7b, 0x52, 0xb3, 0xc9, 0x17, 0x5f, 0x0d, 0x68, 0x8a, 0x37,
+	0x6b, 0xfb, 0x7f, 0x04, 0x2d, 0x46, 0x00, 0xe3, 0x06, 0xd0, 0x62, 0x00, 0x30, 0x1e, 0xc7, 0xd7,
+	0x22, 0x3e, 0x98, 0x2e, 0x87, 0xd7, 0x22, 0x3c, 0x18, 0x9f, 0xa3, 0x6b, 0x11, 0x1d, 0xcc, 0x90,
+	0x83, 0x6b, 0x11, 0x1c, 0x4c, 0x87, 0x63, 0x6b, 0x11, 0x1b, 0xcc, 0x21, 0x87, 0xd6, 0x22, 0x34,
+	0x98, 0x88, 0x23, 0x6b, 0x11, 0x19, 0x4c, 0xc8, 0x81, 0x51, 0x06, 0x06, 0x33, 0x72, 0x71, 0x51,
+	0xc6, 0x05, 0x13, 0xb8, 0xb0, 0x28, 0xc3, 0x82, 0x19, 0xbb, 0xa8, 0x28, 0xa3, 0x82, 0xe9, 0x71,
+	0x50, 0x27, 0x39, 0x3e, 0x23, 0xe9, 0x6f, 0x25, 0x77, 0x52, 0xe0, 0x88, 0x64, 0xb0, 0x95, 0x62,
+	0xf2, 0xdd, 0xdb, 0x8e, 0xf0, 0xce, 0xde, 0x35, 0x0b, 0xbb, 0xf7, 0x08, 0xc9, 0xce, 0x08, 0x07,
+	0xe9, 0xf3, 0x98, 0xff, 0xa2, 0xb1, 0x5c, 0x97, 0xd7, 0x49, 0x76, 0xd6, 0x79, 0xf4, 0x85, 0x7c,
+	0xef, 0x79, 0x92, 0x9d, 0x79, 0x1e, 0xfd, 0x81, 0xd9, 0xd3, 0x16, 0xbd, 0x18, 0xff, 0xf9, 0x75,
+	0x0c, 0xdf, 0x7e, 0x1f, 0xc3, 0x0f, 0xba, 0x7e, 0xd2, 0xf5, 0x37, 0x00, 0x00, 0xff, 0xff, 0xce,
+	0xa6, 0x95, 0x94, 0xc1, 0x04, 0x00, 0x00,
+}

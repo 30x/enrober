@@ -9,8 +9,7 @@ import (
 	"net/http"
 	"strings"
 
-	"k8s.io/client-go/1.5/pkg/api"
-	"k8s.io/client-go/1.5/pkg/api/v1"
+	"k8s.io/client-go/pkg/api/v1"
 
 	"github.com/30x/enrober/pkg/apigee"
 	"github.com/30x/enrober/pkg/helper"
@@ -213,7 +212,7 @@ func createEnvironment(environmentName, token string) error {
 	if err != nil {
 		helper.LogError.Printf("Error creating secret: %s\n", err)
 
-		err = clientset.Core().Namespaces().Delete(createdNs.GetName(), &api.DeleteOptions{})
+		err = clientset.Core().Namespaces().Delete(createdNs.GetName(), &v1.DeleteOptions{})
 		if err != nil {
 			errorMessage := fmt.Sprintf("Failed to cleanup namespace\n")
 			return errors.New(errorMessage)

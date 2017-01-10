@@ -1,10 +1,5 @@
 package: github.com/30x/enrober
 import:
-- package: k8s.io/kubernetes
-  version: 1.4.*
-  subpackages:
-  - pkg/client/unversioned
-  - pkg/client/api
 - package: github.com/stretchr/testify
 - package: github.com/gorilla/mux
 - package: github.com/opencontainers/runc
@@ -18,5 +13,4 @@ import:
 - package: github.com/30x/authsdk
 - package: github.com/gorilla/handlers
 - package: k8s.io/client-go
-  subpackages:
-  - 1.5/
+  version: release-2.0

@@ -1,7 +1,5 @@
 # Protocol Buffers for Go with Gadgets
 
-Drone.io Basic Tests: [![Build Status](https://drone.io/github.com/gogo/protobuf/status.png)](https://drone.io/github.com/gogo/protobuf/latest)
-
 Travis CI Matrix Builds: [![Build Status](https://travis-ci.org/gogo/protobuf.svg?branch=master)](https://travis-ci.org/gogo/protobuf)
 
 ### Getting Started (Give me the speed I don't care about the rest)
@@ -10,7 +8,7 @@ Install the protoc-gen-gofast binary
 
     go get github.com/gogo/protobuf/protoc-gen-gofast
 
-Use it to generate faster marshaling and unmarshaling go code for you protocol buffers.
+Use it to generate faster marshaling and unmarshaling go code for your protocol buffers.
 
     protoc --gofast_out=. myproto.proto
 
@@ -28,10 +26,10 @@ Please visit the [homepage](http://gogo.github.io) for more documentation.
 
 ### Installation
 
-To install it, you must first have Go (at least version 1.2.2) installed (see [http://golang.org/doc/install](http://golang.org/doc/install)).  Go 1.2.2, 1.3.3, 1.4.2 and 1.5.2 are continiuosly tested.
+To install it, you must first have Go (at least version 1.3.3) installed (see [http://golang.org/doc/install](http://golang.org/doc/install)).  Go 1.3.3, 1.4.2, 1.5.3 and 1.6 are continiuosly tested.
 
 Next, install the standard protocol buffer implementation from [https://github.com/google/protobuf](https://github.com/google/protobuf).
-Most versions from 2.3.1 should not give any problems, but 2.5.0, 2.6.1 and 3 alpha are continiously tested.
+Most versions from 2.3.1 should not give any problems, but 2.5.0, 2.6.1 and 3 alpha are continuously tested.
 
 Finally run:
 

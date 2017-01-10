@@ -11,11 +11,10 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"k8s.io/client-go/1.5/pkg/api"
-	k8sErrors "k8s.io/client-go/1.5/pkg/api/errors"
-	"k8s.io/client-go/1.5/pkg/api/v1"
-	"k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1"
-	"k8s.io/client-go/1.5/pkg/labels"
+	k8sErrors "k8s.io/client-go/pkg/api/errors"
+	"k8s.io/client-go/pkg/api/unversioned"
+	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
 	"github.com/30x/enrober/pkg/apigee"
 	"github.com/30x/enrober/pkg/helper"
@@ -78,9 +77,7 @@ func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 func getDeployments(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	depList, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
-		LabelSelector: labels.Everything(),
-	})
+	depList, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{})
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error retrieving deployment list: %v\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -226,7 +223,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		Spec: v1beta1.DeploymentSpec{
 			RevisionHistoryLimit: &tempInt,
 			Replicas:             tempJSON.Replicas,
-			Selector: &v1beta1.LabelSelector{
+			Selector: &unversioned.LabelSelector{
 				MatchLabels: map[string]string{
 					"component": tempPTS.Labels["component"],
 				},
@@ -235,13 +232,13 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	labelSelector, err := labels.Parse("component=" + tempPTS.Labels["component"])
+	labelSelector := "component=" + tempPTS.Labels["component"]
 	//Get list of all deployments in namespace with MatchLabels["app"] = tempPTS.Labels["app"]
-	depList, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
+	depList, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if len(depList.Items) != 0 {
-		errorMessage := fmt.Sprintf("LabelSelector " + labelSelector.String() + " already exists")
+		errorMessage := fmt.Sprintf("LabelSelector " + labelSelector + " already exists")
 		helper.LogError.Printf(errorMessage)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
 		return
@@ -429,16 +426,10 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Get the match label
-	selector, err := labels.Parse("component=" + dep.Labels["component"])
-	if err != nil {
-		errorMessage := fmt.Sprintf("Error creating label selector: %v\n", err)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage)
-		return
-	}
+	selector := "component=" + dep.Labels["component"]
 
 	//Get the replica sets with the corresponding label
-	rsList, err := clientset.Extensions().ReplicaSets(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
+	rsList, err := clientset.Extensions().ReplicaSets(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{
 		LabelSelector: selector,
 	})
 	if err != nil {
@@ -449,12 +440,12 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Get the pods with the corresponding label
-	podList, err := clientset.Core().Pods(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
+	podList, err := clientset.Core().Pods(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{
 		LabelSelector: selector,
 	})
 
 	//Delete Deployment
-	err = clientset.Extensions().Deployments(pathVars["org"]+"-"+pathVars["env"]).Delete(pathVars["deployment"], &api.DeleteOptions{})
+	err = clientset.Extensions().Deployments(pathVars["org"]+"-"+pathVars["env"]).Delete(pathVars["deployment"], &v1.DeleteOptions{})
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error deleting deployment: %v\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -465,7 +456,7 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 
 	//Delete all Replica Sets that came up in the list
 	for _, value := range rsList.Items {
-		err = clientset.Extensions().ReplicaSets(pathVars["org"]+"-"+pathVars["env"]).Delete(value.GetName(), &api.DeleteOptions{})
+		err = clientset.Extensions().ReplicaSets(pathVars["org"]+"-"+pathVars["env"]).Delete(value.GetName(), &v1.DeleteOptions{})
 		if err != nil {
 			errorMessage := fmt.Sprintf("Error deleting replica set: %v\n", err)
 			http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -477,7 +468,7 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 
 	//Delete all Pods that came up in the list
 	for _, value := range podList.Items {
-		err = clientset.Core().Pods(pathVars["org"]+"-"+pathVars["env"]).Delete(value.GetName(), &api.DeleteOptions{})
+		err = clientset.Core().Pods(pathVars["org"]+"-"+pathVars["env"]).Delete(value.GetName(), &v1.DeleteOptions{})
 		if err != nil {
 			errorMessage := fmt.Sprintf("Error deleting pod: %v\n", err)
 			http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -531,17 +522,11 @@ func getDeploymentLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	selector := dep.Spec.Selector
-	label, err := labels.Parse("component=" + selector.MatchLabels["component"])
-	if err != nil {
-		errorMessage := fmt.Sprintf("Error parsing label selector: %s\n", err)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage)
-		return
-	}
+	label := "component=" + selector.MatchLabels["component"]
 
 	podInterface := clientset.Core().Pods(pathVars["org"] + "-" + pathVars["env"])
 
-	pods, err := podInterface.List(api.ListOptions{
+	pods, err := podInterface.List(v1.ListOptions{
 		LabelSelector: label,
 	})
 
