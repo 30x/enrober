@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -25,12 +24,6 @@ import (
 //getEnvironment returns a kubernetes namespace matching the given environmentGroupID and environmentName
 func getEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
-
-	if os.Getenv("DEPLOY_STATE") == "PROD" {
-		if !helper.ValidAdmin(pathVars["org"], w, r) {
-			return
-		}
-	}
 
 	getNs, err := clientset.Core().Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
 	if err != nil {
@@ -70,12 +63,6 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	if os.Getenv("DEPLOY_STATE") == "PROD" {
-		if !helper.ValidAdmin(pathVars["org"], w, r) {
-			return
-		}
-	}
-
 	err := updateEnvironmentHosts(pathVars["org"], pathVars["env"], r.Header.Get("Authorization"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -90,12 +77,6 @@ func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 //getDeployments returns a list of all deployments matching the given org and env name
 func getDeployments(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
-
-	if os.Getenv("DEPLOY_STATE") == "PROD" {
-		if !helper.ValidAdmin(pathVars["org"], w, r) {
-			return
-		}
-	}
 
 	depList, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
 		LabelSelector: labels.Everything(),
@@ -123,12 +104,6 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 //createDeployment creates a deployment in the given environment(namespace) with the given environmentGroupID based on the given deploymentBody
 func createDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
-
-	if os.Getenv("DEPLOY_STATE") == "PROD" {
-		if !helper.ValidAdmin(pathVars["org"], w, r) {
-			return
-		}
-	}
 
 	// Check if the environment already exists
 	_, err := clientset.Core().Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
@@ -301,13 +276,6 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 func getDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	if os.Getenv("DEPLOY_STATE") == "PROD" {
-		if !helper.ValidAdmin(pathVars["org"], w, r) {
-			//Errors should be returned from function
-			return
-		}
-	}
-
 	getDep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error retrieving deployment: %s\n", err)
@@ -330,14 +298,7 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 
 //updateDeployment updates a deployment matching the given environmentGroupID, environmentName, and deploymentName
 func updateDeployment(w http.ResponseWriter, r *http.Request) {
-
 	pathVars := mux.Vars(r)
-
-	if os.Getenv("DEPLOY_STATE") == "PROD" {
-		if !helper.ValidAdmin(pathVars["org"], w, r) {
-			return
-		}
-	}
 
 	//Get the old namespace first so we can fail quickly if it's not there
 	getDep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
@@ -458,12 +419,6 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	if os.Getenv("DEPLOY_STATE") == "PROD" {
-		if !helper.ValidAdmin(pathVars["org"], w, r) {
-			return
-		}
-	}
-
 	//Get the deployment object
 	dep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
 	if err != nil {
@@ -536,12 +491,6 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 
 func getDeploymentLogs(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
-
-	if os.Getenv("DEPLOY_STATE") == "PROD" {
-		if !helper.ValidAdmin(pathVars["org"], w, r) {
-			return
-		}
-	}
 
 	//Get query strings
 	queries := r.URL.Query()

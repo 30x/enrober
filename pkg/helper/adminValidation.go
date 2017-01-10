@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/30x/authsdk"
+	"github.com/gorilla/mux"
 )
 
 //ValidAdmin checks if the user is an org admin for the organization they are making a request in
@@ -28,4 +29,15 @@ func ValidAdmin(organization string, w http.ResponseWriter, r *http.Request) boo
 		return false
 	}
 	return true
+}
+
+//AdminMiddleware is a middleware wrapper for the ValidAdmin function
+func AdminMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pathVars := mux.Vars(r)
+		if !ValidAdmin(pathVars["org"], w, r) {
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
