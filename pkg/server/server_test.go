@@ -130,17 +130,6 @@ var _ = Describe("Server Test", func() {
 
 		})
 
-		It("Delete Environment", func() {
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
-
-			req, err := http.NewRequest("DELETE", url, nil)
-
-			resp, err := client.Do(req)
-
-			Expect(err).Should(BeNil(), "Shouldn't get an error on DELETE. Error: %v", err)
-
-			Expect(resp.StatusCode).Should(Equal(204), "Response should be 204 No Content")
-		})
 	}
 
 	Context("Local Testing", func() {

@@ -9,7 +9,8 @@ import (
 	"net/http"
 	"strings"
 
-	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/client-go/1.5/pkg/api"
+	"k8s.io/client-go/1.5/pkg/api/v1"
 
 	"github.com/30x/enrober/pkg/apigee"
 	"github.com/30x/enrober/pkg/helper"
@@ -151,15 +152,22 @@ func createEnvironment(environmentName, token string) error {
 
 	// Retrieve hostnames from Apigee api
 	apigeeClient := apigee.Client{Token: token}
-	hosts, err := apigeeClient.Hosts(apigeeOrgName, apigeeEnvName)
-	if err != nil {
-		errorMessage := fmt.Sprintf("Error retrieving hostnames from Apigee : %v", err)
-		return errors.New(errorMessage)
+	var hosts []string
+	if apigeeKVM {
+		hosts, err = apigeeClient.Hosts(apigeeOrgName, apigeeEnvName)
+		if err != nil {
+			errorMessage := fmt.Sprintf("Error retrieving hostnames from Apigee : %v", err)
+			return errors.New(errorMessage)
+		}
+
 	}
 
 	//Should create an annotation object and pass it into the object literal
 	nsAnnotations := make(map[string]string)
-	nsAnnotations["hostNames"] = strings.Join(hosts, " ")
+
+	if apigeeKVM {
+		nsAnnotations["hostNames"] = strings.Join(hosts, " ")
+	}
 
 	//Add network policy annotation if we are isolating namespaces
 	if isolateNamespace {
@@ -167,8 +175,8 @@ func createEnvironment(environmentName, token string) error {
 	}
 
 	//NOTE: Probably shouldn't create annotation if there are no hostNames
-	nsObject := &api.Namespace{
-		ObjectMeta: api.ObjectMeta{
+	nsObject := &v1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
 			Name: environmentName,
 			Labels: map[string]string{
 				"runtime":      "shipyard",
@@ -181,7 +189,7 @@ func createEnvironment(environmentName, token string) error {
 	}
 
 	//Create Namespace
-	createdNs, err := client.Namespaces().Create(nsObject)
+	createdNs, err := clientset.Core().Namespaces().Create(nsObject)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error creating namespace: %v", err)
 		return errors.New(errorMessage)
@@ -189,8 +197,8 @@ func createEnvironment(environmentName, token string) error {
 	//Print to console for logging
 	helper.LogInfo.Printf("Created Namespace: %s\n", createdNs.GetName())
 
-	tempSecret := api.Secret{
-		ObjectMeta: api.ObjectMeta{
+	tempSecret := v1.Secret{
+		ObjectMeta: v1.ObjectMeta{
 			Name: "routing",
 		},
 		Data: map[string][]byte{},
@@ -201,11 +209,11 @@ func createEnvironment(environmentName, token string) error {
 	tempSecret.Data["private-api-key"] = []byte(privateKey)
 
 	//Create Secret
-	_, err = client.Secrets(environmentName).Create(&tempSecret)
+	_, err = clientset.Core().Secrets(environmentName).Create(&tempSecret)
 	if err != nil {
 		helper.LogError.Printf("Error creating secret: %s\n", err)
 
-		err = client.Namespaces().Delete(createdNs.GetName())
+		err = clientset.Core().Namespaces().Delete(createdNs.GetName(), &api.DeleteOptions{})
 		if err != nil {
 			errorMessage := fmt.Sprintf("Failed to cleanup namespace\n")
 			return errors.New(errorMessage)

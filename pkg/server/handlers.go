@@ -13,11 +13,10 @@ import (
 	"github.com/gorilla/mux"
 
 	"k8s.io/client-go/1.5/pkg/api"
+	k8sErrors "k8s.io/client-go/1.5/pkg/api/errors"
 	"k8s.io/client-go/1.5/pkg/api/v1"
 	"k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/1.5/pkg/labels"
-
-	k8sErrors "k8s.io/kubernetes/pkg/api/errors"
 
 	"github.com/30x/enrober/pkg/apigee"
 	"github.com/30x/enrober/pkg/helper"
@@ -33,8 +32,6 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	//TODO: Move to using clientset
-
 	getNs, err := clientset.Core().Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -42,7 +39,7 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	getSecret, err := client.Secrets(pathVars["org"] + "-" + pathVars["env"]).Get("routing")
+	getSecret, err := clientset.Core().Secrets(pathVars["org"] + "-" + pathVars["env"]).Get("routing")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		helper.LogError.Printf("Error getting existing Secret: %v\n", err)
@@ -134,7 +131,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if the environment already exists
-	_, err := client.Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
+	_, err := clientset.Core().Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
 	if err != nil {
 		if k8sErrors.IsAlreadyExists(err) == false {
 
@@ -196,20 +193,23 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	for index, val := range tempJSON.EnvVars {
-		if val.ValueFrom != (&apigee.ApigeeEnvVarSource{}) {
-			// Gotta go retrieve the value from apigee KVM
-			// In the future we may support other ref types
-			apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
-			tempJSON.EnvVars[index], err = apigee.EnvReftoEnv(val.ValueFrom, apigeeClient, pathVars["org"], pathVars["env"])
-			if err != nil {
-				errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
-				http.Error(w, errorMessage, http.StatusInternalServerError)
-				helper.LogError.Printf(errorMessage)
-				return
+	if apigeeKVM {
+		for index, val := range tempJSON.EnvVars {
+			if val.ValueFrom != (&apigee.ApigeeEnvVarSource{}) {
+				// Gotta go retrieve the value from apigee KVM
+				// In the future we may support other ref types
+				apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
+				tempJSON.EnvVars[index], err = apigee.EnvReftoEnv(val.ValueFrom, apigeeClient, pathVars["org"], pathVars["env"])
+				if err != nil {
+					errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
+					http.Error(w, errorMessage, http.StatusInternalServerError)
+					helper.LogError.Printf(errorMessage)
+					return
+				}
 			}
 		}
 	}
+
 	tempK8sEnv, err := apigee.ApigeeEnvtoK8s(tempJSON.EnvVars)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed at ApigeeEnvtoK8s: %v\n", err)
@@ -308,7 +308,7 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	getDep, err := client.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
+	getDep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error retrieving deployment: %s\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -405,20 +405,23 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		getDep.Spec.Template.Annotations["publicHosts"] = *tempJSON.PublicHosts
 	}
 
-	for index, val := range tempJSON.EnvVars {
-		if val.ValueFrom != (&apigee.ApigeeEnvVarSource{}) {
-			// Gotta go retrieve the value from apigee KVM
-			// In the future we may support other ref types
-			apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
-			tempJSON.EnvVars[index], err = apigee.EnvReftoEnv(val.ValueFrom, apigeeClient, pathVars["org"], pathVars["env"])
-			if err != nil {
-				errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
-				http.Error(w, errorMessage, http.StatusInternalServerError)
-				helper.LogError.Printf(errorMessage)
-				return
+	if apigeeKVM {
+		for index, val := range tempJSON.EnvVars {
+			if val.ValueFrom != (&apigee.ApigeeEnvVarSource{}) {
+				// Gotta go retrieve the value from apigee KVM
+				// In the future we may support other ref types
+				apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
+				tempJSON.EnvVars[index], err = apigee.EnvReftoEnv(val.ValueFrom, apigeeClient, pathVars["org"], pathVars["env"])
+				if err != nil {
+					errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
+					http.Error(w, errorMessage, http.StatusInternalServerError)
+					helper.LogError.Printf(errorMessage)
+					return
+				}
 			}
 		}
 	}
+
 	tempK8sEnv, err := apigee.ApigeeEnvtoK8s(tempJSON.EnvVars)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed at ApigeeEnvtoK8s: %v\n", err)
@@ -462,7 +465,7 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Get the deployment object
-	dep, err := client.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
+	dep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error getting old deployment: %s\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -570,7 +573,7 @@ func getDeploymentLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Get the deployment
-	dep, err := client.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
+	dep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error retrieving deployment: %s\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)

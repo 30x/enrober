@@ -7,8 +7,6 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-
-	k8sClient "k8s.io/kubernetes/pkg/client/unversioned"
 )
 
 // TODO:
@@ -22,8 +20,6 @@ const (
 
 //Global Vars
 var (
-	//Kubernetes Client
-	client k8sClient.Client
 
 	//Global Regex
 	validIPAddressRegex = regexp.MustCompile(`^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$`)
@@ -41,8 +37,6 @@ var (
 	//Apigee KVM check
 	apigeeKVM bool
 )
-
-//NOTE: routing secret should probably be a configurable name
 
 //NewServer creates a new server
 func NewServer() (server *Server) {
