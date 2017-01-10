@@ -1,9 +1,6 @@
 package apigee
 
-import (
-	"k8s.io/client-go/1.5/pkg/api"
-	"k8s.io/client-go/1.5/pkg/api/v1"
-)
+import "k8s.io/client-go/1.5/pkg/api/v1"
 
 // EnvReftoEnv converts an ApigeeEnvVarSource to an ApigeeEnvVar
 func EnvReftoEnv(source *ApigeeEnvVarSource, client Client, org, env string) (ApigeeEnvVar, error) {
@@ -68,7 +65,7 @@ func K8sEnvtoApigee(k8sEnv []v1.EnvVar) ([]ApigeeEnvVar, error) {
 }
 
 //CacheK8sEnvVars appends a list of k8s env vars to a given current list without duplication
-func CacheK8sEnvVars(currentEnvVars, newEnvVars []api.EnvVar) []api.EnvVar {
+func CacheK8sEnvVars(currentEnvVars, newEnvVars []v1.EnvVar) []v1.EnvVar {
 
 	//Check for envVar conflicts and prioritize ones from passed JSON.
 	finalEnvVar := currentEnvVars

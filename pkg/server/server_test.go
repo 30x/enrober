@@ -16,70 +16,8 @@ var _ = Describe("Server Test", func() {
 		client := &http.Client{}
 
 		//Higher scoped secret value
-		var globalPrivate string
-		var globalPublic string
-
-		// It("Create Environment", func() {
-		// 	url := fmt.Sprintf("%s/environments", hostBase)
-
-		// 	jsonStr := []byte(`{"environmentName": "testorg1:testenv1", "hostNames": ["testhost1"]}`)
-		// 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-
-		// 	resp, err := client.Do(req)
-		// 	Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
-
-		// 	respStore := environmentResponse{}
-
-		// 	err = json.NewDecoder(resp.Body).Decode(&respStore)
-		// 	Expect(err).Should(BeNil(), "Error decoding response: %v", err)
-
-		// 	//Store the private-api-key in higher scope
-		// 	globalPrivate = string(respStore.PrivateSecret)
-
-		// 	//Store the public-api-key in higher scope
-		// 	globalPublic = string(respStore.PublicSecret)
-
-		// 	Expect(respStore.PrivateSecret).ShouldNot(BeNil())
-		// 	Expect(respStore.PublicSecret).ShouldNot(BeNil())
-
-		// 	Expect(resp.StatusCode).Should(Equal(201), "Response should be 201 Created")
-		// })
-
-		// It("Create Environment with duplicated Host Name", func() {
-		// 	url := fmt.Sprintf("%s/environments", hostBase)
-
-		// 	jsonStr := []byte(`{"environmentName": "testorg2:testenv2", "hostNames": ["testhost1"]}`)
-		// 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-
-		// 	resp, err := client.Do(req)
-
-		// 	Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
-
-		// 	Expect(resp.StatusCode).Should(Equal(500), "Response should be 500 Internal Server Error")
-		// })
-
-		// It("Update Environment", func() {
-		// 	url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
-
-		// 	jsonStr := []byte(`{"hostNames": ["testhost2"]}`)
-		// 	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
-
-		// 	resp, err := client.Do(req)
-		// 	Expect(err).Should(BeNil(), "Shouldn't get an error on PATCH. Error: %v", err)
-
-		// 	respStore := environmentResponse{}
-
-		// 	err = json.NewDecoder(resp.Body).Decode(&respStore)
-		// 	Expect(err).Should(BeNil(), "Error decoding response: %v", err)
-
-		// 	//Make sure that private-api-key wasn't changed
-		// 	Expect(string(respStore.PrivateSecret)).Should(Equal(globalPrivate))
-
-		// 	//Make sure that public-api-key wasn't changed
-		// 	Expect(string(respStore.PublicSecret)).Should(Equal(globalPublic))
-
-		// 	Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
-		// })
+		// var globalPrivate string
+		// var globalPublic string
 
 		It("Create Deployment from PTS URL", func() {
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)

@@ -170,7 +170,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tempPTS := api.PodTemplateSpec{}
+	tempPTS := v1.PodTemplateSpec{}
 
 	//Check if we got a URL
 	if tempJSON.PtsURL == "" {
@@ -262,7 +262,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 
 	labelSelector, err := labels.Parse("component=" + tempPTS.Labels["component"])
 	//Get list of all deployments in namespace with MatchLabels["app"] = tempPTS.Labels["app"]
-	depList, err := client.Deployments(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
+	depList, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if len(depList.Items) != 0 {
@@ -273,7 +273,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Create Deployment
-	dep, err := client.Deployments(pathVars["org"] + "-" + pathVars["env"]).Create(&template)
+	dep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Create(&template)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error creating deployment: %s\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -340,7 +340,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Get the old namespace first so we can fail quickly if it's not there
-	getDep, err := client.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
+	getDep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error getting existing deployment: %s\n", err)
 		http.Error(w, errorMessage, http.StatusNotFound)
@@ -357,7 +357,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tempPTS := api.PodTemplateSpec{}
+	tempPTS := v1.PodTemplateSpec{}
 
 	//Check if we got a URL
 	if tempJSON.PtsURL == "" {
@@ -389,7 +389,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 
 	//Only set the replica count if the passed variable
 	if tempJSON.Replicas != nil {
-		getDep.Spec.Replicas = *tempJSON.Replicas
+		getDep.Spec.Replicas = tempJSON.Replicas
 	}
 	getDep.Spec.Template = tempPTS
 
@@ -431,7 +431,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	//Add routable label
 	getDep.Spec.Template.Labels["routable"] = "true"
 
-	dep, err := client.Deployments(pathVars["org"] + "-" + pathVars["env"]).Update(getDep)
+	dep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Update(getDep)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error updating deployment: %v\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -480,7 +480,7 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Get the replica sets with the corresponding label
-	rsList, err := client.ReplicaSets(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
+	rsList, err := clientset.Extensions().ReplicaSets(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
 		LabelSelector: selector,
 	})
 	if err != nil {
@@ -491,12 +491,12 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Get the pods with the corresponding label
-	podList, err := client.Pods(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
+	podList, err := clientset.Core().Pods(pathVars["org"] + "-" + pathVars["env"]).List(api.ListOptions{
 		LabelSelector: selector,
 	})
 
 	//Delete Deployment
-	err = client.Deployments(pathVars["org"]+"-"+pathVars["env"]).Delete(pathVars["deployment"], &api.DeleteOptions{})
+	err = clientset.Extensions().Deployments(pathVars["org"]+"-"+pathVars["env"]).Delete(pathVars["deployment"], &api.DeleteOptions{})
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error deleting deployment: %v\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -507,7 +507,7 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 
 	//Delete all Replica Sets that came up in the list
 	for _, value := range rsList.Items {
-		err = client.ReplicaSets(pathVars["org"]+"-"+pathVars["env"]).Delete(value.GetName(), &api.DeleteOptions{})
+		err = clientset.Extensions().ReplicaSets(pathVars["org"]+"-"+pathVars["env"]).Delete(value.GetName(), &api.DeleteOptions{})
 		if err != nil {
 			errorMessage := fmt.Sprintf("Error deleting replica set: %v\n", err)
 			http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -519,7 +519,7 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 
 	//Delete all Pods that came up in the list
 	for _, value := range podList.Items {
-		err = client.Pods(pathVars["org"]+"-"+pathVars["env"]).Delete(value.GetName(), &api.DeleteOptions{})
+		err = clientset.Core().Pods(pathVars["org"]+"-"+pathVars["env"]).Delete(value.GetName(), &api.DeleteOptions{})
 		if err != nil {
 			errorMessage := fmt.Sprintf("Error deleting pod: %v\n", err)
 			http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -587,7 +587,7 @@ func getDeploymentLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	podInterface := client.Pods(pathVars["org"] + "-" + pathVars["env"])
+	podInterface := clientset.Core().Pods(pathVars["org"] + "-" + pathVars["env"])
 
 	pods, err := podInterface.List(api.ListOptions{
 		LabelSelector: label,
@@ -603,7 +603,7 @@ func getDeploymentLogs(w http.ResponseWriter, r *http.Request) {
 	logBuffer := bytes.NewBuffer(nil)
 
 	for _, pod := range pods.Items {
-		podLogOpts := &api.PodLogOptions{}
+		podLogOpts := &v1.PodLogOptions{}
 
 		if tail != -1 {
 			podLogOpts.TailLines = &tail
