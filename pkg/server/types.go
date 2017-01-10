@@ -5,7 +5,7 @@ import (
 
 	"github.com/30x/enrober/pkg/apigee"
 
-	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/client-go/1.5/pkg/api"
 )
 
 // State is an enum to select between local and in cluster state
