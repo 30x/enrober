@@ -15,9 +15,17 @@ var _ = Describe("Server Test", func() {
 
 		client := &http.Client{}
 
-		//Higher scoped secret value
-		// var globalPrivate string
-		// var globalPublic string
+		It("Get OK Status", func() {
+			url := fmt.Sprintf("%s/environments/status", hostBase)
+
+			req, err := http.NewRequest("GET", url, nil)
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on GET. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200")
+		})
 
 		It("Create Deployment from PTS URL", func() {
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)
@@ -92,6 +100,33 @@ var _ = Describe("Server Test", func() {
 
 		It("Get Environment", func() {
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
+
+			req, err := http.NewRequest("GET", url, nil)
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on GET. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+		})
+
+		//TODO: PATCH Environment Test
+		// It("Update Environment", func() {
+		// 	url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
+
+		// 	jsonStr := []byte(`{}`)
+
+		// 	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
+
+		// 	resp, err := client.Do(req)
+
+		// 	Expect(err).Should(BeNil(), "Shouldn't get an error on PATCH. Error: %v", err)
+
+		// 	Expect(resp.StatusCode).Should(Equal(204), "Response should be 204 No Content")
+		// })
+
+		It("Get Deployments", func() {
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
 

@@ -189,13 +189,52 @@ func (c *Client) hostAliases(org, env, virtualHost string) ([]string, error) {
 	return hosts, nil
 }
 
+// CPSEnabledForOrg returns a bool indicating whether the requested Org has CPS enabled or not
+func (c *Client) CPSEnabledForOrg(orgName string) (bool, error) {
+	c.initDefaults()
+
+	cpsEnabled := false
+
+	orgURL := fmt.Sprintf("%sv1/organizations/%s", c.ApigeeAPIHost, orgName)
+	resp, err := c.Get(orgURL)
+	if err != nil {
+		return false, err
+	}
+
+	defer resp.Body.Close()
+
+	var rawOrg interface{}
+
+	err = json.NewDecoder(resp.Body).Decode(&rawOrg)
+
+	if err != nil {
+		fmt.Printf("Error unmarshalling response: %v\n", err)
+		return false, err
+	}
+
+	org := rawOrg.(map[string]interface{})
+	orgProps := org["properties"].(map[string]interface{})
+	orgProp := orgProps["property"].([]interface{})
+
+	for _, rawProp := range orgProp {
+		prop := rawProp.(map[string]interface{})
+		if prop["name"] == "features.isCpsEnabled" {
+			if prop["value"] == "true" {
+				return true, nil
+			}
+			break
+		}
+	}
+	return cpsEnabled, nil
+}
+
 func (c *Client) initDefaults() {
 	// Init HTTPClient used by all reqs for efficiency, can be used concurrently
 	if c.HTTPClient == nil {
 		c.HTTPClient = &http.Client{}
 	}
 
-	// If apigee api host is not set configure to defult from env
+	// If apigee api host is not set configure to default from env
 	if c.ApigeeAPIHost == "" {
 		envVar := os.Getenv(EnvVarApigeeHost)
 		if envVar == "" {

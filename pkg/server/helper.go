@@ -15,6 +15,8 @@ import (
 	"github.com/30x/enrober/pkg/helper"
 )
 
+//TODO: Need to have testing for this?
+
 // Lets start by just making a new function
 func createEnvironment(environmentName, token string) error {
 
@@ -39,6 +41,9 @@ func createEnvironment(environmentName, token string) error {
 		errorMessage := fmt.Sprintf("Error generating random string: %v\n", err)
 		return errors.New(errorMessage)
 	}
+
+	// Retrieve hostnames from Apigee api
+	apigeeClient := apigee.Client{Token: token}
 
 	//Should attempt KVM creation before creating k8s objects
 	if apigeeKVM {
@@ -91,7 +96,11 @@ func createEnvironment(environmentName, token string) error {
 				b2 := new(bytes.Buffer)
 				updateKVMURL := fmt.Sprintf("%s/%s", apigeeKVMURL, apigeeKVMName) // Use non-CPS endpoint by default
 
-				if isCPSEnabledForOrg(apigeeOrgName, token) {
+				cpsBool, err := apigeeClient.CPSEnabledForOrg(apigeeOrgName)
+				if err != nil {
+					return err
+				}
+				if cpsBool {
 					// When using CPS, the API endpoint is different and instead of sending the whole KVM body, we can only send
 					// the KVM entry to update.  (This will work for now since we are only persisting one key but in the future
 					// we might need to update this to make N calls, one per key.)
@@ -149,8 +158,6 @@ func createEnvironment(environmentName, token string) error {
 
 	}
 
-	// Retrieve hostnames from Apigee api
-	apigeeClient := apigee.Client{Token: token}
 	var hosts []string
 	if apigeeKVM {
 		hosts, err = apigeeClient.Hosts(apigeeOrgName, apigeeEnvName)
@@ -242,57 +249,4 @@ func updateEnvironmentHosts(org, env, token string) error {
 	}
 
 	return nil
-}
-
-func isCPSEnabledForOrg(orgName, authzHeader string) bool {
-	cpsEnabled := false
-	httpClient := &http.Client{}
-
-	req, err := http.NewRequest("GET", fmt.Sprintf("%sv1/organizations/%s", apigeeAPIHost, orgName), nil)
-
-	if err != nil {
-		fmt.Printf("Error checking for CPS: %v", err)
-
-		return cpsEnabled
-	}
-
-	fmt.Printf("Checking if %s has CPS enabled using URL: %v\n", orgName, req.URL.String())
-
-	req.Header.Add("Authorization", authzHeader)
-
-	res, err := httpClient.Do(req)
-
-	defer res.Body.Close()
-
-	if err != nil {
-		fmt.Printf("Error checking for CPS: %v", err)
-	} else {
-		var rawOrg interface{}
-
-		err := json.NewDecoder(res.Body).Decode(&rawOrg)
-
-		if err != nil {
-			fmt.Printf("Error unmarshalling response: %v\n", err)
-		} else {
-			org := rawOrg.(map[string]interface{})
-			orgProps := org["properties"].(map[string]interface{})
-			orgProp := orgProps["property"].([]interface{})
-
-			for _, rawProp := range orgProp {
-				prop := rawProp.(map[string]interface{})
-
-				if prop["name"] == "features.isCpsEnabled" {
-					if prop["value"] == "true" {
-						cpsEnabled = true
-					}
-
-					break
-				}
-			}
-		}
-	}
-
-	fmt.Printf("  CPS Enabled: %v", cpsEnabled)
-
-	return cpsEnabled
 }
