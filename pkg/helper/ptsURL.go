@@ -19,6 +19,8 @@ var (
 	apiRoutingKeyHeader   string
 )
 
+//TODO: Unit test this
+
 //GetPTSFromURL gets a pod template spec from a given URL
 func GetPTSFromURL(ptsURLString string, request *http.Request) (v1.PodTemplateSpec, error) {
 
@@ -43,7 +45,7 @@ func GetPTSFromURL(ptsURLString string, request *http.Request) (v1.PodTemplateSp
 		}
 	}
 
-	//Get the necesarry environment variables
+	//Get the necessary environment variables
 	shipyardHost = os.Getenv("SHIPYARD_HOST")
 	internalRouterHost = os.Getenv("INTERNAL_ROUTER_HOST")
 	shipyardPrivateSecret = os.Getenv("SHIPYARD_PRIVATE_SECRET")

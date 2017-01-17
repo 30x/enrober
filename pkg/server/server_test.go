@@ -110,18 +110,18 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
 		})
 
-		//TODO: PATCH Environment Test
+		//Note: Can't Unit test due to reliance on enterprise Apigee API call
 		// It("Update Environment", func() {
 		// 	url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
-
+		//
 		// 	jsonStr := []byte(`{}`)
-
+		//
 		// 	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
-
+		//
 		// 	resp, err := client.Do(req)
-
+		//
 		// 	Expect(err).Should(BeNil(), "Shouldn't get an error on PATCH. Error: %v", err)
-
+		//
 		// 	Expect(resp.StatusCode).Should(Equal(204), "Response should be 204 No Content")
 		// })
 
