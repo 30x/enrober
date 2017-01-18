@@ -58,7 +58,6 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 	helper.LogInfo.Printf("Got Namespace: %s\n", getNs.GetName())
 }
 
-//Note: Can't unit test due to reliance on live Apigee API call
 //patchEnvironment - Patches environment if supplied with nothing hosts are synced from apigee to kubernetes
 func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)

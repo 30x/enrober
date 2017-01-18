@@ -11,8 +11,6 @@ import (
 
 )
 
-//Maybe more thorough testing? Unsure how to test random numbers...
-
 func TestGenerateRandomBytes(t *testing.T) {
 	bytes, err := GenerateRandomBytes(32)
 	if err != nil {
