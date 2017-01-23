@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -48,6 +49,9 @@ func createEnvironment(environmentName, token string) error {
 		}
 	}
 
+	//Should create an annotation object and pass it into the object literal
+	nsAnnotations := make(map[string]string)
+
 	var hosts []string
 	if apigeeKVM {
 		hosts, err = apigeeClient.Hosts(apigeeOrgName, apigeeEnvName)
@@ -55,14 +59,7 @@ func createEnvironment(environmentName, token string) error {
 			errorMessage := fmt.Sprintf("Error retrieving hostnames from Apigee : %v", err)
 			return errors.New(errorMessage)
 		}
-
-	}
-
-	//Should create an annotation object and pass it into the object literal
-	nsAnnotations := make(map[string]string)
-
-	if apigeeKVM {
-		nsAnnotations["hostNames"] = strings.Join(hosts, " ")
+		nsAnnotations["edge/hosts"] = composeHostsJSON(hosts)
 	}
 
 	//Add network policy annotation if we are isolating namespaces
@@ -70,15 +67,14 @@ func createEnvironment(environmentName, token string) error {
 		nsAnnotations["net.beta.kubernetes.io/network-policy"] = `{"ingress": {"isolation": "DefaultDeny"}}`
 	}
 
-	//NOTE: Probably shouldn't create annotation if there are no hostNames
 	nsObject := &v1.Namespace{
 		ObjectMeta: v1.ObjectMeta{
 			Name: environmentName,
 			Labels: map[string]string{
-				"runtime":      "shipyard",
-				"organization": apigeeOrgName,
-				"environment":  apigeeEnvName,
-				"name":         environmentName,
+				"runtime":  "shipyard",
+				"edge/org": apigeeOrgName,
+				"edge/env": apigeeEnvName,
+				"name":     environmentName,
 			},
 			Annotations: nsAnnotations,
 		},
@@ -114,29 +110,50 @@ func createEnvironment(environmentName, token string) error {
 			errorMessage := "Failed to cleanup namespace\n"
 			return errors.New(errorMessage)
 		}
-		errorMessage :="Deleted namespace due to secret creation error\n"
+		errorMessage := "Deleted namespace due to secret creation error\n"
 		return errors.New(errorMessage)
 	}
 	return nil
 }
 
-func updateEnvironmentHosts(org, env, token string) error {
-	ns, err := clientset.Core().Namespaces().Get(org + "-" + env)
-	if err != nil {
-		return err
+func composeHostsJSON(hosts []string) string {
+	//Return empty string on empty slice
+	if hosts == nil {
+		return ""
+	}
+	obj := make(map[string]HostsConfig)
+	for _, host := range hosts {
+		obj[host] = HostsConfig{}
 	}
 
-	apigeeClient := apigee.Client{Token: token}
-	hosts, err := apigeeClient.Hosts(org, env)
+	b, err := json.Marshal(obj)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
-	ns.ObjectMeta.Annotations["hostNames"] = strings.Join(hosts, " ")
-	_, err = clientset.Core().Namespaces().Update(ns)
+	return string(b)
+}
+
+func parseHoststoMap(hostString string) (map[string]HostsConfig, error) {
+	tempMap := make(map[string]HostsConfig)
+	if hostString == "" {
+		return tempMap, nil
+	}
+	err := json.NewDecoder(strings.NewReader(hostString)).Decode(&tempMap)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return tempMap, nil
+}
+
+func composePathsJSON(paths []EdgePath) string {
+	if paths == nil {
+		return ""
+	}
+	b, err := json.MarshalIndent(paths, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
 }
