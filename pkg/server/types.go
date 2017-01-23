@@ -43,7 +43,7 @@ type environmentResponse struct {
 
 type deploymentPost struct {
 	DeploymentName string                `json:"deploymentName"`
-	Paths          []EdgePath            `json:"edgePaths"`
+	Paths          []EdgePath            `json:"edgePaths,omitempty"`
 	Replicas       *int32                `json:"replicas"`
 	PtsURL         string                `json:"ptsURL,omitempty"`
 	EnvVars        []apigee.ApigeeEnvVar `json:"envVars,omitempty"`

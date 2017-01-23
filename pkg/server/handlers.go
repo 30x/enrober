@@ -187,17 +187,6 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if tempJSON.Paths != nil {
-		for _, val := range tempJSON.Paths {
-			if val.BasePath == "" || val.ContainerPort == nil {
-				errorMessage := fmt.Sprintf("No BasePath or ContainerPort given\n")
-				http.Error(w, errorMessage, http.StatusInternalServerError)
-				helper.LogError.Printf(errorMessage)
-				return
-			}
-		}
-	}
-
 	tempPTS := v1.PodTemplateSpec{}
 
 	//Check if we got a URL
@@ -221,6 +210,40 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 			if val.SecurityContext != nil {
 				val.SecurityContext.Privileged = func() *bool { b := false; return &b }()
 			}
+		}
+	}
+
+	//If map is empty then we need to make it
+	if len(tempPTS.Labels) == 0 {
+		tempPTS.Labels = make(map[string]string)
+	}
+
+	//If map is empty then we need to make it
+	if len(tempPTS.Annotations) == 0 {
+		tempPTS.Annotations = make(map[string]string)
+	}
+
+	if tempJSON.Paths == nil {
+		//Make default paths
+		tempInt := int32(9000)
+		tempPath := []EdgePath{
+			{
+				BasePath:      "/" + tempJSON.DeploymentName,
+				ContainerPort: &tempInt,
+			},
+		}
+		err, tempPTS.Annotations["edge/paths"] = composePathsJSON(tempPath)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			helper.LogError.Printf(err.Error())
+			return
+		}
+	} else {
+		err, tempPTS.Annotations["edge/paths"] = composePathsJSON(tempJSON.Paths)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			helper.LogError.Printf(err.Error())
+			return
 		}
 	}
 
@@ -257,24 +280,13 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 	tempPTS.Spec.Containers[0].Env = apigee.CacheK8sEnvVars(tempPTS.Spec.Containers[0].Env, tempK8sEnv)
 
-	//If map is empty then we need to make it
-	if len(tempPTS.Annotations) == 0 {
-		tempPTS.Annotations = make(map[string]string)
-	}
-
-	tempPTS.Annotations["edge/paths"] = composePathsJSON(tempJSON.Paths)
-
-	//If map is empty then we need to make it
-	if len(tempPTS.Labels) == 0 {
-		tempPTS.Labels = make(map[string]string)
-	}
-
 	//Add Labels
 	tempPTS.Labels["edge/app.name"] = tempJSON.DeploymentName
 	tempPTS.Labels["edge/routable"] = "true"
 	tempPTS.Labels["runtime"] = "shipyard"
 
 	//Need to add "edge/app.name" and "edge/app.rev" labels based on image information.
+	//TODO: When we remove the ptsURL we'll have to get this from elsewhere
 	parsedImage := strings.Split(tempPTS.Spec.Containers[0].Image, ":")
 	if len(parsedImage) == 3 {
 		tempPTS.Labels["edge/app.rev"] = parsedImage[2]
@@ -459,7 +471,12 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		tempPTS.Annotations = make(map[string]string)
 	}
 
-	tempPTS.Annotations["edge/paths"] = composePathsJSON(tempJSON.Paths)
+	err, tempPTS.Annotations["edge/paths"] = composePathsJSON(tempJSON.Paths)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		helper.LogError.Printf(err.Error())
+		return
+	}
 
 	//Add routable label
 	getDep.Spec.Template.Labels["edge/routable"] = "true"

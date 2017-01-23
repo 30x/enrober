@@ -157,7 +157,6 @@ func TestClientCreateKVM(t *testing.T) {
 		t.Fatalf("Error when calling CreateKVM: %v.", err)
 	}
 
-
 }
 
 func TestClientGetKVM(t *testing.T) {
@@ -387,7 +386,7 @@ func startMockServer() *httptest.Server {
 		case "/v1/organizations/cpsOff":
 			fmt.Fprintln(w, jsonOrganizationRespCPSOff)
 		case "/v1/organizations/org/environments/env/keyvaluemaps":
-			if r.Method ==  "POST" {
+			if r.Method == "POST" {
 				w.WriteHeader(409)
 				fmt.Fprintln(w, jsonCreateKVMResp)
 			} else {

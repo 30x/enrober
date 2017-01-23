@@ -147,13 +147,13 @@ func parseHoststoMap(hostString string) (map[string]HostsConfig, error) {
 	return tempMap, nil
 }
 
-func composePathsJSON(paths []EdgePath) string {
+func composePathsJSON(paths []EdgePath) (error, string) {
 	if paths == nil {
-		return ""
+		return errors.New("No paths given"), ""
 	}
 	b, err := json.MarshalIndent(paths, "", "  ")
 	if err != nil {
-		panic(err)
+		return err, ""
 	}
-	return string(b)
+	return nil, string(b)
 }

@@ -234,7 +234,6 @@ func (c *Client) CreateKVM(orgName, envName, publicKey string) error {
 	const apigeeKVMName = "shipyard-routing"
 	const apigeeKVMPKName = "x-routing-api-key"
 
-
 	httpClient := &http.Client{}
 
 	//construct URL

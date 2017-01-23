@@ -2,13 +2,12 @@ package helper
 
 import (
 	"fmt"
-	"testing"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"testing"
 
 	"k8s.io/client-go/pkg/api/v1"
-
 )
 
 func TestGenerateRandomBytes(t *testing.T) {
@@ -33,7 +32,7 @@ func TestGetPTSFromURL(t *testing.T) {
 	ts := startMockServer()
 
 	mockRequest := http.Request{}
-	mockPTS	:= v1.PodTemplateSpec{
+	mockPTS := v1.PodTemplateSpec{
 		ObjectMeta: v1.ObjectMeta{
 			Name: "nginx",
 			Labels: map[string]string{
@@ -43,7 +42,7 @@ func TestGetPTSFromURL(t *testing.T) {
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
 				{
-					Name: "frontend",
+					Name:  "frontend",
 					Image: "nginx",
 					Ports: []v1.ContainerPort{
 						{
@@ -55,7 +54,7 @@ func TestGetPTSFromURL(t *testing.T) {
 		},
 	}
 
-	ptsResp, err := GetPTSFromURL(ts.URL + "/ptsURL", &mockRequest)
+	ptsResp, err := GetPTSFromURL(ts.URL+"/ptsURL", &mockRequest)
 	if err != nil {
 		t.Fatalf("Error when calling GETPTSFromURL: %v.", err)
 	}
