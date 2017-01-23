@@ -1,6 +1,6 @@
 package apigee
 
-import "k8s.io/kubernetes/pkg/api"
+import "k8s.io/client-go/pkg/api/v1"
 
 type apigeeKVMEntry struct {
 	Name  string `json:"name"`
@@ -19,10 +19,10 @@ type ApigeeEnvVar struct {
 
 type ApigeeEnvVarSource struct {
 	KVMRef           *ApigeeKVMSelector `json:"kvmRef"`
-	FieldRef         *api.ObjectFieldSelector
-	ResourceFieldRef *api.ResourceFieldSelector
-	ConfigMapKeyRef  *api.ConfigMapKeySelector
-	SecretKeyRef     *api.SecretKeySelector
+	FieldRef         *v1.ObjectFieldSelector
+	ResourceFieldRef *v1.ResourceFieldSelector
+	ConfigMapKeyRef  *v1.ConfigMapKeySelector
+	SecretKeyRef     *v1.SecretKeySelector
 }
 
 type ApigeeKVMSelector struct {

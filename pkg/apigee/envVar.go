@@ -1,6 +1,6 @@
 package apigee
 
-import "k8s.io/kubernetes/pkg/api"
+import "k8s.io/client-go/pkg/api/v1"
 
 // EnvReftoEnv converts an ApigeeEnvVarSource to an ApigeeEnvVar
 func EnvReftoEnv(source *ApigeeEnvVarSource, client Client, org, env string) (ApigeeEnvVar, error) {
@@ -16,8 +16,8 @@ func EnvReftoEnv(source *ApigeeEnvVarSource, client Client, org, env string) (Ap
 }
 
 // ApigeeEnvtoK8s converts a slice of apigee specific env vars to a k8s compatible env var slice
-func ApigeeEnvtoK8s(apigeeEnv []ApigeeEnvVar) ([]api.EnvVar, error) {
-	k8sEnv := make([]api.EnvVar, len(apigeeEnv))
+func ApigeeEnvtoK8s(apigeeEnv []ApigeeEnvVar) ([]v1.EnvVar, error) {
+	k8sEnv := make([]v1.EnvVar, len(apigeeEnv))
 	for i, val := range apigeeEnv {
 		k8sEnv[i].Name = val.Name
 		k8sEnv[i].Value = val.Value
@@ -41,7 +41,7 @@ func ApigeeEnvtoK8s(apigeeEnv []ApigeeEnvVar) ([]api.EnvVar, error) {
 }
 
 //K8sEnvtoApigee converts a slice of k8s compatible env vars to an apigee specific env var slice
-func K8sEnvtoApigee(k8sEnv []api.EnvVar) ([]ApigeeEnvVar, error) {
+func K8sEnvtoApigee(k8sEnv []v1.EnvVar) ([]ApigeeEnvVar, error) {
 	apigeeEnv := make([]ApigeeEnvVar, len(k8sEnv))
 	for i, val := range k8sEnv {
 		apigeeEnv[i].Name = val.Name
@@ -65,7 +65,7 @@ func K8sEnvtoApigee(k8sEnv []api.EnvVar) ([]ApigeeEnvVar, error) {
 }
 
 //CacheK8sEnvVars appends a list of k8s env vars to a given current list without duplication
-func CacheK8sEnvVars(currentEnvVars, newEnvVars []api.EnvVar) []api.EnvVar {
+func CacheK8sEnvVars(currentEnvVars, newEnvVars []v1.EnvVar) []v1.EnvVar {
 
 	//Check for envVar conflicts and prioritize ones from passed JSON.
 	finalEnvVar := currentEnvVars
