@@ -16,12 +16,14 @@ spec:
     spec:
       containers:
       - name: enrober
-        image: jbowen/enrober:v0.5.0
+        image: thirtyx/enrober:testing3
         env:
           - name: DEPLOY_STATE
             value: "PROD"
           - name: ECR_SECRET
             value: "false"
+          - name: APIGEE_KVM
+            value: "true"
         ports:
           - containerPort: 9000
 

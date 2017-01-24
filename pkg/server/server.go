@@ -87,14 +87,12 @@ func init() {
 	if state == StateCluster {
 		tmpConfig, err := rest.InClusterConfig()
 		if err != nil {
-			fmt.Printf("Error on init: %v\n", err)
-			return
+			panic(err)
 		}
 		//Create the clientset
 		tempClientset, err := kubernetes.NewForConfig(tmpConfig)
 		if err != nil {
-			fmt.Printf("Error on init: %v\n", err)
-			return
+			panic(err)
 		}
 		clientset = *tempClientset
 
@@ -137,14 +135,14 @@ func NewServer() (server *Server) {
 	router.Path("/environments/status/").Methods("GET").HandlerFunc(getStatus)
 	router.Path("/environments/status").Methods("GET").HandlerFunc(getStatus)
 
-	loggedRouter := handlers.CombinedLoggingHandler(os.Stdout, router)
-
+	var adminRouter http.Handler
 	var finalRouter http.Handler
 
 	if os.Getenv("DEPLOY_STATE") == "PROD" {
-		finalRouter = helper.AdminMiddleware(loggedRouter)
+		adminRouter = helper.AdminMiddleware(router)
+		finalRouter = handlers.CombinedLoggingHandler(os.Stdout, adminRouter)
 	} else {
-		finalRouter = loggedRouter
+		finalRouter = handlers.CombinedLoggingHandler(os.Stdout, router)
 	}
 
 	server = &Server{
