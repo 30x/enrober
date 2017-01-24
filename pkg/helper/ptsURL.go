@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"os"
 
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 )
 
 var (
@@ -20,14 +20,14 @@ var (
 )
 
 //GetPTSFromURL gets a pod template spec from a given URL
-func GetPTSFromURL(ptsURLString string, request *http.Request) (v1.PodTemplateSpec, error) {
+func GetPTSFromURL(ptsURLString string, request *http.Request) (api.PodTemplateSpec, error) {
 
 	httpClient := &http.Client{}
 
 	ptsURL, err := url.Parse(ptsURLString)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error parsing ptsURL\n")
-		return v1.PodTemplateSpec{}, errors.New(errorMessage)
+		return api.PodTemplateSpec{}, errors.New(errorMessage)
 	}
 
 	//This could be moved up
@@ -35,11 +35,11 @@ func GetPTSFromURL(ptsURLString string, request *http.Request) (v1.PodTemplateSp
 		u, err := url.Parse(ptsURLString)
 		if err != nil {
 			errorMessage := fmt.Sprintf("Error parsing ptsURL: %s\n", err)
-			return v1.PodTemplateSpec{}, errors.New(errorMessage)
+			return api.PodTemplateSpec{}, errors.New(errorMessage)
 		}
 		if u.Host != request.Host {
 			errorMessage := fmt.Sprintf("Attempting to use PTS from unauthorized host: %v, expected: %v\n", u.Host, request.Host)
-			return v1.PodTemplateSpec{}, errors.New(errorMessage)
+			return api.PodTemplateSpec{}, errors.New(errorMessage)
 		}
 	}
 
@@ -73,21 +73,21 @@ func GetPTSFromURL(ptsURLString string, request *http.Request) (v1.PodTemplateSp
 	urlJSON, err := httpClient.Do(req)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error retrieving pod template spec: %s\n", err)
-		return v1.PodTemplateSpec{}, errors.New(errorMessage)
+		return api.PodTemplateSpec{}, errors.New(errorMessage)
 	}
 	defer urlJSON.Body.Close()
 
 	if urlJSON.StatusCode != 200 {
 		errorMessage := fmt.Sprintf("Expected 200 from ptsURL got: %v\n", urlJSON.StatusCode)
-		return v1.PodTemplateSpec{}, errors.New(errorMessage)
+		return api.PodTemplateSpec{}, errors.New(errorMessage)
 	}
 
-	tempPTS := &v1.PodTemplateSpec{}
+	tempPTS := &api.PodTemplateSpec{}
 
 	err = json.NewDecoder(urlJSON.Body).Decode(tempPTS)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error decoding PTS JSON Body: %s\n", err)
-		return v1.PodTemplateSpec{}, errors.New(errorMessage)
+		return api.PodTemplateSpec{}, errors.New(errorMessage)
 	}
 	return *tempPTS, nil
 }
