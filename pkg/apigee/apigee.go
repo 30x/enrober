@@ -37,6 +37,7 @@ func (c *Client) GetKVMValue(org, env, kvmName, key string) (string, error) {
 	c.initDefaults()
 
 	kvmURL := fmt.Sprintf("%sv1/organizations/%s/environments/%s/keyvaluemaps/%s/entries/%s", c.ApigeeAPIHost, org, env, kvmName, key)
+
 	resp, err := c.Get(kvmURL)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed to make request for KVM: %v", err)
