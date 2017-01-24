@@ -1,11 +1,13 @@
 package apigee
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
 	"sync"
 
+	"bytes"
 	"encoding/json"
 	"net/http"
 )
@@ -189,13 +191,162 @@ func (c *Client) hostAliases(org, env, virtualHost string) ([]string, error) {
 	return hosts, nil
 }
 
+// CPSEnabledForOrg returns a bool indicating whether the requested Org has CPS enabled or not
+func (c *Client) CPSEnabledForOrg(orgName string) (bool, error) {
+	c.initDefaults()
+
+	orgURL := fmt.Sprintf("%sv1/organizations/%s", c.ApigeeAPIHost, orgName)
+	resp, err := c.Get(orgURL)
+	if err != nil {
+		return false, err
+	}
+
+	defer resp.Body.Close()
+
+	var rawOrg interface{}
+
+	err = json.NewDecoder(resp.Body).Decode(&rawOrg)
+
+	if err != nil {
+		fmt.Printf("Error unmarshalling response: %v\n", err)
+		return false, err
+	}
+
+	org := rawOrg.(map[string]interface{})
+	orgProps := org["properties"].(map[string]interface{})
+	orgProp := orgProps["property"].([]interface{})
+
+	for _, rawProp := range orgProp {
+		prop := rawProp.(map[string]interface{})
+		if prop["name"] == "features.isCpsEnabled" {
+			if prop["value"] == "true" {
+				return true, nil
+			}
+			break
+		}
+	}
+	return false, nil
+}
+
+func (c *Client) CreateKVM(orgName, envName, publicKey string) error {
+	const apigeeKVMName = "shipyard-routing"
+	const apigeeKVMPKName = "x-routing-api-key"
+
+	httpClient := &http.Client{}
+
+	//construct URL
+	kvmURL := fmt.Sprintf("%sv1/organizations/%s/environments/%s/keyvaluemaps", c.ApigeeAPIHost, orgName, envName)
+
+	//create JSON body
+	kvmBody := apigeeKVMBody{
+		Name: apigeeKVMName,
+		Entry: []apigeeKVMEntry{
+			{
+				Name:  apigeeKVMPKName,
+				Value: base64.StdEncoding.EncodeToString([]byte(publicKey)),
+			},
+		},
+	}
+
+	b := new(bytes.Buffer)
+	json.NewEncoder(b).Encode(kvmBody)
+
+	req, err := http.NewRequest("POST", kvmURL, b)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Unable to create request (Create KVM): %v", err)
+		return errors.New(errorMessage)
+	}
+
+	//Must pass through the authz header
+	req.Header.Add("Authorization", c.Token)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error creating Apigee KVM: %v", err)
+		return errors.New(errorMessage)
+	}
+	defer resp.Body.Close()
+
+	// If the response was not a 201, we need to check if the response was a 409 because this means the KVM exists
+	// already and we'll need to update the KVM value(s).
+	if resp.StatusCode != 201 {
+		var retryFlag bool
+
+		// If the KVM already exists, we need to update its value(s).
+		if resp.StatusCode == 409 {
+			b2 := new(bytes.Buffer)
+			updateKVMURL := fmt.Sprintf("%s/%s", kvmURL, apigeeKVMName) // Use non-CPS endpoint by default
+
+			cpsEnabled, err := c.CPSEnabledForOrg(orgName)
+			if err != nil {
+				return err
+			}
+			if cpsEnabled {
+				// When using CPS, the API endpoint is different and instead of sending the whole KVM body, we can only send
+				// the KVM entry to update.  (This will work for now since we are only persisting one key but in the future
+				// we might need to update this to make N calls, one per key.)
+				updateKVMURL = fmt.Sprintf("%s/entries/%s", updateKVMURL, apigeeKVMPKName)
+
+				json.NewEncoder(b2).Encode(kvmBody.Entry[0])
+			} else {
+				// When not using CPS, send the whole KVM body to update all keys in the KVM.
+				json.NewEncoder(b2).Encode(kvmBody) // Non-CPS takes the whole payload
+			}
+
+			updateKVMReq, err := http.NewRequest("POST", updateKVMURL, b2)
+
+			if err != nil {
+				errorMessage := fmt.Sprintf("Unable to create request (Update KVM): %v", err)
+				return errors.New(errorMessage)
+			}
+
+			fmt.Printf("The update KVM URL: %v\n", updateKVMReq.URL.String())
+
+			updateKVMReq.Header.Add("Authorization", c.Token)
+			updateKVMReq.Header.Add("Content-Type", "application/json")
+
+			resp2, err := httpClient.Do(updateKVMReq)
+			if err != nil {
+				errorMessage := fmt.Sprintf("Error creating entry in existing Apigee KVM: %v", err)
+				return errors.New(errorMessage)
+			}
+			defer resp2.Body.Close()
+
+			var updateKVMRes retryResponse
+
+			//Decode response
+			err = json.NewDecoder(resp2.Body).Decode(&updateKVMRes)
+
+			if err != nil {
+				errorMessage := fmt.Sprintf("Failed to decode response: %v\n", err)
+				return errors.New(errorMessage)
+			}
+
+			// Updating a KVM returns a 200 on success so if it's not a 200, it's a failure
+			if resp2.StatusCode != 200 {
+				errorMessage := fmt.Sprintf("Couldn't create KVM entry (Status Code: %d): %v", resp2.StatusCode, updateKVMRes.Message)
+				return errors.New(errorMessage)
+			}
+
+			retryFlag = true
+		}
+
+		if !retryFlag {
+			errorMessage := fmt.Sprintf("Expected 201 or 409, got: %v", resp.StatusCode)
+			return errors.New(errorMessage)
+		}
+	}
+	return nil
+}
+
 func (c *Client) initDefaults() {
 	// Init HTTPClient used by all reqs for efficiency, can be used concurrently
 	if c.HTTPClient == nil {
 		c.HTTPClient = &http.Client{}
 	}
 
-	// If apigee api host is not set configure to defult from env
+	// If apigee api host is not set configure to default from env
 	if c.ApigeeAPIHost == "" {
 		envVar := os.Getenv(EnvVarApigeeHost)
 		if envVar == "" {

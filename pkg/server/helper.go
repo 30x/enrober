@@ -1,12 +1,9 @@
 package server
 
 import (
-	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"k8s.io/client-go/pkg/api/v1"
@@ -40,117 +37,21 @@ func createEnvironment(environmentName, token string) error {
 		return errors.New(errorMessage)
 	}
 
-	//Should attempt KVM creation before creating k8s objects
-	if apigeeKVM {
-
-		httpClient := &http.Client{}
-
-		//construct URL
-		apigeeKVMURL := fmt.Sprintf("%sv1/organizations/%s/environments/%s/keyvaluemaps", apigeeAPIHost, apigeeOrgName, apigeeEnvName)
-
-		//create JSON body
-		kvmBody := apigeeKVMBody{
-			Name: apigeeKVMName,
-			Entry: []apigeeKVMEntry{
-				apigeeKVMEntry{
-					Name:  apigeeKVMPKName,
-					Value: base64.StdEncoding.EncodeToString([]byte(publicKey)),
-				},
-			},
-		}
-
-		b := new(bytes.Buffer)
-		json.NewEncoder(b).Encode(kvmBody)
-
-		req, err := http.NewRequest("POST", apigeeKVMURL, b)
-		if err != nil {
-			errorMessage := fmt.Sprintf("Unable to create request (Create KVM): %v", err)
-			return errors.New(errorMessage)
-		}
-
-		//Must pass through the authz header
-		req.Header.Add("Authorization", token)
-		req.Header.Add("Content-Type", "application/json")
-
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			errorMessage := fmt.Sprintf("Error creating Apigee KVM: %v", err)
-			return errors.New(errorMessage)
-		}
-		defer resp.Body.Close()
-
-		//TODO: Probably want to generalize this logic
-
-		// If the response was not a 201, we need to check if the response was a 409 because this means the KVM exists
-		// already and we'll need to update the KVM value(s).
-		if resp.StatusCode != 201 {
-			var retryFlag bool
-
-			// If the KVM already exists, we need to update its value(s).
-			if resp.StatusCode == 409 {
-				b2 := new(bytes.Buffer)
-				updateKVMURL := fmt.Sprintf("%s/%s", apigeeKVMURL, apigeeKVMName) // Use non-CPS endpoint by default
-
-				if isCPSEnabledForOrg(apigeeOrgName, token) {
-					// When using CPS, the API endpoint is different and instead of sending the whole KVM body, we can only send
-					// the KVM entry to update.  (This will work for now since we are only persisting one key but in the future
-					// we might need to update this to make N calls, one per key.)
-					updateKVMURL = fmt.Sprintf("%s/entries/%s", updateKVMURL, apigeeKVMPKName)
-
-					json.NewEncoder(b2).Encode(kvmBody.Entry[0])
-				} else {
-					// When not using CPS, send the whole KVM body to update all keys in the KVM.
-					json.NewEncoder(b2).Encode(kvmBody) // Non-CPS takes the whole payload
-				}
-
-				updateKVMReq, err := http.NewRequest("POST", updateKVMURL, b2)
-
-				if err != nil {
-					errorMessage := fmt.Sprintf("Unable to create request (Update KVM): %v", err)
-					return errors.New(errorMessage)
-				}
-
-				fmt.Printf("The update KVM URL: %v\n", updateKVMReq.URL.String())
-
-				updateKVMReq.Header.Add("Authorization", token)
-				updateKVMReq.Header.Add("Content-Type", "application/json")
-
-				resp2, err := httpClient.Do(updateKVMReq)
-				if err != nil {
-					errorMessage := fmt.Sprintf("Error creating entry in existing Apigee KVM: %v", err)
-					return errors.New(errorMessage)
-				}
-				defer resp2.Body.Close()
-
-				var updateKVMRes retryResponse
-
-				//Decode response
-				err = json.NewDecoder(resp2.Body).Decode(&updateKVMRes)
-
-				if err != nil {
-					errorMessage := fmt.Sprintf("Failed to decode response: %v\n", err)
-					return errors.New(errorMessage)
-				}
-
-				// Updating a KVM returns a 200 on success so if it's not a 200, it's a failure
-				if resp2.StatusCode != 200 {
-					errorMessage := fmt.Sprintf("Couldn't create KVM entry (Status Code: %d): %v", resp2.StatusCode, updateKVMRes.Message)
-					return errors.New(errorMessage)
-				}
-
-				retryFlag = true
-			}
-
-			if !retryFlag {
-				errorMessage := fmt.Sprintf("Expected 201 or 409, got: %v", resp.StatusCode)
-				return errors.New(errorMessage)
-			}
-		}
-
-	}
-
 	// Retrieve hostnames from Apigee api
 	apigeeClient := apigee.Client{Token: token}
+
+	//Should attempt KVM creation before creating k8s objects
+	if apigeeKVM {
+		err := apigeeClient.CreateKVM(apigeeOrgName, apigeeEnvName, publicKey)
+		if err != nil {
+			errorMessage := fmt.Sprintf("Error creating KVM: %v", err)
+			return errors.New(errorMessage)
+		}
+	}
+
+	//Should create an annotation object and pass it into the object literal
+	nsAnnotations := make(map[string]string)
+
 	var hosts []string
 	if apigeeKVM {
 		hosts, err = apigeeClient.Hosts(apigeeOrgName, apigeeEnvName)
@@ -158,14 +59,7 @@ func createEnvironment(environmentName, token string) error {
 			errorMessage := fmt.Sprintf("Error retrieving hostnames from Apigee : %v", err)
 			return errors.New(errorMessage)
 		}
-
-	}
-
-	//Should create an annotation object and pass it into the object literal
-	nsAnnotations := make(map[string]string)
-
-	if apigeeKVM {
-		nsAnnotations["hostNames"] = strings.Join(hosts, " ")
+		nsAnnotations["edge/hosts"] = composeHostsJSON(hosts)
 	}
 
 	//Add network policy annotation if we are isolating namespaces
@@ -173,15 +67,14 @@ func createEnvironment(environmentName, token string) error {
 		nsAnnotations["net.beta.kubernetes.io/network-policy"] = `{"ingress": {"isolation": "DefaultDeny"}}`
 	}
 
-	//NOTE: Probably shouldn't create annotation if there are no hostNames
 	nsObject := &v1.Namespace{
 		ObjectMeta: v1.ObjectMeta{
 			Name: environmentName,
 			Labels: map[string]string{
-				"runtime":      "shipyard",
-				"organization": apigeeOrgName,
-				"environment":  apigeeEnvName,
-				"name":         environmentName,
+				"runtime":  "shipyard",
+				"edge/org": apigeeOrgName,
+				"edge/env": apigeeEnvName,
+				"name":     environmentName,
 			},
 			Annotations: nsAnnotations,
 		},
@@ -214,85 +107,53 @@ func createEnvironment(environmentName, token string) error {
 
 		err = clientset.Core().Namespaces().Delete(createdNs.GetName(), &v1.DeleteOptions{})
 		if err != nil {
-			errorMessage := fmt.Sprintf("Failed to cleanup namespace\n")
+			errorMessage := "Failed to cleanup namespace\n"
 			return errors.New(errorMessage)
 		}
-		errorMessage := fmt.Sprintf("Deleted namespace due to secret creation error\n")
+		errorMessage := "Deleted namespace due to secret creation error\n"
 		return errors.New(errorMessage)
 	}
 	return nil
 }
 
-func updateEnvironmentHosts(org, env, token string) error {
-	ns, err := clientset.Core().Namespaces().Get(org + "-" + env)
-	if err != nil {
-		return err
+func composeHostsJSON(hosts []string) string {
+	//Return empty string on empty slice
+	if hosts == nil {
+		return ""
+	}
+	obj := make(map[string]HostsConfig)
+	for _, host := range hosts {
+		obj[host] = HostsConfig{}
 	}
 
-	apigeeClient := apigee.Client{Token: token}
-	hosts, err := apigeeClient.Hosts(org, env)
+	b, err := json.Marshal(obj)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
-	ns.ObjectMeta.Annotations["hostNames"] = strings.Join(hosts, " ")
-	_, err = clientset.Core().Namespaces().Update(ns)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return string(b)
 }
 
-func isCPSEnabledForOrg(orgName, authzHeader string) bool {
-	cpsEnabled := false
-	httpClient := &http.Client{}
-
-	req, err := http.NewRequest("GET", fmt.Sprintf("%sv1/organizations/%s", apigeeAPIHost, orgName), nil)
-
+func parseHoststoMap(hostString string) (map[string]HostsConfig, error) {
+	tempMap := make(map[string]HostsConfig)
+	if hostString == "" {
+		return tempMap, nil
+	}
+	err := json.NewDecoder(strings.NewReader(hostString)).Decode(&tempMap)
 	if err != nil {
-		fmt.Printf("Error checking for CPS: %v", err)
-
-		return cpsEnabled
+		return nil, err
 	}
 
-	fmt.Printf("Checking if %s has CPS enabled using URL: %v\n", orgName, req.URL.String())
+	return tempMap, nil
+}
 
-	req.Header.Add("Authorization", authzHeader)
-
-	res, err := httpClient.Do(req)
-
-	defer res.Body.Close()
-
-	if err != nil {
-		fmt.Printf("Error checking for CPS: %v", err)
-	} else {
-		var rawOrg interface{}
-
-		err := json.NewDecoder(res.Body).Decode(&rawOrg)
-
-		if err != nil {
-			fmt.Printf("Error unmarshalling response: %v\n", err)
-		} else {
-			org := rawOrg.(map[string]interface{})
-			orgProps := org["properties"].(map[string]interface{})
-			orgProp := orgProps["property"].([]interface{})
-
-			for _, rawProp := range orgProp {
-				prop := rawProp.(map[string]interface{})
-
-				if prop["name"] == "features.isCpsEnabled" {
-					if prop["value"] == "true" {
-						cpsEnabled = true
-					}
-
-					break
-				}
-			}
-		}
+func composePathsJSON(paths []EdgePath) (error, string) {
+	if paths == nil {
+		return errors.New("No paths given"), ""
 	}
-
-	fmt.Printf("  CPS Enabled: %v", cpsEnabled)
-
-	return cpsEnabled
+	b, err := json.MarshalIndent(paths, "", "  ")
+	if err != nil {
+		return err, ""
+	}
+	return nil, string(b)
 }

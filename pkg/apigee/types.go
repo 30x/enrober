@@ -29,3 +29,9 @@ type ApigeeKVMSelector struct {
 	KvmName string `json:"kvmName"`
 	Key     string `json:"key"`
 }
+
+type retryResponse struct {
+	Code     string   `json:"code"`
+	Message  string   `json:"message"`
+	Contexts []string `json:"contexts"`
+}

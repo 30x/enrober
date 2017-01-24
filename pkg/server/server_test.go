@@ -15,27 +15,34 @@ var _ = Describe("Server Test", func() {
 
 		client := &http.Client{}
 
-		//Higher scoped secret value
-		// var globalPrivate string
-		// var globalPublic string
+		It("Get OK Status", func() {
+			url := fmt.Sprintf("%s/environments/status", hostBase)
+
+			req, err := http.NewRequest("GET", url, nil)
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on GET. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200")
+		})
 
 		It("Create Deployment from PTS URL", func() {
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)
 
 			jsonStr := []byte(`{
 				"deploymentName": "testdep1",
-				"publicHosts": "deploy.k8s.public",
-				"privateHosts": "deploy.k8s.private",
     			"replicas": 1,
+    			"edgePaths": [{
+    				"basePath": "base",
+    				"containerPort": 9000,
+    				"targetPath": "target"
+				}],
     			"ptsURL": "https://api.myjson.com/bins/2p9z1",
 				"envVars": [{
 					"name": "test1",
-					"value": "test3"
-				},
-				{
-					"name": "test2",
-					"value": "test4"
-   				}] 
+					"value": "value1"
+				}]
 			}`)
 
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
@@ -56,15 +63,16 @@ var _ = Describe("Server Test", func() {
 
 			jsonStr := []byte(`{
 				"replicas": 3,
+				"edgePaths": [{
+    				"basePath": "base",
+    				"containerPort": 9000,
+    				"targetPath": "target"
+				}],
 				"ptsURL": "https://api.myjson.com/bins/119h9",
 				"envVars": [{
 					"name": "test1",
-					"value": "test3"
-				},
-				{
-					"name": "test2",
-					"value": "test4"
-				}] 
+					"value": "value2"
+				}]
 			}`)
 
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonStr))
@@ -102,6 +110,30 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
 		})
 
+		It("Update Environment", func() {
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
+
+			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer([]byte("")))
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on PATCH. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+		})
+
+		It("Get Deployments", func() {
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)
+
+			req, err := http.NewRequest("GET", url, nil)
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on GET. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
+		})
+
 		It("Get Logs for Deployment testdep1", func() {
 			//Need to wait for container to start
 			time.Sleep(5000 * time.Millisecond)
@@ -117,7 +149,7 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
 		})
 
-		It("Delete Deployment testdep1", func() {
+		XIt("Delete Deployment testdep1", func() {
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1", hostBase)
 
 			req, err := http.NewRequest("DELETE", url, nil)

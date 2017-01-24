@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -18,6 +17,8 @@ import (
 
 	"github.com/30x/enrober/pkg/apigee"
 	"github.com/30x/enrober/pkg/helper"
+	"os"
+	"strings"
 )
 
 //getEnvironment returns a kubernetes namespace matching the given environmentGroupID and environmentName
@@ -42,7 +43,13 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 	jsResponse.Name = getNs.Name
 	jsResponse.PrivateSecret = getSecret.Data["private-api-key"]
 	jsResponse.PublicSecret = getSecret.Data["public-api-key"]
-	jsResponse.HostNames = strings.Split(getNs.Annotations["hostNames"], " ")
+	tempHosts, err := parseHoststoMap(getNs.Annotations["edge/hosts"])
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error Parsing Hosts: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+	}
+	jsResponse.EdgeHosts = tempHosts
 
 	js, err := json.Marshal(jsResponse)
 	if err != nil {
@@ -62,14 +69,63 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	err := updateEnvironmentHosts(pathVars["org"], pathVars["env"], r.Header.Get("Authorization"))
+	ns, err := clientset.Core().Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		helper.LogError.Printf("Error syncing Hosts to the Environment: %v\n", err)
+		helper.LogError.Printf("Error getting existing Environment: %v\n", err)
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	routingSecret, err := clientset.Core().Secrets(pathVars["org"] + "-" + pathVars["env"]).Get("routing")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		helper.LogError.Printf("Error getting existing Secret: %v\n", err)
+		return
+	}
+
+	if os.Getenv("DEPLOY_STATE") == "PROD" {
+		apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
+		hosts, err := apigeeClient.Hosts(pathVars["org"], pathVars["env"])
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			helper.LogError.Printf("Error getting Hosts from Apigee: %v\n", err)
+			return
+		}
+
+		ns.ObjectMeta.Annotations["edge/hosts"] = composeHostsJSON(hosts)
+		ns, err = clientset.Core().Namespaces().Update(ns)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			helper.LogError.Printf("Error updating Environment: %v\n", err)
+			return
+		}
+	}
+
+	var jsResponse environmentResponse
+	jsResponse.Name = ns.Name
+	jsResponse.PrivateSecret = routingSecret.Data["private-api-key"]
+	jsResponse.PublicSecret = routingSecret.Data["public-api-key"]
+
+	tempHosts, err := parseHoststoMap(ns.Annotations["edge/hosts"])
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error Parsing Hosts: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+	jsResponse.EdgeHosts = tempHosts
+
+	js, err := json.Marshal(jsResponse)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error marshalling Environment: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(js)
 	helper.LogInfo.Printf("Patched environment: %s\n", pathVars["org"]+"-"+pathVars["env"])
 }
 
@@ -91,7 +147,7 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 		helper.LogError.Printf(errorMessage)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
+	w.WriteHeader(http.StatusOK)
 	w.Write(js)
 	for _, value := range depList.Items {
 		helper.LogInfo.Printf("Got Deployment: %s\n", value.GetName())
@@ -132,13 +188,6 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if tempJSON.PublicHosts == nil && tempJSON.PrivateHosts == nil {
-		errorMessage := fmt.Sprintf("No privateHosts or publicHosts given\n")
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage)
-		return
-	}
-
 	tempPTS := v1.PodTemplateSpec{}
 
 	//Check if we got a URL
@@ -165,21 +214,47 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if apigeeKVM {
-		for index, val := range tempJSON.EnvVars {
-			if val.ValueFrom != (&apigee.ApigeeEnvVarSource{}) {
-				// Gotta go retrieve the value from apigee KVM
-				// In the future we may support other ref types
-				apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
-				tempJSON.EnvVars[index], err = apigee.EnvReftoEnv(val.ValueFrom, apigeeClient, pathVars["org"], pathVars["env"])
-				if err != nil {
-					errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
-					http.Error(w, errorMessage, http.StatusInternalServerError)
-					helper.LogError.Printf(errorMessage)
-					return
-				}
-			}
+	//If map is empty then we need to make it
+	if len(tempPTS.Labels) == 0 {
+		tempPTS.Labels = make(map[string]string)
+	}
+
+	//If map is empty then we need to make it
+	if len(tempPTS.Annotations) == 0 {
+		tempPTS.Annotations = make(map[string]string)
+	}
+
+	if tempJSON.Paths == nil {
+		//Make default paths
+		tempInt := int32(9000)
+		tempPath := []EdgePath{
+			{
+				BasePath:      "/" + tempJSON.DeploymentName,
+				ContainerPort: &tempInt,
+			},
 		}
+		err, tempPTS.Annotations["edge/paths"] = composePathsJSON(tempPath)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			helper.LogError.Printf(err.Error())
+			return
+		}
+	} else {
+		err, tempPTS.Annotations["edge/paths"] = composePathsJSON(tempJSON.Paths)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			helper.LogError.Printf(err.Error())
+			return
+		}
+	}
+
+	apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
+	tempJSON.EnvVars, err = apigee.GetKVMVars(tempJSON.EnvVars, apigeeKVM, apigeeClient, pathVars["org"], pathVars["env"])
+	if err != nil {
+		errorMessage := fmt.Sprintf("Failed at GetKVMVars: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
 	}
 
 	tempK8sEnv, err := apigee.ApigeeEnvtoK8s(tempJSON.EnvVars)
@@ -191,27 +266,17 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 	tempPTS.Spec.Containers[0].Env = apigee.CacheK8sEnvVars(tempPTS.Spec.Containers[0].Env, tempK8sEnv)
 
-	//If map is empty then we need to make it
-	if len(tempPTS.Annotations) == 0 {
-		tempPTS.Annotations = make(map[string]string)
-	}
-
-	if tempJSON.PrivateHosts != nil {
-		tempPTS.Annotations["privateHosts"] = *tempJSON.PrivateHosts
-	}
-
-	if tempJSON.PublicHosts != nil {
-		tempPTS.Annotations["publicHosts"] = *tempJSON.PublicHosts
-	}
-
-	//If map is empty then we need to make it
-	if len(tempPTS.Labels) == 0 {
-		tempPTS.Labels = make(map[string]string)
-	}
-
-	//Add routable label
-	tempPTS.Labels["routable"] = "true"
+	//Add Labels
+	tempPTS.Labels["edge/app.name"] = tempJSON.DeploymentName
+	tempPTS.Labels["edge/routable"] = "true"
 	tempPTS.Labels["runtime"] = "shipyard"
+
+	//Need to add "edge/app.name" and "edge/app.rev" labels based on image information.
+	//TODO: When we remove the ptsURL we'll have to get this from elsewhere
+	parsedImage := strings.Split(tempPTS.Spec.Containers[0].Image, ":")
+	if len(parsedImage) == 3 {
+		tempPTS.Labels["edge/app.rev"] = parsedImage[2]
+	}
 
 	//Could also use proto package
 	tempInt := int32(5)
@@ -233,7 +298,6 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	labelSelector := "component=" + tempPTS.Labels["component"]
-	//Get list of all deployments in namespace with MatchLabels["app"] = tempPTS.Labels["app"]
 	depList, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{
 		LabelSelector: labelSelector,
 	})
@@ -355,29 +419,13 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	getDep.Spec.Template.Annotations["publicHosts"] = cacheAnnotations["publicHosts"]
 	getDep.Spec.Template.Annotations["privateHosts"] = cacheAnnotations["privateHosts"]
 
-	if tempJSON.PrivateHosts != nil {
-		getDep.Spec.Template.Annotations["privateHosts"] = *tempJSON.PrivateHosts
-	}
-
-	if tempJSON.PublicHosts != nil {
-		getDep.Spec.Template.Annotations["publicHosts"] = *tempJSON.PublicHosts
-	}
-
-	if apigeeKVM {
-		for index, val := range tempJSON.EnvVars {
-			if val.ValueFrom != (&apigee.ApigeeEnvVarSource{}) {
-				// Gotta go retrieve the value from apigee KVM
-				// In the future we may support other ref types
-				apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
-				tempJSON.EnvVars[index], err = apigee.EnvReftoEnv(val.ValueFrom, apigeeClient, pathVars["org"], pathVars["env"])
-				if err != nil {
-					errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
-					http.Error(w, errorMessage, http.StatusInternalServerError)
-					helper.LogError.Printf(errorMessage)
-					return
-				}
-			}
-		}
+	apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
+	tempJSON.EnvVars, err = apigee.GetKVMVars(tempJSON.EnvVars, apigeeKVM, apigeeClient, pathVars["org"], pathVars["env"])
+	if err != nil {
+		errorMessage := fmt.Sprintf("Failed at GetKVMVars: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
 	}
 
 	tempK8sEnv, err := apigee.ApigeeEnvtoK8s(tempJSON.EnvVars)
@@ -389,8 +437,20 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 	getDep.Spec.Template.Spec.Containers[0].Env = apigee.CacheK8sEnvVars(getDep.Spec.Template.Spec.Containers[0].Env, tempK8sEnv)
 
+	//If map is empty then we need to make it
+	if len(tempPTS.Annotations) == 0 {
+		tempPTS.Annotations = make(map[string]string)
+	}
+
+	err, tempPTS.Annotations["edge/paths"] = composePathsJSON(tempJSON.Paths)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		helper.LogError.Printf(err.Error())
+		return
+	}
+
 	//Add routable label
-	getDep.Spec.Template.Labels["routable"] = "true"
+	getDep.Spec.Template.Labels["edge/routable"] = "true"
 
 	dep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Update(getDep)
 	if err != nil {

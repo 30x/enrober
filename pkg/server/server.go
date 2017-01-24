@@ -15,12 +15,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Constants for routing
-const (
-	apigeeKVMName   = "shipyard-routing"
-	apigeeKVMPKName = "x-routing-api-key"
-)
-
 //Global Vars
 var (
 
