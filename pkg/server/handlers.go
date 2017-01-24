@@ -76,7 +76,7 @@ func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	getSecret, err := clientset.Core().Secrets(pathVars["org"] + "-" + pathVars["env"]).Get("routing")
+	routingSecret, err := clientset.Core().Secrets(pathVars["org"] + "-" + pathVars["env"]).Get("routing")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		helper.LogError.Printf("Error getting existing Secret: %v\n", err)
@@ -103,15 +103,15 @@ func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	var jsResponse environmentResponse
 	jsResponse.Name = ns.Name
-	jsResponse.PrivateSecret = getSecret.Data["private-api-key"]
-	jsResponse.PublicSecret = getSecret.Data["public-api-key"]
+	jsResponse.PrivateSecret = routingSecret.Data["private-api-key"]
+	jsResponse.PublicSecret = routingSecret.Data["public-api-key"]
 
-	//TODO: Parse the annotation and return array of strings
 	tempHosts, err := parseHoststoMap(ns.Annotations["edge/hosts"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error Parsing Hosts: %v\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
 		helper.LogError.Printf(errorMessage)
+		return
 	}
 	jsResponse.EdgeHosts = tempHosts
 
@@ -120,6 +120,7 @@ func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 		errorMessage := fmt.Sprintf("Error marshalling Environment: %v\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
 		helper.LogError.Printf(errorMessage)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -247,28 +248,13 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	for index, val := range tempJSON.EnvVars {
-		if val.ValueFrom != nil {
-			if val.ValueFrom.KVMRef != (&apigee.ApigeeKVMSelector{}) {
-				if apigeeKVM {
-					// Gotta go retrieve the value from apigee KVM
-					// In the future we may support other ref types
-					apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
-					tempJSON.EnvVars[index], err = apigee.EnvReftoEnv(val.ValueFrom, apigeeClient, pathVars["org"], pathVars["env"])
-					if err != nil {
-						errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
-						http.Error(w, errorMessage, http.StatusInternalServerError)
-						helper.LogError.Printf(errorMessage)
-						return
-					}
-				} else {
-					errorMessage := fmt.Sprint("Requested KVM resource when KVM isn't enabled\n")
-					http.Error(w, errorMessage, http.StatusBadRequest)
-					helper.LogError.Printf(errorMessage)
-					return
-				}
-			}
-		}
+	apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
+	tempJSON.EnvVars, err = apigee.GetKVMVars(tempJSON.EnvVars, apigeeKVM, apigeeClient, pathVars["org"], pathVars["env"])
+	if err != nil {
+		errorMessage := fmt.Sprintf("Failed at GetKVMVars: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
 	}
 
 	tempK8sEnv, err := apigee.ApigeeEnvtoK8s(tempJSON.EnvVars)
@@ -433,28 +419,13 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	getDep.Spec.Template.Annotations["publicHosts"] = cacheAnnotations["publicHosts"]
 	getDep.Spec.Template.Annotations["privateHosts"] = cacheAnnotations["privateHosts"]
 
-	for index, val := range tempJSON.EnvVars {
-		if val.ValueFrom != nil {
-			if val.ValueFrom.KVMRef != (&apigee.ApigeeKVMSelector{}) {
-				if apigeeKVM {
-					// Gotta go retrieve the value from apigee KVM
-					// In the future we may support other ref types
-					apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
-					tempJSON.EnvVars[index], err = apigee.EnvReftoEnv(val.ValueFrom, apigeeClient, pathVars["org"], pathVars["env"])
-					if err != nil {
-						errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
-						http.Error(w, errorMessage, http.StatusInternalServerError)
-						helper.LogError.Printf(errorMessage)
-						return
-					}
-				} else {
-					errorMessage := fmt.Sprint("Requested KVM resource when KVM isn't enabled\n")
-					http.Error(w, errorMessage, http.StatusBadRequest)
-					helper.LogError.Printf(errorMessage)
-					return
-				}
-			}
-		}
+	apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
+	tempJSON.EnvVars, err = apigee.GetKVMVars(tempJSON.EnvVars, apigeeKVM, apigeeClient, pathVars["org"], pathVars["env"])
+	if err != nil {
+		errorMessage := fmt.Sprintf("Failed at GetKVMVars: %v\n", err)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
 	}
 
 	tempK8sEnv, err := apigee.ApigeeEnvtoK8s(tempJSON.EnvVars)

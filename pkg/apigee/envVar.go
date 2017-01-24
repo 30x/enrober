@@ -1,6 +1,10 @@
 package apigee
 
-import "k8s.io/client-go/pkg/api/v1"
+import (
+	"errors"
+	"fmt"
+	"k8s.io/client-go/pkg/api/v1"
+)
 
 // EnvReftoEnv converts an ApigeeEnvVarSource to an ApigeeEnvVar
 func EnvReftoEnv(source *ApigeeEnvVarSource, client Client, org, env string) (ApigeeEnvVar, error) {
@@ -112,4 +116,28 @@ func CacheApigeeEnvVars(currentEnvVars, newEnvVars []ApigeeEnvVar) []ApigeeEnvVa
 		}
 	}
 	return finalEnvVar
+}
+
+//TODO: Should get an integration test with this since it has to talk to live KVM
+func GetKVMVars(vars []ApigeeEnvVar, kvmEnabled bool, client Client, org, env string) ([]ApigeeEnvVar, error) {
+	for index, val := range vars {
+		if val.ValueFrom != nil {
+			if val.ValueFrom.KVMRef != (&ApigeeKVMSelector{}) {
+				if kvmEnabled {
+					// Gotta go retrieve the value from apigee KVM
+					// In the future we may support other ref types
+					var err error // I don't know why this is needed
+					vars[index], err = EnvReftoEnv(val.ValueFrom, client, org, env)
+					if err != nil {
+						errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
+						return nil, errors.New(errorMessage)
+					}
+				} else {
+					errorMessage := fmt.Sprint("Requested KVM resource when KVM isn't enabled\n")
+					return nil, errors.New(errorMessage)
+				}
+			}
+		}
+	}
+	return vars, nil
 }

@@ -44,10 +44,16 @@ func TestComposePaths(t *testing.T) {
 			TargetPath:    "target",
 		},
 	}
-	mockJSON := `[{"basePath":"base","containerPort":9000,"targetPath":"target"}]`
-	resultJSON := composePathsJSON(mockPathsObj)
-	if resultJSON != mockJSON {
+	mockJSON :=
+		`[
+  {
+    "basePath": "base",
+    "containerPort": 9000,
+    "targetPath": "target"
+  }
+]`
+	err, resultJSON := composePathsJSON(mockPathsObj)
+	if err != nil || resultJSON != mockJSON {
 		t.Fatalf("Expected\n%v\ngot\n%v", mockJSON, resultJSON)
 	}
-
 }

@@ -195,8 +195,6 @@ func (c *Client) hostAliases(org, env, virtualHost string) ([]string, error) {
 func (c *Client) CPSEnabledForOrg(orgName string) (bool, error) {
 	c.initDefaults()
 
-	cpsEnabled := false
-
 	orgURL := fmt.Sprintf("%sv1/organizations/%s", c.ApigeeAPIHost, orgName)
 	resp, err := c.Get(orgURL)
 	if err != nil {
@@ -227,7 +225,7 @@ func (c *Client) CPSEnabledForOrg(orgName string) (bool, error) {
 			break
 		}
 	}
-	return cpsEnabled, nil
+	return false, nil
 }
 
 func (c *Client) CreateKVM(orgName, envName, publicKey string) error {
@@ -280,11 +278,11 @@ func (c *Client) CreateKVM(orgName, envName, publicKey string) error {
 			b2 := new(bytes.Buffer)
 			updateKVMURL := fmt.Sprintf("%s/%s", kvmURL, apigeeKVMName) // Use non-CPS endpoint by default
 
-			cpsBool, err := c.CPSEnabledForOrg(orgName)
+			cpsEnabled, err := c.CPSEnabledForOrg(orgName)
 			if err != nil {
 				return err
 			}
-			if cpsBool {
+			if cpsEnabled {
 				// When using CPS, the API endpoint is different and instead of sending the whole KVM body, we can only send
 				// the KVM entry to update.  (This will work for now since we are only persisting one key but in the future
 				// we might need to update this to make N calls, one per key.)
