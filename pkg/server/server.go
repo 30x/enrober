@@ -121,7 +121,6 @@ func init() {
 //NewServer creates a new server
 func NewServer() (server *Server) {
 	router := mux.NewRouter()
-	router.KeepContext = true
 
 	router.Path("/environments/{org}:{env}").Methods("GET").HandlerFunc(getEnvironment)
 	router.Path("/environments/{org}:{env}").Methods("PATCH").HandlerFunc(patchEnvironment)
