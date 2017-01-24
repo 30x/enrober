@@ -34,7 +34,6 @@ func ValidAdmin(organization string, w http.ResponseWriter, r *http.Request) boo
 //AdminMiddleware is a middleware wrapper for the ValidAdmin function
 func AdminMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//Can't get pathvars from inside middleware with mux.vars
 
 		tempString := strings.Split(r.URL.String(), "/")
 		secondSplit := strings.Split(tempString[2], ":")
