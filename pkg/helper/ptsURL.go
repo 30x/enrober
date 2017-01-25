@@ -32,8 +32,7 @@ func GetPTSFromURL(ptsURLString string, request *http.Request) (v1.PodTemplateSp
 		return v1.PodTemplateSpec{}, errors.New(errorMessage)
 	}
 
-	//This could be moved up
-	if os.Getenv("DEPLOY_STATE") == "PROD" {
+	if os.Getenv("PTS_URL_HOST_RESTRICTION") != "false" {
 		u, err := url.Parse(ptsURLString)
 		if err != nil {
 			errorMessage := fmt.Sprintf("Error parsing ptsURL: %s\n", err)

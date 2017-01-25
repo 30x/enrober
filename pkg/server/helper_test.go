@@ -36,11 +36,10 @@ func TestParseHoststoMap(t *testing.T) {
 }
 
 func TestComposePaths(t *testing.T) {
-	tempInt := int32(9000)
 	mockPathsObj := []EdgePath{
 		{
 			BasePath:      "base",
-			ContainerPort: &tempInt,
+			ContainerPort: "9000",
 			TargetPath:    "target",
 		},
 	}

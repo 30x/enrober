@@ -230,6 +230,8 @@ func (c *Client) CPSEnabledForOrg(orgName string) (bool, error) {
 }
 
 func (c *Client) CreateKVM(orgName, envName, publicKey string) error {
+	c.initDefaults()
+
 	const apigeeKVMName = "shipyard-routing"
 	const apigeeKVMPKName = "x-routing-api-key"
 

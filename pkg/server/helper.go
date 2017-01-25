@@ -30,8 +30,7 @@ func createEnvironment(environmentName, token string) error {
 	environmentName = apigeeOrgName + "-" + apigeeEnvName
 
 	//Generate both a public and private key
-	privateKey, err := helper.GenerateRandomString(32)
-	publicKey, err := helper.GenerateRandomString(32)
+	apiKey, err := helper.GenerateRandomString(32)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error generating random string: %v\n", err)
 		return errors.New(errorMessage)
@@ -42,7 +41,7 @@ func createEnvironment(environmentName, token string) error {
 
 	//Should attempt KVM creation before creating k8s objects
 	if apigeeKVM {
-		err := apigeeClient.CreateKVM(apigeeOrgName, apigeeEnvName, publicKey)
+		err := apigeeClient.CreateKVM(apigeeOrgName, apigeeEnvName, apiKey)
 		if err != nil {
 			errorMessage := fmt.Sprintf("Error creating KVM: %v", err)
 			return errors.New(errorMessage)
@@ -71,10 +70,11 @@ func createEnvironment(environmentName, token string) error {
 		ObjectMeta: v1.ObjectMeta{
 			Name: environmentName,
 			Labels: map[string]string{
-				"runtime":  "shipyard",
-				"edge/org": apigeeOrgName,
-				"edge/env": apigeeEnvName,
-				"name":     environmentName,
+				"runtime":       "shipyard",
+				"edge/routable": "true",
+				"edge/org":      apigeeOrgName,
+				"edge/env":      apigeeEnvName,
+				"name":          environmentName,
 			},
 			Annotations: nsAnnotations,
 		},
@@ -97,8 +97,7 @@ func createEnvironment(environmentName, token string) error {
 		Type: "Opaque",
 	}
 
-	tempSecret.Data["public-api-key"] = []byte(publicKey)
-	tempSecret.Data["private-api-key"] = []byte(privateKey)
+	tempSecret.Data["api-key"] = []byte(apiKey)
 
 	//Create Secret
 	_, err = clientset.Core().Secrets(environmentName).Create(&tempSecret)

@@ -30,7 +30,7 @@ type HostsConfig struct {
 
 type EdgePath struct {
 	BasePath      string `json:"basePath"`
-	ContainerPort *int32 `json:"containerPort"`
+	ContainerPort string `json:"containerPort"`
 	TargetPath    string `json:"targetPath,omitempty"`
 }
 

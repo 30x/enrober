@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"k8s.io/client-go/pkg/api/v1"
+	"os"
 )
 
 func TestGenerateRandomBytes(t *testing.T) {
@@ -29,6 +30,7 @@ func TestGenerateRandomString(t *testing.T) {
 }
 
 func TestGetPTSFromURL(t *testing.T) {
+	os.Setenv("PTS_URL_HOST_RESTRICTION", "false")
 	ts := startMockServer()
 
 	mockRequest := http.Request{}
