@@ -1,5 +1,5 @@
-hash: 6a51c1c1cb82c8b58977ebe6be89b2348f4ae74ff12ee110dcec3196711eb35c
-updated: 2017-01-10T12:00:11.129790358-07:00
+hash: 4ace0328ea431573fbccb94369c582cdcb2d0eb6ad11a5963cbd54806dca6ec4
+updated: 2017-01-25T16:50:47.348266435-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -7,7 +7,7 @@ imports:
   - compute/metadata
   - internal
 - name: github.com/30x/authsdk
-  version: 50e1bb8adac0afdac021b4b08091876d1a70324c
+  version: 7155155e41124a0ed1974f068669a8cee120dca7
 - name: github.com/blang/semver
   version: 31b736133b98f26d5e078ec9eb591666edfd091f
 - name: github.com/coreos/go-oidc
@@ -34,7 +34,7 @@ imports:
   - digest
   - reference
 - name: github.com/docker/go-units
-  version: 09dda9d4b0d748c57c14048906d3d094a58ec0c9
+  version: e30f1e79f3cd72542f2026ceec18d3bd67ab859c
 - name: github.com/emicklei/go-restful
   version: 89ef8af493ab468a45a42bb0d89a06fccdd2fb22
   subpackages:
@@ -64,11 +64,11 @@ imports:
 - name: github.com/google/gofuzz
   version: bbcb9da2d746f8bdbd6a936686a0a6067ada0ec5
 - name: github.com/gorilla/context
-  version: 215affda49addc4c8ef7e2534915df2c8c35c6cd
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/handlers
-  version: 801d6e3b008914ee888c9ab9b1b379b9a56fbf44
+  version: 3a5767ca75ece5f7f1440b1d16975247f8d8b221
 - name: github.com/gorilla/mux
-  version: 0eeaf8392f5b04950925b8a69fe70f110fa7cbfc
+  version: 392c28fe23e1c45ddba891b0320b3b5df220beea
 - name: github.com/howeyc/gopass
   version: 3ca23474a7c7203e0a0a070fd33508f6efdb9b3d
 - name: github.com/imdario/mergo
@@ -82,7 +82,7 @@ imports:
   - jlexer
   - jwriter
 - name: github.com/onsi/ginkgo
-  version: 2c2e9bb47b4e44067024f29339588cac8b34dd12
+  version: a23f924ce96d61f963fb6219b8ff069d8d768cc2
   subpackages:
   - config
   - ginkgo
@@ -98,9 +98,11 @@ imports:
   - internal/writer
   - reporters
   - reporters/stenographer
+  - reporters/stenographer/support/go-colorable
+  - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: 7ce781ea776b2fd506491011353bded2e40c8467
+  version: e85f63af4302dc0e4277c6008ecf803f1d80e4f0
   subpackages:
   - format
   - internal/assertion
@@ -114,7 +116,7 @@ imports:
   - matchers/support/goraph/util
   - types
 - name: github.com/opencontainers/runc
-  version: 7ca2aa4873aea7cb4265b1726acb24b90d8726c6
+  version: 8a055cad4b24c9987be2f10ab2d98923e5ae9b1b
   subpackages:
   - libcontainer
 - name: github.com/pborman/uuid
@@ -126,7 +128,7 @@ imports:
 - name: github.com/spf13/pflag
   version: 5ccb023bc27df288a957c5e994cd44fd19619465
 - name: github.com/stretchr/testify
-  version: e3a8ff8ce36581f87a15341206f205b1da467059
+  version: 2402e8e7a02fc811447d11f881aa9746cdc57983
 - name: github.com/ugorji/go
   version: f1f1a805ed361a0e078bb537e4ea78cd37dcf065
   subpackages:
@@ -182,8 +184,12 @@ imports:
   - urlfetch
 - name: gopkg.in/inf.v0
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
+  repo: https://github.com/go-inf/inf.git
+  vcs: git
 - name: gopkg.in/yaml.v2
-  version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
+  version: 4c78c975fe7c825c6d1466c42be594d1d6f3aba6
+  repo: https://github.com/go-yaml/yaml.git
+  vcs: git
 - name: k8s.io/client-go
   version: d81cb85237595f720d83eda492bae8f6162fc5c0
   subpackages:

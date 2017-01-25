@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: enrober
-        image: thirtyx/enrober:testing12
+        image: thirtyx/enrober:testing13
         env:
           - name: DEPLOY_STATE
             value: "PROD"
