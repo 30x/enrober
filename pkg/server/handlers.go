@@ -226,11 +226,10 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 
 	if tempJSON.Paths == nil {
 		//Make default paths
-		tempInt := int32(9000)
 		tempPath := []EdgePath{
 			{
 				BasePath:      "/" + tempJSON.DeploymentName,
-				ContainerPort: &tempInt,
+				ContainerPort: "9000",
 			},
 		}
 		err, tempPTS.Annotations["edge/paths"] = composePathsJSON(tempPath)
@@ -276,6 +275,9 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	parsedImage := strings.Split(tempPTS.Spec.Containers[0].Image, ":")
 	if len(parsedImage) == 3 {
 		tempPTS.Labels["edge/app.rev"] = parsedImage[2]
+	} else {
+		//DEFAULT for now
+		tempPTS.Labels["edge/app.rev"] = "1"
 	}
 
 	//Could also use proto package

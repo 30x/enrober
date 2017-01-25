@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: enrober
-        image: thirtyx/enrober:testing3
+        image: thirtyx/enrober:testing12
         env:
           - name: DEPLOY_STATE
             value: "PROD"
@@ -24,6 +24,8 @@ spec:
             value: "false"
           - name: APIGEE_KVM
             value: "true"
+          - name: PTS_URL_HOST_RESTRICTION
+            value: "false"
         ports:
           - containerPort: 9000
 
