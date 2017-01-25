@@ -8,6 +8,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"os"
 )
 
 var _ = Describe("Server Test", func() {
@@ -35,7 +36,7 @@ var _ = Describe("Server Test", func() {
     			"replicas": 1,
     			"edgePaths": [{
     				"basePath": "base",
-    				"containerPort": 9000,
+    				"containerPort": "9000",
     				"targetPath": "target"
 				}],
     			"ptsURL": "https://api.myjson.com/bins/2p9z1",
@@ -65,7 +66,7 @@ var _ = Describe("Server Test", func() {
 				"replicas": 3,
 				"edgePaths": [{
     				"basePath": "base",
-    				"containerPort": 9000,
+    				"containerPort": "9000",
     				"targetPath": "target"
 				}],
 				"ptsURL": "https://api.myjson.com/bins/119h9",
@@ -166,6 +167,7 @@ var _ = Describe("Server Test", func() {
 
 	Context("Local Testing", func() {
 		server, hostBase, err := setup()
+		os.Setenv("PTS_URL_HOST_RESTRICTION", "false")
 		if err != nil {
 			Fail(fmt.Sprintf("Failed to start server %s", err))
 		}
