@@ -32,8 +32,6 @@ var (
 
 	apigeeAPIHost string
 
-	PtsHostRestriction bool
-
 	clientset kubernetes.Clientset
 )
 
