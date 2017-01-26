@@ -9,6 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/runc/libcontainer/utils"
 )
 
@@ -16,14 +17,19 @@ const signalBufferSize = 2048
 
 // newSignalHandler returns a signal handler for processing SIGCHLD and SIGWINCH signals
 // while still forwarding all other signals to the process.
-func newSignalHandler(tty *tty) *signalHandler {
+func newSignalHandler(enableSubreaper bool) *signalHandler {
+	if enableSubreaper {
+		// set us as the subreaper before registering the signal handler for the container
+		if err := system.SetSubreaper(1); err != nil {
+			logrus.Warn(err)
+		}
+	}
 	// ensure that we have a large buffer size so that we do not miss any signals
 	// incase we are not processing them fast enough.
 	s := make(chan os.Signal, signalBufferSize)
 	// handle all signals for the process.
 	signal.Notify(s)
 	return &signalHandler{
-		tty:     tty,
 		signals: s,
 	}
 }
@@ -37,12 +43,11 @@ type exit struct {
 
 type signalHandler struct {
 	signals chan os.Signal
-	tty     *tty
 }
 
 // forward handles the main signal event loop forwarding, resizing, or reaping depending
 // on the signal received.
-func (h *signalHandler) forward(process *libcontainer.Process) (int, error) {
+func (h *signalHandler) forward(process *libcontainer.Process, tty *tty) (int, error) {
 	// make sure we know the pid of our main process so that we can return
 	// after it dies.
 	pid1, err := process.Pid()
@@ -50,11 +55,11 @@ func (h *signalHandler) forward(process *libcontainer.Process) (int, error) {
 		return -1, err
 	}
 	// perform the initial tty resize.
-	h.tty.resize()
+	tty.resize()
 	for s := range h.signals {
 		switch s {
 		case syscall.SIGWINCH:
-			h.tty.resize()
+			tty.resize()
 		case syscall.SIGCHLD:
 			exits, err := h.reap()
 			if err != nil {
@@ -106,8 +111,4 @@ func (h *signalHandler) reap() (exits []exit, err error) {
 			status: utils.ExitStatus(ws),
 		})
 	}
-}
-
-func (h *signalHandler) Close() error {
-	return h.tty.Close()
 }

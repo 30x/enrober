@@ -9,6 +9,14 @@ import (
 	"os"
 )
 
+const (
+	// DefaultApigeeHost is Apigee's default api endpoint host
+	DefaultApigeeHost = "https://api.enterprise.apigee.com/"
+
+	// EnvVarApigeeHost is the Env Var to set overide default apigee api host
+	EnvVarApigeeHost = "AUTH_API_HOST"
+)
+
 //ApigeeJWTToken the apigee impelmentation of the JWT token auth sdk
 type ApigeeJWTToken struct {
 	tokenPayload
@@ -19,10 +27,9 @@ type ApigeeJWTToken struct {
 var apiBase string
 
 func init() {
-	envVar := os.Getenv("AUTH_API_HOST")
-
+	envVar := os.Getenv(EnvVarApigeeHost)
 	if envVar == "" {
-		apiBase = "api.enterprise.apigee.com"
+		apiBase = DefaultApigeeHost
 	} else {
 		apiBase = envVar
 	}
@@ -46,7 +53,7 @@ func (token *ApigeeJWTToken) IsOrgAdmin(orgName string) (bool, error) {
 	//we haven't pulled the roles and cache them, go get them
 	if token.roles == nil {
 
-		url := fmt.Sprintf("https://%s/v1/users/%s/userroles", apiBase, token.GetUsername())
+		url := fmt.Sprintf("%sv1/users/%s/userroles", apiBase, token.GetUsername())
 
 		req, err := http.NewRequest("GET", url, nil)
 		req.Header.Add("Accept", "application/json")

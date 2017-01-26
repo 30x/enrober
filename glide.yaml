@@ -11,6 +11,15 @@ import:
   - ginkgo
 - package: github.com/onsi/gomega
 - package: github.com/30x/authsdk
+  version: master
 - package: github.com/gorilla/handlers
 - package: k8s.io/client-go
   version: release-2.0
+- package: gopkg.in/yaml.v2
+  version: v2
+  repo: https://github.com/go-yaml/yaml.git
+  vcs: git
+- package: gopkg.in/inf.v0
+  version: master
+  repo: https://github.com/go-inf/inf.git
+  vcs: git

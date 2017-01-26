@@ -5,7 +5,6 @@ package seccomp
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"syscall"
@@ -167,7 +166,6 @@ func matchCall(filter *libseccomp.ScmpFilter, call *configs.Syscall) error {
 	// Ignore it, don't error out
 	callNum, err := libseccomp.GetSyscallFromName(call.Name)
 	if err != nil {
-		log.Printf("Error resolving syscall name %s: %s - ignoring syscall.", call.Name, err)
 		return nil
 	}
 
@@ -214,10 +212,6 @@ func parseStatusFile(path string) (map[string]string, error) {
 	status := make(map[string]string)
 
 	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return nil, err
-		}
-
 		text := s.Text()
 		parts := strings.Split(text, ":")
 
@@ -227,5 +221,9 @@ func parseStatusFile(path string) (map[string]string, error) {
 
 		status[parts[0]] = parts[1]
 	}
+	if err := s.Err(); err != nil {
+		return nil, err
+	}
+
 	return status, nil
 }
