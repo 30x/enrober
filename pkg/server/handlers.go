@@ -161,8 +161,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	// Check if the environment already exists
 	_, err := clientset.Core().Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
 	if err != nil {
-		if k8sErrors.IsAlreadyExists(err) == false {
-
+		if k8sErrors.IsNotFound(err) {
 			// Create environment if it doesn't exist
 			err := createEnvironment(pathVars["org"]+":"+pathVars["env"], r.Header.Get("Authorization"))
 			if err != nil {
@@ -184,6 +183,16 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error decoding JSON Body: %s\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
+		helper.LogError.Printf(errorMessage)
+		return
+	}
+
+	//Check if deployment with given name already exists
+	_, err = clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(tempJSON.DeploymentName)
+	if err == nil {
+		//Fail because it means the deployment must exist
+		errorMessage := fmt.Sprintf("Deployment %s already exists\n", tempJSON.DeploymentName)
+		http.Error(w, errorMessage, http.StatusConflict)
 		helper.LogError.Printf(errorMessage)
 		return
 	}

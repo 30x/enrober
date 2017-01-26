@@ -99,6 +99,33 @@ var _ = Describe("Server Test", func() {
 
 		})
 
+		It("Create Duplicate Deployment", func() {
+			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)
+
+			jsonStr := []byte(`{
+				"deploymentName": "testdep1",
+    			"replicas": 1,
+    			"edgePaths": [{
+    				"basePath": "base",
+    				"containerPort": "9000",
+    				"targetPath": "target"
+				}],
+    			"ptsURL": "https://api.myjson.com/bins/2p9z1",
+				"envVars": [{
+					"name": "test1",
+					"value": "value1"
+				}]
+			}`)
+
+			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+
+			resp, err := client.Do(req)
+
+			Expect(err).Should(BeNil(), "Shouldn't get an error on POST. Error: %v", err)
+
+			Expect(resp.StatusCode).Should(Equal(409), "Response should be 409 conflict")
+		})
+
 		It("Get Environment", func() {
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
 
@@ -150,7 +177,7 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
 		})
 
-		XIt("Delete Deployment testdep1", func() {
+		It("Delete Deployment testdep1", func() {
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1", hostBase)
 
 			req, err := http.NewRequest("DELETE", url, nil)

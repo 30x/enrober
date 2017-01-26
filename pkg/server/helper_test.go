@@ -47,7 +47,7 @@ func TestComposePaths(t *testing.T) {
 		`[
   {
     "basePath": "base",
-    "containerPort": 9000,
+    "containerPort": "9000",
     "targetPath": "target"
   }
 ]`
