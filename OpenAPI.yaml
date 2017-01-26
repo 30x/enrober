@@ -5,40 +5,11 @@ info:
   title: Enrober
 
 paths:
-      
-  /environments:
-    post:
-      description: Creates an environment consisting of a kubernetes namespace and a secret. 
-      parameters:
-      - name: environment_post
-        in: body
-        description: environment JSON body object
-        required: true
-        schema:
-         properties: 
-          environment_name:
-            type: string
-            description: Name of environment to be created
-          hostNames:
-            type: array
-            description: Array of valid hostnames to accept traffic from
-            items: 
-              type: string
 
-      responses:
-        201:
-          description: Created
-          schema:
-            $ref: '#/definitions/environment_object'
-        403:
-          description: Forbidden
-        default:
-          description: 5xx Errors
-  
   /environments/{org}-{env}:
     get:
       description: Returns an environment consisting of a kubernetes namespace and a secret.
-      produces: 
+      produces:
       - application/json
       parameters:
       - $ref: "#/parameters/orgParam"
@@ -54,25 +25,14 @@ paths:
           description: Not Found
         default:
           description: 5xx Errors
-    
+
     patch:
       description: Updates the hostNames array on an environment.
-      produces: 
+      produces:
       - application/json
       parameters:
       - $ref: "#/parameters/orgParam"
       - $ref: "#/parameters/envParam"
-      - name: environment_patch
-        in: body
-        description: environment JSON body object
-        required: false
-        schema: 
-          properties:
-            hostNames:
-              description: Array of valid hostnames to accept traffic from
-              type: array
-              items: 
-                type: string
       responses:
         200:
           description: Successful response
@@ -80,33 +40,16 @@ paths:
             $ref: '#/definitions/environment_object'
         403:
           description: Forbidden
-        404: 
-          description: Not Found
-        default:
-          description: 5xx Errors
-    
-    
-    delete:
-      description: Deletes an environment consisting of a namespace and a secret.
-      produces: 
-      - application/json
-      parameters:
-      - $ref: "#/parameters/orgParam"
-      - $ref: "#/parameters/envParam"
-      responses:
-        200:
-          description: Successful response
-        403:
-          description: Forbidden
         404:
           description: Not Found
         default:
           description: 5xx Errors
-      
+
+
   /environments/{org}-{env}/deployments:
     get:
       description: Returns a list of all deployments in a given environment.
-      produces: 
+      produces:
       - application/json
       parameters:
       - $ref: "#/parameters/orgParam"
@@ -114,20 +57,20 @@ paths:
       responses:
         200:
           description: Successful response
-          schema: 
+          schema:
             type: object
             description: Kubernetes DeploymentList object
         403:
           description: Forbidden
         default:
           description: 5xx Errors
-    
+
     post:
       description: Creates a deployment in the given environment.
       parameters:
       - $ref: "#/parameters/orgParam"
       - $ref: "#/parameters/envParam"
-        
+
       - name: deployment_body
         in: body
         description: JSON Body
@@ -148,7 +91,7 @@ paths:
   /environments/{org}-{env}/deployments/{deployment}:
     get:
       description: Returns a deployment matching the given Environment Group ID, Environment Name, and Deployment Name
-      produces: 
+      produces:
       - application/json
       parameters:
       - $ref: "#/parameters/orgParam"
@@ -166,7 +109,7 @@ paths:
           description: Not Found
         default:
           description: 5xx Errors
-    
+
     patch:
       description: Updates a deployment matching the given Environment Group ID, Environment Name, and Deployment Name
       parameters:
@@ -182,7 +125,7 @@ paths:
       responses:
           200:
             description: Successful response
-            schema: 
+            schema:
               type: object
               description: Kubernetes Deployment Object
           403:
@@ -191,7 +134,7 @@ paths:
             description: Not Found
           default:
             description: 5xx Errors
-    
+
     delete:
       description: Deletes a deployment matching the given Environment Group ID, Environment Name, and Deployment Name
       parameters:
@@ -199,7 +142,7 @@ paths:
       - $ref: "#/parameters/envParam"
       - $ref: "#/parameters/deploymentParam"
       responses:
-        200:
+        204:
           description: Successful response
         403:
           description: Forbidden
@@ -207,18 +150,18 @@ paths:
           description: Not Found
         default:
           description: 5xx Errors
-  
+
   /environments/{org}-{env}/deployments/{deployment}/logs:
-  
+
     get:
       description: Gets logs for a deployment
       parameters:
       - $ref: "#/parameters/orgParam"
       - $ref: "#/parameters/envParam"
       - $ref: "#/parameters/deploymentParam"
-      produces: 
+      produces:
       - text/plain
-      responses: 
+      responses:
         200:
           description: Successful response
           schema:
@@ -232,29 +175,33 @@ paths:
           description: 5xx Errors
 
 
-#Top level definitions          
+#Top level definitions
 definitions:
+
   deployment_post:
     description: Deployment JSON body object
     properties:
       deploymentName:
         type: string
         description: Name of deployment to be created
-      publicHosts: 
-        type: string
-        description: Where deployment object is routed for public traffic
-      privateHosts:
-        type: string
-        description: Where deployment object is routed for private traffic
       replicas:
         type: integer
         description: How many replicas to be deployed
       ptsURL:
         type: string
         description: URL to pod template spec json
-      pts:
-        type: object
-        description: Pod template spec to create
+      edgePaths:
+        type: array
+        description: Array of Edge Path Objects
+        items:
+          type: object
+          properties:
+            basePath:
+              type: string
+            containerPort:
+              type: integer
+            targetPath:
+              type: string
       envVars:
         type: array
         items:
@@ -264,46 +211,59 @@ definitions:
               type: string
             value:
               type: string
-          
-          
-        
+
   deployment_patch:
     description: Deployment JSON body object
     properties:
-      publicHosts: 
-        type: string
-        description: Where deployment object is routed for public traffic
-      privateHosts: 
-        type: string
-        description: Where deployment object is routed for private traffic
       replicas:
         type: integer
         description: How many replicas to be deployed
       ptsURL:
         type: string
         description: URL to pod template spec json
-      pts:
-        type: object
-        description: Kubernetes Pod Template object
-  
+      edgePaths:
+        type: array
+        description: Array of Edge Path Objects
+        items:
+          type: object
+          properties:
+            basePath:
+              type: string
+            containerPort:
+              type: integer
+            targetPath:
+              type: string
+      envVars:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            value:
+              type: string
+
+
   environment_object:
     description: Environment JSON object
-    properties: 
-      name: 
+    properties:
+      name:
         type: string
         description: Name of environment
+      hosts:
+        type: array
+        description: Array of valid hostnames to accept traffic from
+        items:
+          type: object
+          additionalProperties:
+              type: object
       publicSecret:
         type: string
         description: API key for public routing
       privateSecret:
         type: string
         description: API key for private routing
-      hostNames:
-        type: array
-        description: Array of valid hostnames to accept traffic from
-        items: 
-          type: string
-    
+
 
 #Top Level Path Parameters
 parameters:

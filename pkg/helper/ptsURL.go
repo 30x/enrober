@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"os"
 
-	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/client-go/pkg/api/v1"
 )
 
 var (
@@ -19,31 +19,32 @@ var (
 	apiRoutingKeyHeader   string
 )
 
+//TODO: Unit test this
+
 //GetPTSFromURL gets a pod template spec from a given URL
-func GetPTSFromURL(ptsURLString string, request *http.Request) (api.PodTemplateSpec, error) {
+func GetPTSFromURL(ptsURLString string, request *http.Request) (v1.PodTemplateSpec, error) {
 
 	httpClient := &http.Client{}
 
 	ptsURL, err := url.Parse(ptsURLString)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error parsing ptsURL\n")
-		return api.PodTemplateSpec{}, errors.New(errorMessage)
+		return v1.PodTemplateSpec{}, errors.New(errorMessage)
 	}
 
-	//This could be moved up
-	if os.Getenv("DEPLOY_STATE") == "PROD" {
+	if os.Getenv("PTS_URL_HOST_RESTRICTION") != "false" {
 		u, err := url.Parse(ptsURLString)
 		if err != nil {
 			errorMessage := fmt.Sprintf("Error parsing ptsURL: %s\n", err)
-			return api.PodTemplateSpec{}, errors.New(errorMessage)
+			return v1.PodTemplateSpec{}, errors.New(errorMessage)
 		}
 		if u.Host != request.Host {
 			errorMessage := fmt.Sprintf("Attempting to use PTS from unauthorized host: %v, expected: %v\n", u.Host, request.Host)
-			return api.PodTemplateSpec{}, errors.New(errorMessage)
+			return v1.PodTemplateSpec{}, errors.New(errorMessage)
 		}
 	}
 
-	//Get the necesarry environment variables
+	//Get the necessary environment variables
 	shipyardHost = os.Getenv("SHIPYARD_HOST")
 	internalRouterHost = os.Getenv("INTERNAL_ROUTER_HOST")
 	shipyardPrivateSecret = os.Getenv("SHIPYARD_PRIVATE_SECRET")
@@ -73,21 +74,21 @@ func GetPTSFromURL(ptsURLString string, request *http.Request) (api.PodTemplateS
 	urlJSON, err := httpClient.Do(req)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error retrieving pod template spec: %s\n", err)
-		return api.PodTemplateSpec{}, errors.New(errorMessage)
+		return v1.PodTemplateSpec{}, errors.New(errorMessage)
 	}
 	defer urlJSON.Body.Close()
 
 	if urlJSON.StatusCode != 200 {
 		errorMessage := fmt.Sprintf("Expected 200 from ptsURL got: %v\n", urlJSON.StatusCode)
-		return api.PodTemplateSpec{}, errors.New(errorMessage)
+		return v1.PodTemplateSpec{}, errors.New(errorMessage)
 	}
 
-	tempPTS := &api.PodTemplateSpec{}
+	tempPTS := &v1.PodTemplateSpec{}
 
 	err = json.NewDecoder(urlJSON.Body).Decode(tempPTS)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error decoding PTS JSON Body: %s\n", err)
-		return api.PodTemplateSpec{}, errors.New(errorMessage)
+		return v1.PodTemplateSpec{}, errors.New(errorMessage)
 	}
 	return *tempPTS, nil
 }
