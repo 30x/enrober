@@ -39,7 +39,7 @@ var _ = Describe("Server Test", func() {
     				"containerPort": "9000",
     				"targetPath": "target"
 				}],
-    			"ptsURL": "https://api.myjson.com/bins/2p9z1",
+    			"revision": 1,
 				"envVars": [{
 					"name": "test1",
 					"value": "value1"

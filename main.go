@@ -7,13 +7,10 @@ import (
 )
 
 func main() {
-
 	enrober := server.NewServer()
 	err := enrober.Start()
 	if err != nil {
 		fmt.Printf("Error starting enrober: %v\n", err)
 	}
-
 	return
-
 }
