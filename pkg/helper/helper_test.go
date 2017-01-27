@@ -2,13 +2,7 @@ package helper
 
 import (
 	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"reflect"
 	"testing"
-
-	"k8s.io/client-go/pkg/api/v1"
-	"os"
 )
 
 func TestGenerateRandomBytes(t *testing.T) {
