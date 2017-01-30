@@ -204,7 +204,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tempPTS, err := GeneratePTS(tempJSON, pathVars["org"])
+	tempPTS, err := GeneratePTS(tempJSON, pathVars["org"], pathVars["env"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed to generate PTS: %v\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)

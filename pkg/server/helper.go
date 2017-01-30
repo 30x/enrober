@@ -14,7 +14,7 @@ import (
 	"strconv"
 )
 
-func GeneratePTS(depBody deploymentPost, org string) (v1.PodTemplateSpec, error) {
+func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, error) {
 
 	tempURI := os.Getenv("DOCKER_REGISTRY_URL")
 	if tempURI == "" {
@@ -77,9 +77,11 @@ func GeneratePTS(depBody deploymentPost, org string) (v1.PodTemplateSpec, error)
 			Labels: map[string]string{
 				"component":     depBody.DeploymentName,
 				"edge/app.name": depBody.DeploymentName,
+				"edge/app.rev":  strconv.Itoa(int(depBody.Revision)),
+				"edge/org":      org,
+				"edge/env":      env,
 				"edge/routable": "true",
 				"runtime":       "shipyard",
-				"edge/app.rev":  strconv.Itoa(int(depBody.Revision)),
 			},
 		},
 		Spec: v1.PodSpec{
