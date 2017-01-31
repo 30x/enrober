@@ -1,5 +1,5 @@
 hash: 4ace0328ea431573fbccb94369c582cdcb2d0eb6ad11a5963cbd54806dca6ec4
-updated: 2017-01-25T16:50:47.348266435-07:00
+updated: 2017-01-31T09:31:36.687165141-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -34,7 +34,7 @@ imports:
   - digest
   - reference
 - name: github.com/docker/go-units
-  version: e30f1e79f3cd72542f2026ceec18d3bd67ab859c
+  version: 0dadbb0345b35ec7ef35e228dabb8de89a65bf52
 - name: github.com/emicklei/go-restful
   version: 89ef8af493ab468a45a42bb0d89a06fccdd2fb22
   subpackages:
@@ -82,7 +82,7 @@ imports:
   - jlexer
   - jwriter
 - name: github.com/onsi/ginkgo
-  version: a23f924ce96d61f963fb6219b8ff069d8d768cc2
+  version: bb93381d543b0e5725244abe752214a110791d01
   subpackages:
   - config
   - ginkgo
@@ -116,7 +116,7 @@ imports:
   - matchers/support/goraph/util
   - types
 - name: github.com/opencontainers/runc
-  version: 8a055cad4b24c9987be2f10ab2d98923e5ae9b1b
+  version: 510879e31fd5e7b8f2588ed09471fe62a368f24e
   subpackages:
   - libcontainer
 - name: github.com/pborman/uuid
@@ -128,7 +128,7 @@ imports:
 - name: github.com/spf13/pflag
   version: 5ccb023bc27df288a957c5e994cd44fd19619465
 - name: github.com/stretchr/testify
-  version: 2402e8e7a02fc811447d11f881aa9746cdc57983
+  version: 4d4bfba8f1d1027c4fdbe371823030df51419987
 - name: github.com/ugorji/go
   version: f1f1a805ed361a0e078bb537e4ea78cd37dcf065
   subpackages:

@@ -199,6 +199,10 @@ func TestEqual(t *testing.T) {
 	if !Equal(mockT, &struct{}{}, &struct{}{}) {
 		t.Error("Equal should return true (pointer equality is based on equality of underlying value)")
 	}
+	var m map[string]interface{}
+	if Equal(mockT, m["bar"], "something") {
+		t.Error("Equal should return false")
+	}
 }
 
 // bufferT implements TestingT. Its implementation of Errorf writes the output that would be produced by
