@@ -41,8 +41,7 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	var jsResponse environmentResponse
 	jsResponse.Name = getNs.Name
-	jsResponse.PrivateSecret = getSecret.Data["private-api-key"]
-	jsResponse.PublicSecret = getSecret.Data["public-api-key"]
+	jsResponse.ApiSecret = getSecret.Data["api-key"]
 	tempHosts, err := parseHoststoMap(getNs.Annotations["edge/hosts"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error Parsing Hosts: %v\n", err)
@@ -103,8 +102,7 @@ func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	var jsResponse environmentResponse
 	jsResponse.Name = ns.Name
-	jsResponse.PrivateSecret = routingSecret.Data["private-api-key"]
-	jsResponse.PublicSecret = routingSecret.Data["public-api-key"]
+	jsResponse.ApiSecret = routingSecret.Data["api-key"]
 
 	tempHosts, err := parseHoststoMap(ns.Annotations["edge/hosts"])
 	if err != nil {
@@ -197,65 +195,6 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tempPTS := v1.PodTemplateSpec{}
-
-	//Check if we got a URL
-	if tempJSON.PtsURL == "" {
-		//No URL so error
-		errorMessage := fmt.Sprintf("No ptsURL given\n")
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage)
-		return
-	}
-
-	tempPTS, err = helper.GetPTSFromURL(tempJSON.PtsURL, r)
-	if err != nil {
-		helper.LogError.Printf(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if allowPrivilegedContainers == false {
-		for _, val := range tempPTS.Spec.Containers {
-			if val.SecurityContext != nil {
-				val.SecurityContext.Privileged = func() *bool { b := false; return &b }()
-			}
-		}
-	}
-
-	//If map is empty then we need to make it
-	if len(tempPTS.Labels) == 0 {
-		tempPTS.Labels = make(map[string]string)
-	}
-
-	//If map is empty then we need to make it
-	if len(tempPTS.Annotations) == 0 {
-		tempPTS.Annotations = make(map[string]string)
-	}
-
-	if tempJSON.Paths == nil {
-		//Make default paths
-		tempPath := []EdgePath{
-			{
-				BasePath:      "/" + tempJSON.DeploymentName,
-				ContainerPort: "9000",
-			},
-		}
-		err, tempPTS.Annotations["edge/paths"] = composePathsJSON(tempPath)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			helper.LogError.Printf(err.Error())
-			return
-		}
-	} else {
-		err, tempPTS.Annotations["edge/paths"] = composePathsJSON(tempJSON.Paths)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			helper.LogError.Printf(err.Error())
-			return
-		}
-	}
-
 	apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
 	tempJSON.EnvVars, err = apigee.GetKVMVars(tempJSON.EnvVars, apigeeKVM, apigeeClient, pathVars["org"], pathVars["env"])
 	if err != nil {
@@ -265,28 +204,12 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tempK8sEnv, err := apigee.ApigeeEnvtoK8s(tempJSON.EnvVars)
+	tempPTS, err := GeneratePTS(tempJSON, pathVars["org"], pathVars["env"])
 	if err != nil {
-		errorMessage := fmt.Sprintf("Failed at ApigeeEnvtoK8s: %v\n", err)
+		errorMessage := fmt.Sprintf("Failed to generate PTS: %v\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
 		helper.LogError.Printf(errorMessage)
 		return
-	}
-	tempPTS.Spec.Containers[0].Env = apigee.CacheK8sEnvVars(tempPTS.Spec.Containers[0].Env, tempK8sEnv)
-
-	//Add Labels
-	tempPTS.Labels["edge/app.name"] = tempJSON.DeploymentName
-	tempPTS.Labels["edge/routable"] = "true"
-	tempPTS.Labels["runtime"] = "shipyard"
-
-	//Need to add "edge/app.name" and "edge/app.rev" labels based on image information.
-	//TODO: When we remove the ptsURL we'll have to get this from elsewhere
-	parsedImage := strings.Split(tempPTS.Spec.Containers[0].Image, ":")
-	if len(parsedImage) == 3 {
-		tempPTS.Labels["edge/app.rev"] = parsedImage[2]
-	} else {
-		//DEFAULT for now
-		tempPTS.Labels["edge/app.rev"] = "1"
 	}
 
 	//Could also use proto package
@@ -315,7 +238,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	if len(depList.Items) != 0 {
 		errorMessage := fmt.Sprintf("LabelSelector " + labelSelector + " already exists")
 		helper.LogError.Printf(errorMessage)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
+		http.Error(w, errorMessage, http.StatusConflict)
 		return
 	}
 
@@ -335,7 +258,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Create absolute path for Location header
-	url := "/environments/" + pathVars["org"] + "-" + pathVars["env"] + "/deployments/" + tempJSON.DeploymentName
+	url := "/environments/" + pathVars["org"] + ":" + pathVars["env"] + "/deployments/" + tempJSON.DeploymentName
 	w.Header().Add("Location", url)
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(201)
@@ -390,78 +313,64 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tempPTS := v1.PodTemplateSpec{}
-
-	//Check if we got a URL
-	if tempJSON.PtsURL == "" {
-		//No URL so error
-		errorMessage := fmt.Sprintf("No ptsURL or PTS given\n")
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage)
-		return
-	}
-
-	tempPTS, err = helper.GetPTSFromURL(tempJSON.PtsURL, r)
-	if err != nil {
-		helper.LogError.Printf(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-
-	//If annotations map is empty then we need to make it
-	if len(tempPTS.Annotations) == 0 {
-		tempPTS.Annotations = make(map[string]string)
-	}
-
-	//If labels map is empty then we need to make it
-	if len(tempPTS.Labels) == 0 {
-		tempPTS.Labels = make(map[string]string)
-	}
-
-	//Need to cache the previous annotations
-	cacheAnnotations := getDep.Spec.Template.Annotations
-
-	//Only set the replica count if the passed variable
+	//Only set the replica count if the user passed the variable
 	if tempJSON.Replicas != nil {
 		getDep.Spec.Replicas = tempJSON.Replicas
 	}
-	getDep.Spec.Template = tempPTS
-
-	//Replace the privateHosts and publicHosts annotations with cached ones
-	getDep.Spec.Template.Annotations["publicHosts"] = cacheAnnotations["publicHosts"]
-	getDep.Spec.Template.Annotations["privateHosts"] = cacheAnnotations["privateHosts"]
-
-	apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
-	tempJSON.EnvVars, err = apigee.GetKVMVars(tempJSON.EnvVars, apigeeKVM, apigeeClient, pathVars["org"], pathVars["env"])
-	if err != nil {
-		errorMessage := fmt.Sprintf("Failed at GetKVMVars: %v\n", err)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage)
-		return
+	//Only modify paths if user passed the variable
+	if tempJSON.Paths != nil {
+		intPort, err := strconv.Atoi(tempJSON.Paths[0].ContainerPort)
+		if err != nil {
+			errorMessage := fmt.Sprintf("Invalid Container Port: %v\n", err)
+			http.Error(w, errorMessage, http.StatusInternalServerError)
+			helper.LogError.Printf(errorMessage)
+			return
+		}
+		tempPaths, err := composePathsJSON(tempJSON.Paths)
+		if err != nil {
+			errorMessage := fmt.Sprintf("Error Composing Paths: %v\n", err)
+			http.Error(w, errorMessage, http.StatusInternalServerError)
+			helper.LogError.Printf(errorMessage)
+			return
+		}
+		getDep.Spec.Template.Annotations["edge/hosts"] = tempPaths
+		getDep.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = int32(intPort)
 	}
 
-	tempK8sEnv, err := apigee.ApigeeEnvtoK8s(tempJSON.EnvVars)
-	if err != nil {
-		errorMessage := fmt.Sprintf("Failed at ApigeeEnvtoK8s: %v\n", err)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
-		helper.LogError.Printf(errorMessage)
-		return
-	}
-	getDep.Spec.Template.Spec.Containers[0].Env = apigee.CacheK8sEnvVars(getDep.Spec.Template.Spec.Containers[0].Env, tempK8sEnv)
-
-	//If map is empty then we need to make it
-	if len(tempPTS.Annotations) == 0 {
-		tempPTS.Annotations = make(map[string]string)
-	}
-
-	err, tempPTS.Annotations["edge/paths"] = composePathsJSON(tempJSON.Paths)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		helper.LogError.Printf(err.Error())
-		return
+	if tempJSON.EnvVars != nil {
+		apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
+		tempJSON.EnvVars, err = apigee.GetKVMVars(tempJSON.EnvVars, apigeeKVM, apigeeClient, pathVars["org"], pathVars["env"])
+		if err != nil {
+			errorMessage := fmt.Sprintf("Failed at GetKVMVars: %v\n", err)
+			http.Error(w, errorMessage, http.StatusInternalServerError)
+			helper.LogError.Printf(errorMessage)
+			return
+		}
+		tempK8sEnv, err := apigee.ApigeeEnvtoK8s(tempJSON.EnvVars)
+		if err != nil {
+			errorMessage := fmt.Sprintf("Failed at ApigeeEnvtoK8s: %v\n", err)
+			http.Error(w, errorMessage, http.StatusInternalServerError)
+			helper.LogError.Printf(errorMessage)
+			return
+		}
+		getDep.Spec.Template.Spec.Containers[0].Env = apigee.CacheK8sEnvVars(getDep.Spec.Template.Spec.Containers[0].Env, tempK8sEnv)
 	}
 
-	//Add routable label
-	getDep.Spec.Template.Labels["edge/routable"] = "true"
+	//Revision was given
+	if tempJSON.Revision != nil {
+		newStrRevision := strconv.Itoa(int(*tempJSON.Revision))
+		//It's a new revision
+		if newStrRevision != getDep.Spec.Template.Labels["edge/app.rev"] {
+			//Split old image URI into the main part and the revision
+			oldImageURISlice := strings.Split(getDep.Spec.Template.Spec.Containers[0].Image, ":")
+
+			//Update the deployment to have new revision label
+			getDep.Spec.Template.Labels["edge/app.rev"] = newStrRevision
+
+			//Update the deployment to have new image name
+			getDep.Spec.Template.Spec.Containers[0].Image = oldImageURISlice[0] + ":" + newStrRevision
+		}
+	}
 
 	dep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Update(getDep)
 	if err != nil {

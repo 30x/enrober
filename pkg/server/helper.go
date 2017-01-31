@@ -10,9 +10,104 @@ import (
 
 	"github.com/30x/enrober/pkg/apigee"
 	"github.com/30x/enrober/pkg/helper"
+	"os"
+	"strconv"
 )
 
-// Lets start by just making a new function
+func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, error) {
+
+	tempURI := os.Getenv("DOCKER_REGISTRY_URL")
+	if tempURI == "" {
+		return v1.PodTemplateSpec{}, errors.New("No URI set")
+	}
+
+	cdir := os.Getenv("POD_CDIR")
+	if cdir == "" {
+		cdir = "10.1.0.0/16"
+	}
+
+	var tempPaths string
+	var intPort int
+	if depBody.Paths == nil {
+		//Make default paths
+		defaultPath := []EdgePath{
+			{
+				BasePath:      "/" + depBody.DeploymentName,
+				ContainerPort: "9000",
+			},
+		}
+		intPort = 9000
+		var err error
+		tempPaths, err = composePathsJSON(defaultPath)
+		if err != nil {
+			return v1.PodTemplateSpec{}, err
+		}
+	} else {
+		var err error
+		intPort, err = strconv.Atoi(depBody.Paths[0].ContainerPort)
+		tempPaths, err = composePathsJSON(depBody.Paths)
+		if err != nil {
+			return v1.PodTemplateSpec{}, err
+		}
+	}
+	tempK8sEnv, err := apigee.ApigeeEnvtoK8s(depBody.EnvVars)
+	if err != nil {
+		return v1.PodTemplateSpec{}, err
+	}
+	apiKeyEnv := v1.EnvVar{
+		Name: "API_KEY",
+		ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: "routing",
+				},
+
+				Key: "api-key",
+			},
+		},
+	}
+	tempK8sEnv = append(tempK8sEnv, apiKeyEnv)
+
+	tempPTS := v1.PodTemplateSpec{
+		ObjectMeta: v1.ObjectMeta{
+			Annotations: map[string]string{
+				"edge/paths":               tempPaths,
+				"projectcalico.org/policy": fmt.Sprintf("allow tcp from cidr 192.168.0.0/16; allow tcp from cidr %s", cdir),
+			},
+			Labels: map[string]string{
+				"component":     depBody.DeploymentName,
+				"edge/app.name": depBody.DeploymentName,
+				"edge/app.rev":  strconv.Itoa(int(depBody.Revision)),
+				"edge/org":      org,
+				"edge/env":      env,
+				"edge/routable": "true",
+				"runtime":       "shipyard",
+			},
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Name:            depBody.DeploymentName,
+					Image:           tempURI + "/" + org + "/" + depBody.DeploymentName + ":" + strconv.Itoa(int(depBody.Revision)),
+					ImagePullPolicy: v1.PullAlways,
+					//Ensures that containers do not have privileged access
+					SecurityContext: &v1.SecurityContext{
+						Privileged: func() *bool { b := false; return &b }(),
+					},
+					Env: tempK8sEnv,
+					Ports: []v1.ContainerPort{
+						{
+							ContainerPort: int32(intPort),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return tempPTS, nil
+}
+
 func createEnvironment(environmentName, token string) error {
 
 	//Make sure they passed a valid environment name of form {org}:{env}
@@ -146,13 +241,13 @@ func parseHoststoMap(hostString string) (map[string]HostsConfig, error) {
 	return tempMap, nil
 }
 
-func composePathsJSON(paths []EdgePath) (error, string) {
+func composePathsJSON(paths []EdgePath) (string, error) {
 	if paths == nil {
-		return errors.New("No paths given"), ""
+		return "", errors.New("No paths given")
 	}
 	b, err := json.MarshalIndent(paths, "", "  ")
 	if err != nil {
-		return err, ""
+		return "", err
 	}
-	return nil, string(b)
+	return string(b), nil
 }

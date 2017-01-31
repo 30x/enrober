@@ -28,18 +28,18 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200")
 		})
 
-		It("Create Deployment from PTS URL", func() {
+		It("Create Deployment", func() {
 			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)
 
 			jsonStr := []byte(`{
 				"deploymentName": "testdep1",
     			"replicas": 1,
     			"edgePaths": [{
-    				"basePath": "base",
+    				"basePath": "/base",
     				"containerPort": "9000",
-    				"targetPath": "target"
+    				"targetPath": "/target"
 				}],
-    			"ptsURL": "https://api.myjson.com/bins/2p9z1",
+    			"revision": 1,
 				"envVars": [{
 					"name": "test1",
 					"value": "value1"
@@ -56,7 +56,7 @@ var _ = Describe("Server Test", func() {
 
 		})
 
-		It("Update Deployment from PTS URL", func() {
+		It("Update Deployment", func() {
 			//Need to wait a little before we run an update
 			//Should look into a better fix
 			time.Sleep(2000 * time.Millisecond)
@@ -69,7 +69,7 @@ var _ = Describe("Server Test", func() {
     				"containerPort": "9000",
     				"targetPath": "target"
 				}],
-				"ptsURL": "https://api.myjson.com/bins/119h9",
+				"revision": 2,
 				"envVars": [{
 					"name": "test1",
 					"value": "value2"
@@ -110,7 +110,7 @@ var _ = Describe("Server Test", func() {
     				"containerPort": "9000",
     				"targetPath": "target"
 				}],
-    			"ptsURL": "https://api.myjson.com/bins/2p9z1",
+				"revision": 1,
 				"envVars": [{
 					"name": "test1",
 					"value": "value1"

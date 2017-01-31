@@ -35,24 +35,23 @@ type EdgePath struct {
 }
 
 type environmentResponse struct {
-	Name          string                 `json:"name"`
-	EdgeHosts     map[string]HostsConfig `json:"edgeHosts,omitempty"`
-	PublicSecret  []byte                 `json:"publicSecret"`
-	PrivateSecret []byte                 `json:"privateSecret"`
+	Name      string                 `json:"name"`
+	EdgeHosts map[string]HostsConfig `json:"edgeHosts,omitempty"`
+	ApiSecret []byte                 `json:"apiSecret"`
 }
 
 type deploymentPost struct {
 	DeploymentName string                `json:"deploymentName"`
 	Paths          []EdgePath            `json:"edgePaths,omitempty"`
 	Replicas       *int32                `json:"replicas"`
-	PtsURL         string                `json:"ptsURL,omitempty"`
+	Revision       int32                 `json:"revision"`
 	EnvVars        []apigee.ApigeeEnvVar `json:"envVars,omitempty"`
 }
 
 type deploymentPatch struct {
-	Paths    []EdgePath            `json:"edgePaths"`
+	Paths    []EdgePath            `json:"edgePaths,omitempty"`
 	Replicas *int32                `json:"replicas,omitempty"`
-	PtsURL   string                `json:"ptsURL"`
+	Revision *int32                `json:"revision,omitempty`
 	EnvVars  []apigee.ApigeeEnvVar `json:"envVars,omitempty"`
 }
 

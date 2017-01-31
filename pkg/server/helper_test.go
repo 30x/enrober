@@ -51,7 +51,7 @@ func TestComposePaths(t *testing.T) {
     "targetPath": "target"
   }
 ]`
-	err, resultJSON := composePathsJSON(mockPathsObj)
+	resultJSON, err := composePathsJSON(mockPathsObj)
 	if err != nil || resultJSON != mockJSON {
 		t.Fatalf("Expected\n%v\ngot\n%v", mockJSON, resultJSON)
 	}
