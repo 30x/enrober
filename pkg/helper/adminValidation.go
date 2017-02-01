@@ -38,9 +38,14 @@ func AdminMiddleware(next http.Handler) http.Handler {
 		tempString := strings.Split(r.URL.String(), "/")
 		secondSplit := strings.Split(tempString[2], ":")
 
-		if !ValidAdmin(secondSplit[0], w, r) {
-			return
+		//tempString[2] returns the second "/" delimited string in path
+		if tempString[2] != "status" {
+			//secondSplit[0] returns org from path structure "/environments/{org}:{env}"
+			if !ValidAdmin(secondSplit[0], w, r) {
+				return
+			}
 		}
+
 		next.ServeHTTP(w, r)
 	})
 }
