@@ -176,7 +176,7 @@ func createEnvironment(environmentName, token string) error {
 	}
 
 	//Create Namespace
-	createdNs, err := clientset.Core().Namespaces().Create(nsObject)
+	createdNs, err := clientset.Namespaces().Create(nsObject)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error creating namespace: %v", err)
 		return errors.New(errorMessage)
@@ -195,11 +195,11 @@ func createEnvironment(environmentName, token string) error {
 	tempSecret.Data["api-key"] = []byte(apiKey)
 
 	//Create Secret
-	_, err = clientset.Core().Secrets(environmentName).Create(&tempSecret)
+	_, err = clientset.Secrets(environmentName).Create(&tempSecret)
 	if err != nil {
 		helper.LogError.Printf("Error creating secret: %s\n", err)
 
-		err = clientset.Core().Namespaces().Delete(createdNs.GetName(), &v1.DeleteOptions{})
+		err = clientset.Namespaces().Delete(createdNs.GetName(), &v1.DeleteOptions{})
 		if err != nil {
 			errorMessage := "Failed to cleanup namespace\n"
 			return errors.New(errorMessage)
