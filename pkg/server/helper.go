@@ -34,6 +34,7 @@ func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, e
 			{
 				BasePath:      "/" + depBody.DeploymentName,
 				ContainerPort: "9000",
+				TargetPath:    "/",
 			},
 		}
 		intPort = 9000
