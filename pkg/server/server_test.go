@@ -29,10 +29,10 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Create Deployment", func() {
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)
+			url := fmt.Sprintf("%s/environments/thirtyx:test/deployments", hostBase)
 
 			jsonStr := []byte(`{
-				"deploymentName": "testdep1",
+				"deploymentName": "nodejs-k8s-env",
     			"replicas": 1,
     			"edgePaths": [{
     				"basePath": "/base",
@@ -60,14 +60,14 @@ var _ = Describe("Server Test", func() {
 			//Need to wait a little before we run an update
 			//Should look into a better fix
 			time.Sleep(2000 * time.Millisecond)
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1", hostBase)
+			url := fmt.Sprintf("%s/environments/thirtyx:test/deployments/nodejs-k8s-env", hostBase)
 
 			jsonStr := []byte(`{
 				"replicas": 3,
 				"edgePaths": [{
-    				"basePath": "base",
+    				"basePath": "/base",
     				"containerPort": "9000",
-    				"targetPath": "target"
+    				"targetPath": "/target"
 				}],
 				"revision": 2,
 				"envVars": [{
@@ -86,8 +86,8 @@ var _ = Describe("Server Test", func() {
 
 		})
 
-		It("Get Deployment testdep1", func() {
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1", hostBase)
+		It("Get Deployment testdep", func() {
+			url := fmt.Sprintf("%s/environments/thirtyx:test/deployments/nodejs-k8s-env", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
 
@@ -100,15 +100,15 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Create Duplicate Deployment", func() {
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)
+			url := fmt.Sprintf("%s/environments/thirtyx:test/deployments", hostBase)
 
 			jsonStr := []byte(`{
-				"deploymentName": "testdep1",
+				"deploymentName": "nodejs-k8s-env",
     			"replicas": 1,
     			"edgePaths": [{
-    				"basePath": "base",
+    				"basePath": "/base",
     				"containerPort": "9000",
-    				"targetPath": "target"
+    				"targetPath": "/target"
 				}],
 				"revision": 1,
 				"envVars": [{
@@ -127,7 +127,7 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Get Environment", func() {
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
+			url := fmt.Sprintf("%s/environments/thirtyx:test", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
 
@@ -139,7 +139,7 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Update Environment", func() {
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1", hostBase)
+			url := fmt.Sprintf("%s/environments/thirtyx:test", hostBase)
 
 			req, err := http.NewRequest("PATCH", url, bytes.NewBuffer([]byte("")))
 
@@ -151,7 +151,7 @@ var _ = Describe("Server Test", func() {
 		})
 
 		It("Get Deployments", func() {
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments", hostBase)
+			url := fmt.Sprintf("%s/environments/thirtyx:test/deployments", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
 
@@ -162,11 +162,11 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
 		})
 
-		It("Get Logs for Deployment testdep1", func() {
+		It("Get Logs for Deployment nodejs-k8s-env", func() {
 			//Need to wait for container to start
-			time.Sleep(5000 * time.Millisecond)
+			time.Sleep(10000 * time.Millisecond)
 
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1/logs", hostBase)
+			url := fmt.Sprintf("%s/environments/thirtyx:test/deployments/nodejs-k8s-env/logs", hostBase)
 
 			req, err := http.NewRequest("GET", url, nil)
 
@@ -177,8 +177,8 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200 OK")
 		})
 
-		It("Delete Deployment testdep1", func() {
-			url := fmt.Sprintf("%s/environments/testorg1:testenv1/deployments/testdep1", hostBase)
+		It("Delete Deployment testdep", func() {
+			url := fmt.Sprintf("%s/environments/thirtyx:test/deployments/nodejs-k8s-env", hostBase)
 
 			req, err := http.NewRequest("DELETE", url, nil)
 
