@@ -25,7 +25,7 @@ import (
 func getEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	getNs, err := clientset.Core().Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
+	getNs, err := clientset.Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		helper.LogError.Printf("Error getting existing Environment: %v\n", err)
@@ -68,7 +68,7 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	ns, err := clientset.Core().Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
+	ns, err := clientset.Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		helper.LogError.Printf("Error getting existing Environment: %v\n", err)
@@ -131,7 +131,7 @@ func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 func getDeployments(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	depList, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{})
+	depList, err := clientset.Deployments(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{})
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error retrieving deployment list: %v\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -157,7 +157,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
 	// Check if the environment already exists
-	_, err := clientset.Core().Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
+	_, err := clientset.Namespaces().Get(pathVars["org"] + "-" + pathVars["env"])
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			// Create environment if it doesn't exist
@@ -186,7 +186,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Check if deployment with given name already exists
-	_, err = clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(tempJSON.DeploymentName)
+	_, err = clientset.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(tempJSON.DeploymentName)
 	if err == nil {
 		//Fail because it means the deployment must exist
 		errorMessage := fmt.Sprintf("Deployment %s already exists\n", tempJSON.DeploymentName)
@@ -232,7 +232,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	labelSelector := "component=" + tempPTS.Labels["component"]
-	depList, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{
+	depList, err := clientset.Deployments(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if len(depList.Items) != 0 {
@@ -243,7 +243,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Create Deployment
-	dep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Create(&template)
+	dep, err := clientset.Deployments(pathVars["org"] + "-" + pathVars["env"]).Create(&template)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error creating deployment: %s\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -271,7 +271,7 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 func getDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
-	getDep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
+	getDep, err := clientset.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error retrieving deployment: %s\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -296,7 +296,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
 	//Get the old namespace first so we can fail quickly if it's not there
-	getDep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
+	getDep, err := clientset.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error getting existing deployment: %s\n", err)
 		http.Error(w, errorMessage, http.StatusNotFound)
@@ -372,7 +372,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	dep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Update(getDep)
+	dep, err := clientset.Deployments(pathVars["org"] + "-" + pathVars["env"]).Update(getDep)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error updating deployment: %v\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -397,7 +397,7 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
 	//Get the deployment object
-	dep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
+	dep, err := clientset.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error getting old deployment: %s\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -409,7 +409,7 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	selector := "component=" + dep.Labels["component"]
 
 	//Get the replica sets with the corresponding label
-	rsList, err := clientset.Extensions().ReplicaSets(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{
+	rsList, err := clientset.ReplicaSets(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{
 		LabelSelector: selector,
 	})
 	if err != nil {
@@ -420,12 +420,12 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Get the pods with the corresponding label
-	podList, err := clientset.Core().Pods(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{
+	podList, err := clientset.Pods(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{
 		LabelSelector: selector,
 	})
 
 	//Delete Deployment
-	err = clientset.Extensions().Deployments(pathVars["org"]+"-"+pathVars["env"]).Delete(pathVars["deployment"], &v1.DeleteOptions{})
+	err = clientset.Deployments(pathVars["org"]+"-"+pathVars["env"]).Delete(pathVars["deployment"], &v1.DeleteOptions{})
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error deleting deployment: %v\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -436,7 +436,7 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 
 	//Delete all Replica Sets that came up in the list
 	for _, value := range rsList.Items {
-		err = clientset.Extensions().ReplicaSets(pathVars["org"]+"-"+pathVars["env"]).Delete(value.GetName(), &v1.DeleteOptions{})
+		err = clientset.ReplicaSets(pathVars["org"]+"-"+pathVars["env"]).Delete(value.GetName(), &v1.DeleteOptions{})
 		if err != nil {
 			errorMessage := fmt.Sprintf("Error deleting replica set: %v\n", err)
 			http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -448,7 +448,7 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 
 	//Delete all Pods that came up in the list
 	for _, value := range podList.Items {
-		err = clientset.Core().Pods(pathVars["org"]+"-"+pathVars["env"]).Delete(value.GetName(), &v1.DeleteOptions{})
+		err = clientset.Pods(pathVars["org"]+"-"+pathVars["env"]).Delete(value.GetName(), &v1.DeleteOptions{})
 		if err != nil {
 			errorMessage := fmt.Sprintf("Error deleting pod: %v\n", err)
 			http.Error(w, errorMessage, http.StatusInternalServerError)
@@ -493,7 +493,7 @@ func getDeploymentLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Get the deployment
-	dep, err := clientset.Extensions().Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
+	dep, err := clientset.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error retrieving deployment: %s\n", err)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
