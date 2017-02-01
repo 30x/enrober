@@ -138,10 +138,7 @@ func NewServer() (server *Server) {
 		adminRouter = helper.AdminMiddleware(router)
 		finalRouter = handlers.CombinedLoggingHandler(os.Stdout, adminRouter)
 	} else {
-		//TODO: Remove this
-		adminRouter = helper.AdminMiddleware(router)
-
-		finalRouter = handlers.CombinedLoggingHandler(os.Stdout, adminRouter)
+		finalRouter = handlers.CombinedLoggingHandler(os.Stdout, router)
 	}
 
 	server = &Server{
