@@ -38,9 +38,12 @@ func AdminMiddleware(next http.Handler) http.Handler {
 		tempString := strings.Split(r.URL.String(), "/")
 		secondSplit := strings.Split(tempString[2], ":")
 
-		if !ValidAdmin(secondSplit[0], w, r) {
-			return
+		if tempString[2] != "status" {
+			if !ValidAdmin(secondSplit[0], w, r) {
+				return
+			}
 		}
+
 		next.ServeHTTP(w, r)
 	})
 }
