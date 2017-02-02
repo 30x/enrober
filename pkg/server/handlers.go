@@ -18,6 +18,7 @@ import (
 	"github.com/30x/enrober/pkg/apigee"
 	"github.com/30x/enrober/pkg/helper"
 	"os"
+	"reflect"
 	"strings"
 )
 
@@ -32,7 +33,7 @@ func getEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	getSecret, err := clientset.Core().Secrets(pathVars["org"] + "-" + pathVars["env"]).Get("routing")
+	getSecret, err := clientset.Secrets(pathVars["org"] + "-" + pathVars["env"]).Get("routing")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		helper.LogError.Printf("Error getting existing Secret: %v\n", err)
@@ -75,7 +76,7 @@ func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	routingSecret, err := clientset.Core().Secrets(pathVars["org"] + "-" + pathVars["env"]).Get("routing")
+	routingSecret, err := clientset.Secrets(pathVars["org"] + "-" + pathVars["env"]).Get("routing")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		helper.LogError.Printf("Error getting existing Secret: %v\n", err)
@@ -92,7 +93,7 @@ func patchEnvironment(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ns.ObjectMeta.Annotations["edge/hosts"] = composeHostsJSON(hosts)
-		ns, err = clientset.Core().Namespaces().Update(ns)
+		ns, err = clientset.Namespaces().Update(ns)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			helper.LogError.Printf("Error updating Environment: %v\n", err)
@@ -312,6 +313,22 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		helper.LogError.Printf(errorMessage)
 		return
 	}
+	//If the JSON body is empty then we bounce the pods
+	if reflect.DeepEqual(tempJSON, deploymentPatch{}) {
+		podList, err := clientset.Pods(pathVars["org"] + "-" + pathVars["env"]).List(v1.ListOptions{
+			LabelSelector: "component=" + getDep.Labels["component"],
+		})
+		for _, value := range podList.Items {
+			err = clientset.Pods(pathVars["org"]+"-"+pathVars["env"]).Delete(value.GetName(), &v1.DeleteOptions{})
+			if err != nil {
+				errorMessage := fmt.Sprintf("Error deleting pod: %v\n", err)
+				http.Error(w, errorMessage, http.StatusInternalServerError)
+				helper.LogError.Printf(errorMessage)
+				return
+			}
+			helper.LogInfo.Printf("Deleted Pod: %v\n", value.GetName())
+		}
+	}
 
 	//Only set the replica count if the user passed the variable
 	if tempJSON.Replicas != nil {
@@ -504,7 +521,7 @@ func getDeploymentLogs(w http.ResponseWriter, r *http.Request) {
 	selector := dep.Spec.Selector
 	label := "component=" + selector.MatchLabels["component"]
 
-	podInterface := clientset.Core().Pods(pathVars["org"] + "-" + pathVars["env"])
+	podInterface := clientset.Pods(pathVars["org"] + "-" + pathVars["env"])
 
 	pods, err := podInterface.List(v1.ListOptions{
 		LabelSelector: label,
