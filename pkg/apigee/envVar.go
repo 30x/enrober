@@ -8,13 +8,13 @@ import (
 
 // EnvReftoEnv converts an ApigeeEnvVarSource to an ApigeeEnvVar
 func EnvReftoEnv(source *ApigeeEnvVarSource, client Client, org, env string) (ApigeeEnvVar, error) {
-	val, err := client.GetKVMValue(org, env, source.KVMRef.KvmName, source.KVMRef.Key)
+	val, err := client.GetKVMValue(org, env, source.EdgeConfigRef.Name, source.EdgeConfigRef.Key)
 	if err != nil {
 		return ApigeeEnvVar{}, err
 	}
 
 	return ApigeeEnvVar{
-		Name:  source.KVMRef.Key,
+		Name:  source.EdgeConfigRef.Key,
 		Value: val,
 	}, nil
 }
@@ -122,7 +122,7 @@ func CacheApigeeEnvVars(currentEnvVars, newEnvVars []ApigeeEnvVar) []ApigeeEnvVa
 func GetKVMVars(vars []ApigeeEnvVar, kvmEnabled bool, client Client, org, env string) ([]ApigeeEnvVar, error) {
 	for index, val := range vars {
 		if val.ValueFrom != nil {
-			if val.ValueFrom.KVMRef != (&ApigeeKVMSelector{}) {
+			if val.ValueFrom.EdgeConfigRef != (&ApigeeKVMSelector{}) {
 				if kvmEnabled {
 					// Gotta go retrieve the value from apigee KVM
 					// In the future we may support other ref types

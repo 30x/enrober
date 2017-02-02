@@ -18,7 +18,7 @@ type ApigeeEnvVar struct {
 }
 
 type ApigeeEnvVarSource struct {
-	KVMRef           *ApigeeKVMSelector `json:"kvmRef"`
+	EdgeConfigRef    *ApigeeKVMSelector `json:"edgeConfigRef"`
 	FieldRef         *v1.ObjectFieldSelector
 	ResourceFieldRef *v1.ResourceFieldSelector
 	ConfigMapKeyRef  *v1.ConfigMapKeySelector
@@ -26,8 +26,8 @@ type ApigeeEnvVarSource struct {
 }
 
 type ApigeeKVMSelector struct {
-	KvmName string `json:"kvmName"`
-	Key     string `json:"key"`
+	Name string `json:"name"`
+	Key  string `json:"key"`
 }
 
 type retryResponse struct {
