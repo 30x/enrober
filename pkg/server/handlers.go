@@ -292,7 +292,7 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 	helper.LogInfo.Printf("Got Deployment: %v\n", getDep.GetName())
 }
 
-//updateDeployment updates a deployment matching the given environmentGroupID, environmentName, and deploymentName
+//updateDeployment updates a deployment matching the given orgName, environmentName, and deploymentName
 func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
@@ -334,6 +334,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	if tempJSON.Replicas != nil {
 		getDep.Spec.Replicas = tempJSON.Replicas
 	}
+
 	//Only modify paths if user passed the variable
 	if tempJSON.Paths != nil {
 		intPort, err := strconv.Atoi(tempJSON.Paths[0].ContainerPort)
@@ -354,6 +355,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 		getDep.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = int32(intPort)
 	}
 
+	//Only modify the env vars if the user passed the variable
 	if tempJSON.EnvVars != nil {
 		apigeeClient := apigee.Client{Token: r.Header.Get("Authorization")}
 		tempJSON.EnvVars, err = apigee.GetKVMVars(tempJSON.EnvVars, apigeeKVM, apigeeClient, pathVars["org"], pathVars["env"])
@@ -375,17 +377,20 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 
 	//Revision was given
 	if tempJSON.Revision != nil {
+
+		oldStrRevision := getDep.Spec.Template.Labels["edge/app.rev"]
 		newStrRevision := strconv.Itoa(int(*tempJSON.Revision))
+
 		//It's a new revision
-		if newStrRevision != getDep.Spec.Template.Labels["edge/app.rev"] {
-			//Split old image URI into the main part and the revision
-			oldImageURISlice := strings.Split(getDep.Spec.Template.Spec.Containers[0].Image, ":")
+		if newStrRevision != oldStrRevision {
+			//Trim the old revision number off the image name
+			imageBase := strings.TrimSuffix(getDep.Spec.Template.Spec.Containers[0].Image, oldStrRevision)
 
 			//Update the deployment to have new revision label
 			getDep.Spec.Template.Labels["edge/app.rev"] = newStrRevision
 
 			//Update the deployment to have new image name
-			getDep.Spec.Template.Spec.Containers[0].Image = oldImageURISlice[0] + ":" + newStrRevision
+			getDep.Spec.Template.Spec.Containers[0].Image = imageBase + newStrRevision
 		}
 	}
 
@@ -409,7 +414,7 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	helper.LogInfo.Printf("Updated Deployment: %s\n", dep.GetName())
 }
 
-//deleteDeployment deletes a deployment matching the given environmentGroupID, environmentName, and deploymentName
+//deleteDeployment deletes a deployment matching the given orgName, environmentName, and deploymentName
 func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	pathVars := mux.Vars(r)
 
