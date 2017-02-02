@@ -132,9 +132,9 @@ func TestEnvReftoEnv(t *testing.T) {
 	defer ts.Close()
 
 	mockSource := &ApigeeEnvVarSource{
-		KVMRef: &ApigeeKVMSelector{
-			KvmName: "kvm",
-			Key:     "key1",
+		EdgeConfigRef: &ApigeeKVMSelector{
+			Name: "kvm",
+			Key:  "key1",
 		},
 	}
 	client := Client{Token: "<token>", ApigeeAPIHost: ts.URL + "/"}
