@@ -18,7 +18,7 @@ The server will be accesible at `localhost:9000/`
 A prebuilt docker image is available with:
  
 ```sh
-docker pull thirtyx/enrober:v0.5.0
+docker pull thirtyx/enrober:v0.8.0
 ```
 
 To deploy the server as a docker container on a kubernetes cluster you should use the provided `deploy.yaml` file. Running `kubectl create -f deploy-base.yaml` will pull the image from dockerhub and deploy it to the default namespace.
@@ -132,8 +132,8 @@ There is an added bit of `Apigee` specific syntax for environment variables.
 {
 	"name": "test2",
 	"valueFrom": {
-		"kvmRef": {
-			"kvmName": "GoTest1",
+		"edgeConfigRef": {
+			"name": "GoTest1",
 			"key": "key1"
 		}
 	}
