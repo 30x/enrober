@@ -274,7 +274,11 @@ func getDeployment(w http.ResponseWriter, r *http.Request) {
 	getDep, err := clientset.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error retrieving deployment: %s\n", err)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
+		if k8sErrors.IsNotFound(err) {
+			http.Error(w, errorMessage, http.StatusNotFound)
+		} else {
+			http.Error(w, errorMessage, http.StatusInternalServerError)
+		}
 		helper.LogError.Printf(errorMessage)
 		return
 	}
@@ -299,7 +303,11 @@ func updateDeployment(w http.ResponseWriter, r *http.Request) {
 	getDep, err := clientset.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error getting existing deployment: %s\n", err)
-		http.Error(w, errorMessage, http.StatusNotFound)
+		if k8sErrors.IsNotFound(err) {
+			http.Error(w, errorMessage, http.StatusNotFound)
+		} else {
+			http.Error(w, errorMessage, http.StatusInternalServerError)
+		}
 		helper.LogError.Printf(errorMessage)
 		return
 	}
@@ -400,7 +408,11 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	dep, err := clientset.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(pathVars["deployment"])
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error getting old deployment: %s\n", err)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
+		if k8sErrors.IsNotFound(err) {
+			http.Error(w, errorMessage, http.StatusNotFound)
+		} else {
+			http.Error(w, errorMessage, http.StatusInternalServerError)
+		}
 		helper.LogError.Printf(errorMessage)
 		return
 	}
