@@ -38,21 +38,40 @@ func TestParseHoststoMap(t *testing.T) {
 func TestComposePaths(t *testing.T) {
 	mockPathsObj := []EdgePath{
 		{
-			BasePath:      "base",
+			BasePath:      "/base",
 			ContainerPort: "9000",
-			TargetPath:    "target",
+			TargetPath:    "/target",
 		},
 	}
 	mockJSON :=
 		`[
   {
-    "basePath": "base",
+    "basePath": "/base",
     "containerPort": "9000",
-    "targetPath": "target"
+    "targetPath": "/target"
   }
 ]`
 	resultJSON, err := composePathsJSON(mockPathsObj)
 	if err != nil || resultJSON != mockJSON {
 		t.Fatalf("Expected\n%v\ngot\n%v", mockJSON, resultJSON)
 	}
+}
+
+func TestValidatePath(t *testing.T) {
+	testNoPrefix := "test"
+	testPathFail := "/test/%2a/%"
+	testPathPass := "/test/%2a/aa/a"
+
+	if validatePath(testNoPrefix) == true {
+		t.Fatalf("Expected false got true")
+	}
+
+	if validatePath(testPathFail) == true {
+		t.Fatalf("Expected false got true")
+	}
+
+	if validatePath(testPathPass) == false {
+		t.Fatalf("Expected true got false")
+	}
+
 }

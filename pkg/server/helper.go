@@ -11,8 +11,15 @@ import (
 	"github.com/30x/enrober/pkg/apigee"
 	"github.com/30x/enrober/pkg/helper"
 	"os"
+	"regexp"
 	"strconv"
 )
+
+var pathSegmentRegex *regexp.Regexp
+
+func init() {
+	pathSegmentRegex = regexp.MustCompile(`^([A-Za-z0-9\-._~!$&'()*+,;=:@]+|%[0-9A-Fa-f]{2})+$`)
+}
 
 func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, error) {
 
@@ -246,9 +253,34 @@ func composePathsJSON(paths []EdgePath) (string, error) {
 	if paths == nil {
 		return "", errors.New("No paths given")
 	}
+	//Validate that the paths are valid
+	for _, path := range paths {
+		if !validatePath(path.BasePath) {
+			return "", errors.New(fmt.Sprintf("Invalid Path: %v", path.BasePath))
+
+		} else if !validatePath(path.TargetPath) {
+			return "", errors.New(fmt.Sprintf("Invalid Path: %v", path.TargetPath))
+		}
+	}
+
 	b, err := json.MarshalIndent(paths, "", "  ")
 	if err != nil {
 		return "", err
 	}
 	return string(b), nil
+}
+
+func validatePath(path string) bool {
+	if !strings.HasPrefix(path, "/") {
+		return false
+	}
+	pathSegments := strings.Split(path, "/")
+	for i, pathSegment := range pathSegments {
+		if (i == 0 || i == len(pathSegments)-1) && pathSegment == "" {
+			continue
+		} else if !pathSegmentRegex.MatchString(pathSegment) {
+			return false
+		}
+	}
+	return true
 }
