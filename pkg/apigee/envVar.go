@@ -3,18 +3,19 @@ package apigee
 import (
 	"errors"
 	"fmt"
+
 	"k8s.io/client-go/pkg/api/v1"
 )
 
 // EnvReftoEnv converts an ApigeeEnvVarSource to an ApigeeEnvVar
-func EnvReftoEnv(source *ApigeeEnvVarSource, client Client, org, env string) (ApigeeEnvVar, error) {
+func EnvReftoEnv(keyName string, source *ApigeeEnvVarSource, client Client, org, env string) (ApigeeEnvVar, error) {
 	val, err := client.GetKVMValue(org, env, source.EdgeConfigRef.Name, source.EdgeConfigRef.Key)
 	if err != nil {
 		return ApigeeEnvVar{}, err
 	}
 
 	return ApigeeEnvVar{
-		Name:  source.EdgeConfigRef.Key,
+		Name:  keyName,
 		Value: val,
 	}, nil
 }
@@ -127,7 +128,7 @@ func GetKVMVars(vars []ApigeeEnvVar, kvmEnabled bool, client Client, org, env st
 					// Gotta go retrieve the value from apigee KVM
 					// In the future we may support other ref types
 					var err error // I don't know why this is needed
-					vars[index], err = EnvReftoEnv(val.ValueFrom, client, org, env)
+					vars[index], err = EnvReftoEnv(val.Name, val.ValueFrom, client, org, env)
 					if err != nil {
 						errorMessage := fmt.Sprintf("Failed at EnvReftoEnv: %v\n", err)
 						return nil, errors.New(errorMessage)

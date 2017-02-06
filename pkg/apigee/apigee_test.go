@@ -138,14 +138,16 @@ func TestEnvReftoEnv(t *testing.T) {
 		},
 	}
 	client := Client{Token: "<token>", ApigeeAPIHost: ts.URL + "/"}
-	env, err := EnvReftoEnv(mockSource, client, "org", "env")
+	env, err := EnvReftoEnv("testKey", mockSource, client, "org", "env")
 	if err != nil {
 		t.Fatalf("Error when calling EnvReftoEnv: %v.", err)
 	}
 	if env.Value != "value1" {
 		t.Fatalf("Expected %s, got %s", "value1", env.Value)
 	}
-
+	if env.Name != "testKey" {
+		t.Fatalf("Expected %s, got %s", "testKey", env.Name)
+	}
 }
 func TestClientCreateKVM(t *testing.T) {
 	ts := startMockServer()
