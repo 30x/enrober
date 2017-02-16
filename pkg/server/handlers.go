@@ -185,6 +185,8 @@ func createDeployment(w http.ResponseWriter, r *http.Request) {
 		helper.LogError.Printf(errorMessage)
 		return
 	}
+	//DEBUG
+	fmt.Printf("TempJSON: %v\n", tempJSON)
 
 	//Check if deployment with given name already exists
 	_, err = clientset.Deployments(pathVars["org"] + "-" + pathVars["env"]).Get(tempJSON.DeploymentName)

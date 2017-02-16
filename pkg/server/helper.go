@@ -306,21 +306,21 @@ func validatePath(path string) bool {
 	return true
 }
 
-//TODO: Unit test this
 func multipleEdgePorts(paths []EdgePath) bool {
 	if len(paths) <= 1 {
 		return false
 	}
 	m := map[string]bool{}
 	for i, val := range paths {
-		//Add the value to map
-		m[val.ContainerPort] = true
 		if i != 0 {
-			if _, seen := m[val.ContainerPort]; !seen {
+			_, seen := m[val.ContainerPort]
+			if !seen {
 				//Got a new port so return true
 				return true
 			}
 		}
+		//Add the value to map only after we've checked it doesn't have new port
+		m[val.ContainerPort] = true
 	}
 	return false
 }

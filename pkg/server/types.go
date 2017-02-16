@@ -51,7 +51,7 @@ type deploymentPost struct {
 type deploymentPatch struct {
 	Paths    []EdgePath            `json:"edgePaths,omitempty"`
 	Replicas *int32                `json:"replicas,omitempty"`
-	Revision *int32                `json:"revision,omitempty`
+	Revision *int32                `json:"revision,omitempty"`
 	EnvVars  []apigee.ApigeeEnvVar `json:"envVars,omitempty"`
 }
 
