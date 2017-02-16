@@ -81,7 +81,6 @@ func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, e
 	}
 	tempK8sEnv = append(tempK8sEnv, apiKeyEnv)
 
-	//TODO: Pass and Fail test case for this
 	//Default port env var
 	var portEnvVar v1.EnvVar
 
