@@ -52,6 +52,11 @@ func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, e
 		}
 	} else {
 		var err error
+		//Check to make sure we weren't given an array of edgePaths with multiple different ports
+		if multipleEdgePorts(depBody.Paths) {
+			err = errors.New("Multiple Ports given")
+			return v1.PodTemplateSpec{}, err
+		}
 		intPort, err = strconv.Atoi(depBody.Paths[0].ContainerPort)
 		tempPaths, err = composePathsJSON(depBody.Paths)
 		if err != nil {
@@ -76,6 +81,20 @@ func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, e
 	}
 	tempK8sEnv = append(tempK8sEnv, apiKeyEnv)
 
+	//Default port env var
+	var portEnvVar v1.EnvVar
+
+	//If no edgePaths are given set default to 9000
+	if depBody.Paths == nil {
+		portEnvVar.Name = "PORT"
+		portEnvVar.Value = "9000"
+	} else {
+		//Else set it to the given containerPort in edgePaths
+		portEnvVar.Name = "PORT"
+		portEnvVar.Value = depBody.Paths[0].ContainerPort
+	}
+	tempK8sEnv = append(tempK8sEnv, portEnvVar)
+
 	tempPTS := v1.PodTemplateSpec{
 		ObjectMeta: v1.ObjectMeta{
 			Annotations: map[string]string{
@@ -99,6 +118,7 @@ func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, e
 					Image:           tempURI + "/" + org + "/" + depBody.DeploymentName + ":" + strconv.Itoa(int(depBody.Revision)),
 					ImagePullPolicy: v1.PullAlways,
 					//Ensures that containers do not have privileged access
+					//The weird lambda thing just gives a pointer to a bool set to false (because proto)
 					SecurityContext: &v1.SecurityContext{
 						Privileged: func() *bool { b := false; return &b }(),
 					},
@@ -283,4 +303,23 @@ func validatePath(path string) bool {
 		}
 	}
 	return true
+}
+
+func multipleEdgePorts(paths []EdgePath) bool {
+	if len(paths) <= 1 {
+		return false
+	}
+	m := map[string]bool{}
+	for i, val := range paths {
+		if i != 0 {
+			_, seen := m[val.ContainerPort]
+			if !seen {
+				//Got a new port so return true
+				return true
+			}
+		}
+		//Add the value to map only after we've checked it doesn't have new port
+		m[val.ContainerPort] = true
+	}
+	return false
 }
