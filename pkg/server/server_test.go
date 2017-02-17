@@ -28,36 +28,6 @@ var _ = Describe("Server Test", func() {
 			Expect(resp.StatusCode).Should(Equal(200), "Response should be 200")
 		})
 
-		It("Create Deployment with Multiple Ports", func() {
-			url := fmt.Sprintf("%s/environments/thirtyx:test/deployments", hostBase)
-
-			jsonStr := []byte(`{
-				"deploymentName": "nodejs-k8s-env",
-    			"replicas": 1,
-    			"edgePaths": [{
-	    			"basePath": "/base",
-    				"containerPort": "3000",
-    				"targetPath": "/target"
-   				},
-    			{
-	    			"basePath": "/base",
-    				"containerPort": "9000",
-    				"targetPath": "/target"
-    			}],
-				"revision": 1,
-				"envVars": [{
-					"name": "test1",
-					"value": "value1"
-				}]
-			}`)
-
-			req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-
-			resp, _ := client.Do(req)
-
-			Expect(resp.StatusCode).Should(Equal(500), "Should get an error POST")
-		})
-
 		It("Create Deployment", func() {
 			url := fmt.Sprintf("%s/environments/thirtyx:test/deployments", hostBase)
 
