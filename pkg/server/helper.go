@@ -57,29 +57,13 @@ func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, e
 	} else {
 		//We were given Paths
 		var err error
-		//Check to see if we were given multiple ports
-		if multipleEdgePorts(depBody.Paths) {
-			//Multiple Ports
-			for i, val := range depBody.Paths {
-				intPort, err := strconv.Atoi(val.ContainerPort)
-				if err != nil {
-					return v1.PodTemplateSpec{}, err
-				}
-				containerPorts[i] = v1.ContainerPort{
-					ContainerPort: int32(intPort),
-				}
-			}
-
-		} else {
-			//Just the one port
-			intPort, err := strconv.Atoi(depBody.Paths[0].ContainerPort)
+		for i, val := range depBody.Paths {
+			intPort, err := strconv.Atoi(val.ContainerPort)
 			if err != nil {
 				return v1.PodTemplateSpec{}, err
 			}
-			containerPorts = []v1.ContainerPort{
-				{
-					ContainerPort: int32(intPort),
-				},
+			containerPorts[i] = v1.ContainerPort{
+				ContainerPort: int32(intPort),
 			}
 		}
 		tempPaths, err = composePathsJSON(depBody.Paths)
@@ -106,7 +90,12 @@ func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, e
 	tempK8sEnv = append(tempK8sEnv, apiKeyEnv)
 
 	//Default port env var
-	portEnvVarSlice := make([]v1.EnvVar, len(depBody.Paths))
+	var portEnvVarSlice []v1.EnvVar
+	if len(depBody.Paths) >= 1 {
+		portEnvVarSlice = make([]v1.EnvVar, len(depBody.Paths))
+	} else {
+		portEnvVarSlice = make([]v1.EnvVar, 1)
+	}
 
 	//If no edgePaths are given set PORT to 9000
 	if depBody.Paths == nil {
