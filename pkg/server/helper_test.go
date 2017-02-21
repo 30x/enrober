@@ -63,15 +63,107 @@ func TestValidatePath(t *testing.T) {
 	testPathPass := "/test/%2a/aa/a"
 
 	if validatePath(testNoPrefix) == true {
-		t.Fatalf("Expected false got true")
+		t.Fatal("Expected false got true")
 	}
 
 	if validatePath(testPathFail) == true {
-		t.Fatalf("Expected false got true")
+		t.Fatal("Expected false got true")
 	}
 
 	if validatePath(testPathPass) == false {
-		t.Fatalf("Expected true got false")
+		t.Fatal("Expected true got false")
 	}
 
+}
+
+func TestMultipleEdgePorts(t *testing.T) {
+	singularPortPaths := []EdgePath{
+		{
+			BasePath:      "/test1",
+			ContainerPort: "9000",
+			TargetPath:    "/",
+		},
+		{
+			BasePath:      "/test2",
+			ContainerPort: "9000",
+			TargetPath:    "/2",
+		},
+		{
+			BasePath:      "/test3",
+			ContainerPort: "9000",
+			TargetPath:    "/3",
+		},
+	}
+	if multipleEdgePorts(singularPortPaths) {
+		t.Fatal("Expected false got true")
+	}
+
+	multiplePortPaths := []EdgePath{
+		{
+			BasePath:      "/test1",
+			ContainerPort: "9000",
+			TargetPath:    "/",
+		},
+		{
+			BasePath:      "/test2",
+			ContainerPort: "3000",
+			TargetPath:    "/2",
+		},
+		{
+			BasePath:      "/test3",
+			ContainerPort: "9000",
+			TargetPath:    "/3",
+		},
+	}
+	if !multipleEdgePorts(multiplePortPaths) {
+		t.Fatal("Expected true got false")
+	}
+}
+
+func TestUniqueEdgePorts(t *testing.T) {
+	singularPortPaths := []EdgePath{
+		{
+			BasePath:      "/test1",
+			ContainerPort: "9000",
+			TargetPath:    "/",
+		},
+		{
+			BasePath:      "/test2",
+			ContainerPort: "9000",
+			TargetPath:    "/2",
+		},
+		{
+			BasePath:      "/test3",
+			ContainerPort: "9000",
+			TargetPath:    "/3",
+		},
+	}
+	expctedSingularResult := []string{"9000"}
+	singularResult := uniqueEdgePorts(singularPortPaths)
+	if !reflect.DeepEqual(singularResult, expctedSingularResult) {
+		t.Fatalf("Expected %v got %v", expctedSingularResult, singularResult)
+	}
+
+	multiplePortPaths := []EdgePath{
+		{
+			BasePath:      "/test1",
+			ContainerPort: "9000",
+			TargetPath:    "/",
+		},
+		{
+			BasePath:      "/test2",
+			ContainerPort: "3000",
+			TargetPath:    "/2",
+		},
+		{
+			BasePath:      "/test3",
+			ContainerPort: "9000",
+			TargetPath:    "/3",
+		},
+	}
+	expctedMultipleResult := []string{"9000", "3000"}
+	multipleResult := uniqueEdgePorts(multiplePortPaths)
+	if !reflect.DeepEqual(multipleResult, expctedMultipleResult) {
+		t.Fatalf("Expected %v got %v", expctedMultipleResult, multipleResult)
+	}
 }

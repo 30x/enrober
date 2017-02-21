@@ -28,13 +28,13 @@ func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, e
 		return v1.PodTemplateSpec{}, errors.New("No URI set")
 	}
 
-	cdir := os.Getenv("POD_CDIR")
-	if cdir == "" {
-		cdir = "10.1.0.0/16"
+	cidr := os.Getenv("POD_CIDR")
+	if cidr == "" {
+		cidr = "10.1.0.0/16"
 	}
 
 	var tempPaths string
-	var intPort int
+	containerPorts := make([]v1.ContainerPort, len(depBody.Paths))
 	if depBody.Paths == nil {
 		//Make default paths
 		defaultPath := []EdgePath{
@@ -44,15 +44,28 @@ func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, e
 				TargetPath:    "/",
 			},
 		}
-		intPort = 9000
+		containerPorts = []v1.ContainerPort{
+			{
+				ContainerPort: int32(9000),
+			},
+		}
 		var err error
 		tempPaths, err = composePathsJSON(defaultPath)
 		if err != nil {
 			return v1.PodTemplateSpec{}, err
 		}
 	} else {
+		//We were given Paths
 		var err error
-		intPort, err = strconv.Atoi(depBody.Paths[0].ContainerPort)
+		for i, val := range depBody.Paths {
+			intPort, err := strconv.Atoi(val.ContainerPort)
+			if err != nil {
+				return v1.PodTemplateSpec{}, err
+			}
+			containerPorts[i] = v1.ContainerPort{
+				ContainerPort: int32(intPort),
+			}
+		}
 		tempPaths, err = composePathsJSON(depBody.Paths)
 		if err != nil {
 			return v1.PodTemplateSpec{}, err
@@ -76,11 +89,40 @@ func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, e
 	}
 	tempK8sEnv = append(tempK8sEnv, apiKeyEnv)
 
+	//Default port env var
+	var portEnvVarSlice []v1.EnvVar
+	if len(depBody.Paths) >= 1 {
+		portEnvVarSlice = make([]v1.EnvVar, len(depBody.Paths))
+	} else {
+		portEnvVarSlice = make([]v1.EnvVar, 1)
+	}
+
+	//If no edgePaths are given set PORT to 9000
+	if depBody.Paths == nil {
+		portEnvVarSlice[0].Name = "PORT"
+		portEnvVarSlice[0].Value = "9000"
+	} else {
+		//If we are given multiple ports we will number then in order in the form PORT{N} starting at 0
+		if multipleEdgePorts(depBody.Paths) {
+			uniquePorts := uniqueEdgePorts(depBody.Paths)
+			for i, val := range uniquePorts {
+				portEnvVarSlice[i].Name = fmt.Sprintf("PORT%d", i)
+				portEnvVarSlice[i].Value = val
+			}
+		} else {
+			//Else set PORT to the given containerPort in the only edgePath
+			portEnvVarSlice[0].Name = "PORT"
+			portEnvVarSlice[0].Value = depBody.Paths[0].ContainerPort
+		}
+
+	}
+	tempK8sEnv = append(tempK8sEnv, portEnvVarSlice...)
+
 	tempPTS := v1.PodTemplateSpec{
 		ObjectMeta: v1.ObjectMeta{
 			Annotations: map[string]string{
 				"edge/paths":               tempPaths,
-				"projectcalico.org/policy": fmt.Sprintf("allow tcp from cidr 192.168.0.0/16; allow tcp from cidr %s", cdir),
+				"projectcalico.org/policy": fmt.Sprintf("allow tcp from cidr 192.168.0.0/16; allow tcp from cidr %s", cidr),
 			},
 			Labels: map[string]string{
 				"component":     depBody.DeploymentName,
@@ -99,15 +141,12 @@ func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, e
 					Image:           tempURI + "/" + org + "/" + depBody.DeploymentName + ":" + strconv.Itoa(int(depBody.Revision)),
 					ImagePullPolicy: v1.PullAlways,
 					//Ensures that containers do not have privileged access
+					//The weird lambda thing just gives a pointer to a bool set to false (because proto)
 					SecurityContext: &v1.SecurityContext{
 						Privileged: func() *bool { b := false; return &b }(),
 					},
-					Env: tempK8sEnv,
-					Ports: []v1.ContainerPort{
-						{
-							ContainerPort: int32(intPort),
-						},
-					},
+					Env:   tempK8sEnv,
+					Ports: containerPorts,
 				},
 			},
 		},
@@ -283,4 +322,40 @@ func validatePath(path string) bool {
 		}
 	}
 	return true
+}
+
+func multipleEdgePorts(paths []EdgePath) bool {
+	if len(paths) <= 1 {
+		return false
+	}
+	m := map[string]bool{}
+	for i, val := range paths {
+		if i != 0 {
+			_, seen := m[val.ContainerPort]
+			if !seen {
+				//Got a new port so return true
+				return true
+			}
+		}
+		//Add the value to map only after we've checked it doesn't have new port
+		m[val.ContainerPort] = true
+	}
+	return false
+}
+
+//TODO: Unit test this
+func uniqueEdgePorts(paths []EdgePath) []string {
+	// Use map to record duplicates as we find them.
+	encountered := map[string]bool{}
+	result := []string{}
+
+	for _, v := range paths {
+		_, seen := encountered[v.ContainerPort]
+		if !seen {
+			encountered[v.ContainerPort] = true
+			result = append(result, v.ContainerPort)
+		}
+	}
+	// Return the new slice.
+	return result
 }

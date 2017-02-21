@@ -92,21 +92,22 @@ func init() {
 		}
 		clientset = *tempClientset
 
-		//Local Config
 	} else {
+		//Local Config
+
 		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 		configOverrides := &clientcmd.ConfigOverrides{}
 		config := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
 		tmpConfig, err := config.ClientConfig()
 		if err != nil {
-			fmt.Printf("Error on init: %v\n", err)
-			return
+			fmt.Printf("Error on init, creating Client Config: %v\n", err)
+			panic(err)
 		}
 		//Create the clientset
 		tempClientset, err := kubernetes.NewForConfig(tmpConfig)
 		if err != nil {
-			fmt.Printf("Error on init: %v\n", err)
-			return
+			fmt.Printf("Error on init, creating Clientset: %v\n", err)
+			panic(err)
 		}
 		clientset = *tempClientset
 
