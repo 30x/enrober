@@ -25,7 +25,7 @@ func GeneratePTS(depBody deploymentPost, org, env string) (v1.PodTemplateSpec, e
 
 	tempURI := os.Getenv("DOCKER_REGISTRY_URL")
 	if tempURI == "" {
-		return v1.PodTemplateSpec{}, errors.New("No URI set")
+		return v1.PodTemplateSpec{}, errors.New("DOCKER_REGISTRY_URL not set")
 	}
 
 	cidr := os.Getenv("POD_CIDR")
