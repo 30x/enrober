@@ -11,20 +11,14 @@ go build
 
 The server will be accesible at `localhost:9000/`
 
-For the server to be able to communicate with your kubernetes cluster you must run:
-
-```
-kubectl proxy --port=8080 &
-```
-
-Please note that this allows for insecure communication with your kubernetes cluster and should only be used for testing.
+> In a local configuration the server will use information in your `.kube/config` file to communicate with your current cluster. 
 
 ###Kubernetes Deployment
 
 A prebuilt docker image is available with:
  
 ```sh
-docker pull thirtyx/enrober:v0.5.0
+docker pull thirtyx/enrober:v0.8.0
 ```
 
 To deploy the server as a docker container on a kubernetes cluster you should use the provided `deploy.yaml` file. Running `kubectl create -f deploy-base.yaml` will pull the image from dockerhub and deploy it to the default namespace.
@@ -55,28 +49,28 @@ When created deployments can accept a `publicHosts` value, a `privateHosts` valu
 
 ####Pod Template Specs
 
-Enrober only accepts Pod Template Specs(PTS) through a URL. For testing it is easiest to host your PTS as JSON objects on a site like [myjson.com](myjson.com).
+Enrober only accepts Pod Template Specs(PTS) through a URL. For testing it is easiest to host your PTS as a JSON object on a site like [myjson.com](myjson.com).
 
-Additionally Enrober only supports single container pods at this time!
+Please note that Enrober only supports single container pods at this time!
 
 An example Pod Template Spec might look like:
 
 ```json
 {
   "metadata": {
-    "name": "django",
+    "name": "nginx",
     "labels": {
-      "component": "webapp"
+      "component": "nginx"
     }
   },
   "spec": {
     "containers": [
       {
-        "name": "frontend",
-        "image": "django",
+        "name": "nginx",
+        "image": "nginx",
         "ports": [
           {
-            "containerPort": 8000
+            "containerPort": 80
           }
         ]
       }
@@ -89,53 +83,63 @@ An example Pod Template Spec might look like:
 
 ##Usage
 
-> This assumes you are running the server locally, it is accessible at localhost:9000, and your kubernetes cluster is exposed with `kubectl proxy --port=8080`
+> This assumes you are running the `Enrober` server locally so that it is accessible at `localhost:9000`
 
-**Note:** When running in production mode all API calls require a valid Apigee SSO JWT to be passed into an authorization header. 
-
-####Create a new environment:
-
-```sh
-curl -X POST -d '{
-	"environmentName": "org1:env1",
-	"hostNames": ["host1"]
-	}' \
-"localhost:9000/environments"
-```
+**Note:** When running in production mode all API calls require a valid Apigee JWT to be passed into an authorization header. 
 
 This will create a `org1-env1` namespace and a secret named `routing` with two key-value pairs:
 
 - public-api-key
 - private-api-key
 
-The value of each of these keys-value pairs will a 256-bit base64 encoded randomized string. These secrets are for use with [30x/k8s-pods-ingress](https://github.com/30x/k8s-router)
-
+The value of each of these keys-value pairs will a 256-bit base64 encoded randomized string. 
 
 ###Update the environment
 
 ```sh
-curl -X PATCH -d '{
-	"hostNames": ["host1", "host2"]
-	}' \
+curl -X PATCH -d '{}' \
 "localhost:9000/environments/org1:env1"
 ```
 
 This will modify the previously created environment's hostNames array to equal:
-
-`["host1", "host2"]`
 
 ###Create deployment
 
 ```sh
 curl -X POST -d '{
 	"deploymentName": "dep1",
-	"publicHosts": "",
-	"privateHosts": "",
+    "edgePaths": [{
+	    "basePath": "base",
+    	"containerPort": 9000,
+    	"targetPath": "target"
+    },
 	"replicas": 1,
-	"ptsURL": "https://api.myjson.com/bins/3f781"
+	"ptsURL": "http://myjson.com/a41kb",
+	"envVars": [
+	{
+		"name": "test1",
+		"value": "value1",
+	}]
 }' \
 "localhost:9000/environments/org1:env1/deployments"
 ```
+
+If you do not already have an `Environment` created this call with create the underlying `Environment` object to place the `Deployment` into as well. 
+
+There is an added bit of `Apigee` specific syntax for environment variables.
+
+```json
+{
+	"name": "test2",
+	"valueFrom": {
+		"edgeConfigRef": {
+			"name": "GoTest1",
+			"key": "key1"
+		}
+	}
+}
+```
+This will attempt to retrieve the value stored in the named KVM under the given key. The KVM must be under the organization and environment that your deployment is under. This call is only supported by setting the `"APIGEE_KVM"` environment variable to `"true"`. 
 
 ### Update deployment
 	
@@ -146,7 +150,7 @@ curl -X PATCH  -d '{
 "localhost:9000/environments/org1:env1/deployments/dep1"
 ```
 
-This will modify the previous deployment to now guarantee 3 replicas of the pod.
+This will modify the previous deployment to now maintain 3 replicas of the pod.
 
 ###Delete deployment
 
@@ -156,12 +160,3 @@ curl -X DELETE  \
 ```
 
 This will delete the previously created deployment and all related resources such as replica sets and pods. 
-
-###Delete environment
-
-```sh
-curl -X DELETE \
-"localhost:9000/environments/org1:env1"
-```
-
-This will delete the previously created environment. 
