@@ -297,7 +297,7 @@ func composePathsJSON(paths []EdgePath) (string, error) {
 		if !validatePath(path.BasePath) {
 			return "", errors.New(fmt.Sprintf("Invalid Path: %v", path.BasePath))
 
-		} else if !validatePath(path.TargetPath) {
+		} else if path.TargetPath != "" && !validatePath(path.TargetPath) {
 			return "", errors.New(fmt.Sprintf("Invalid Path: %v", path.TargetPath))
 		}
 	}

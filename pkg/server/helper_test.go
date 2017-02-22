@@ -57,6 +57,30 @@ func TestComposePaths(t *testing.T) {
 	}
 }
 
+func TestComposePathsNoTargetPath(t *testing.T) {
+	mockPathsObj := []EdgePath{
+		{
+			BasePath:      "/base",
+			ContainerPort: "9000",
+			TargetPath:    "",
+		},
+	}
+	mockJSON :=
+		`[
+  {
+    "basePath": "/base",
+    "containerPort": "9000"
+  }
+]`
+	resultJSON, err := composePathsJSON(mockPathsObj)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if resultJSON != mockJSON {
+		t.Fatalf("Expected\n%v\ngot\n%v", mockJSON, resultJSON)
+	}
+}
+
 func TestValidatePath(t *testing.T) {
 	testNoPrefix := "test"
 	testPathFail := "/test/%2a/%"
